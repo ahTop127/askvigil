@@ -27,7 +27,7 @@ services:
     volumes:
       - ./ai_models:/app/models # The model lives here on the server
       - .:/app
-      - backend_packages:/usr/local/lib/python3.10/site-packages # Persists Python libs
+      - backend_packages:/usr/local/lib/python3.12/site-packages # Persists Python libs
     environment:
       # We use the 'db' service name as the hostname
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
