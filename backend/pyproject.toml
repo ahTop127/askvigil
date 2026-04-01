@@ -1,0 +1,20 @@
+[project]
+name = "askvigil-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aerich>=0.9.2",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.135.2",
+    "pydantic-settings>=2.13.1",
+    "python-multipart>=0.0.22",
+    "tortoise-orm>=0.25.4",
+    "uvicorn>=0.42.0",
+]
+
+[tool.aerich]
+tortoise_orm = "app.core.database.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."

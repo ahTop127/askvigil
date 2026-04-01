@@ -42,3 +42,7 @@ npm_data/
 npm_letsencrypt/
 ai_models/
 *.log
+# Backend Environment variables
+.env*
+.venv/
+__pycache__/
