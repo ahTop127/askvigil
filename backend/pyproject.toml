@@ -18,3 +18,34 @@ dependencies = [
 tortoise_orm = "app.core.database.TORTOISE_ORM"
 location = "./migrations"
 src_folder = "./."
+
+# 1. Define the 'cpu' and 'gpu' extras
+[project.optional-dependencies]
+cpu = ["torch", "torchvision", "torchaudio"]
+gpu = ["torch", "torchvision", "torchaudio"]
+
+# 2. Tell uv WHERE to get them based on the extra you choose
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", marker = "extra == 'cpu' and extra != 'gpu'" },
+  { index = "pytorch-cu121", marker = "extra == 'gpu'" },
+]
+torchvision = [
+  { index = "pytorch-cpu", marker = "extra == 'cpu' and extra != 'gpu'" },
+  { index = "pytorch-cu121", marker = "extra == 'gpu'" },
+]
+torchaudio = [
+  { index = "pytorch-cpu", marker = "extra == 'cpu' and extra != 'gpu'" },
+  { index = "pytorch-cu121", marker = "extra == 'gpu'" },
+]
+
+# 3. Define the custom PyTorch registries
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
