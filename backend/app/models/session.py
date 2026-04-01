@@ -2,6 +2,7 @@ import uuid
 from tortoise import fields
 from tortoise.models import Model
 
+
 class UserSession(Model):
     # Use UUID as the primary key and set the default value to automatically generate uuid4
     session_id = fields.UUIDField(pk=True, default=uuid.uuid4)

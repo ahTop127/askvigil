@@ -12,13 +12,13 @@ app.include_router(api_router, prefix="/api/v1")
 register_tortoise(
     app,
     config=TORTOISE_ORM,
-
     # Set it to False because we are going to use Aerich to manage table structure changes
     generate_schemas=False,
     # Whether SQL statements are printed in the console when an exception occurs for convenient debugging
     # Do not turn on the production environment
     add_exception_handlers=True,
 )
+
 
 @app.get("/")
 async def health_check():
