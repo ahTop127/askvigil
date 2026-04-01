@@ -7,7 +7,59 @@ on:
       - ".gitignore"
       - "README.md"
       - "docs/**"
+
+permissions:
+  contents: write # Required to push auto-fixes back to the branch
 jobs:
+  # Job 1: Lint, block security problems and fix
+  lint-and-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }} # Checkout the actual branch for auto-commits
+
+      # --- PYTHON: RUFF & BANDIT ---
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Python Tools
+        run: pip install ruff bandit
+
+      - name: Security Check (Bandit)
+        # Blocks build ONLY on High Severity/High Confidence issues
+        run: bandit -r backend -lll -iii
+
+      - name: Auto-Fix & Format (Ruff)
+        # Fixes imports/style, ignores errors to allow the next step
+        run: |
+          ruff check --fix backend || true
+          ruff format backend
+
+      # --- REACT: PRETTIER ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22" # Matches frontend/Dockerfile
+
+      - name: Install Prettier
+        run: npm install -g prettier
+
+      - name: Format Frontend (Prettier)
+        run: npx prettier --write "frontend/**/*.{js,jsx,ts,tsx,css,json,md}"
+
+      # --- AUTO-COMMIT CHANGES ---
+      - name: Commit & Push Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-fix formatting & linting [skip ci]"
+          commit_user_name: "GitHub Actions Bot"
+          commit_user_email: "actions@github.com"
+
+  # Job 2: Auto Deploy
   deploy:
     needs: lint-and-fix
     runs-on: ubuntu-latest
