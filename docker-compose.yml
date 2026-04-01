@@ -17,20 +17,24 @@ services:
 
   # 2. The FastAPI Backend
   backend:
-    build: ./backend
+    build:
+      context: ./backend # Tells Docker the 'root' for this build is the backend folder
+      dockerfile: Dockerfile
     restart: always
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./ai_models:/app/models # The model lives here on the server
+      - .:/app
+      - backend_packages:/usr/local/lib/python3.10/site-packages # Persists Python libs
     environment:
       # We use the 'db' service name as the hostname
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       MODEL_PATH: /app/models/distilbert
     # Uncomment only to test without Nginx
-    ports:
-      - "8000:8000"
+    # ports:
+    #   - "8000:8000"
 
   # 3. The React Frontend
   frontend:
@@ -41,6 +45,9 @@ services:
       - "3000:80" # Maps React (Nginx port 80) to server port 3000
     depends_on:
       - backend
+    volumes:
+      - .:/app
+      - /app/node_modules # "Anonymous volume" - hides host node_modules and uses container's
     mem_limit: 2048m
 
   # 4. Nginx Proxy Manager (Your SSL/DuckDNS "Manager")
@@ -57,3 +64,4 @@ services:
 
 volumes:
   postgres_data:
+  backend_packages: # Defines the persistent "storage bin"

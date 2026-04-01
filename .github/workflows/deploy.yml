@@ -9,6 +9,7 @@ on:
       - "docs/**"
 jobs:
   deploy:
+    needs: lint-and-fix
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
@@ -18,15 +19,21 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd ~/AskVigil
-            # If it's the very first time, the robot might need to clone
-            if [ ! -d ".git" ]; then
-              git init
-              git remote add origin https://github.com/${{ github.repository }}.git
-              git fetch
-              git checkout -f main
-            else
-              git pull origin main
+            # 1. The SSH URL for the repo
+            REPO_URL="git@github.com:${{ github.repository }}.git"
+            TARGET_DIR="~/AskVigil"
+
+            # 2. First-time setup: If the folder doesn't exist, clone it
+            if [ ! -d "$TARGET_DIR/.git" ]; then
+              echo "🚀 Initializing private repository..."
+              git clone $REPO_URL $TARGET_DIR
             fi
-            # Force Docker to ONLY use the base file, ignoring the local GPU override
+
+            cd $TARGET_DIR
+
+            # 3. Clean Slate: Fetch latest ver and auto-lint fixes to force the server to match GitHub exactly.
+            git fetch origin main
+            git reset --hard origin/main
+
+            # 4. Deploy
             docker compose -f docker-compose.yml up -d --build

@@ -11,9 +11,6 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Copy only requirements first
-COPY requirements.txt .
-
 # Conditional installation logic
 RUN if [ "$INSTALL_MODE" = "gpu" ]; then \
         pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121; \
@@ -21,6 +18,9 @@ RUN if [ "$INSTALL_MODE" = "gpu" ]; then \
         pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu; \
     fi
 
+# 2. Copy only requirements first
+COPY requirements.txt .
+    
 # 3. Install heavy AI/Data libraries (This layer is cached)
 RUN pip install --no-cache-dir -r requirements.txt
 

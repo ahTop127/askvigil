@@ -1,9 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
-from sqlalchemy import create_url, create_engine, text
+from sqlalchemy import create_engine, text
 from scipy.spatial.distance import cosine
-import numpy as np
 import os
 from dotenv import load_dotenv
 
