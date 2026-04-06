@@ -6,7 +6,9 @@ router = APIRouter()
 
 
 @router.get("/init")
-async def init_or_update_session(response: Response, session_id: str | None = Cookie(default=None)):
+async def init_or_update_session(
+    response: Response, session_id: str | None = Cookie(default=None)
+):
     """
     Initialize or update the user session.
     If the user does not have a cookie with session_id, create a new one stored in the database and return the cookie.
@@ -19,7 +21,11 @@ async def init_or_update_session(response: Response, session_id: str | None = Co
             if session:
                 # If it exists, Tortoise will automatically update last_active_at because auto_now=True
                 await session.save()
-                return {"status": "success", "message": "The session has been updated.", "session_id": session_id}
+                return {
+                    "status": "success",
+                    "message": "The session has been updated.",
+                    "session_id": session_id,
+                }
         except ValueError:
             # Prevent false UUids with incorrect formats from being sent from the front end
             pass
@@ -34,8 +40,12 @@ async def init_or_update_session(response: Response, session_id: str | None = Co
         key="session_id",
         value=str(new_uuid),
         httponly=True,  # Prevent front-end JS from reading and enhance security
-        max_age=60 * 60, # 1 hour
-        samesite="lax"
+        max_age=60 * 60,  # 1 hour
+        samesite="lax",
     )
 
-    return {"status": "success", "message": "A new session has been created", "session_id": str(new_uuid)}
+    return {
+        "status": "success",
+        "message": "A new session has been created",
+        "session_id": str(new_uuid),
+    }

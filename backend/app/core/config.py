@@ -8,6 +8,7 @@ env_state = os.getenv("ENVIRONMENT", "dev")
 # 2. Concatenate the file name to be read, such as ".env.dev" or ".env.prod"
 env_file_name = f".env.{env_state}"
 
+
 class Settings(BaseSettings):
     # The variable names here must be exactly the same as those in.env
     DATABASE_URL: str
@@ -19,4 +20,6 @@ class Settings(BaseSettings):
 # Instantiate the configuration object for import and use by other modules
 settings = Settings()
 
-print(f"Current operating environment: {env_state.upper()}, Loaded configuration: {env_file_name}")
+print(
+    f"Current operating environment: {env_state.upper()}, Loaded configuration: {env_file_name}"
+)

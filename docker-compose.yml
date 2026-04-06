@@ -26,12 +26,12 @@ services:
         condition: service_healthy
     volumes:
       - ./ai_models:/app/models # The model lives here on the server
-      - .:/app
-      - backend_packages:/usr/local/lib/python3.10/site-packages # Persists Python libs
+      - ./backend:/app # Mount the actual backend folder
+      - /app/.venv # PROTECT: Use the container's internal Linux venv
     environment:
       # We use the 'db' service name as the hostname
-      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
-      MODEL_PATH: /app/models/distilbert
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql
+      MODEL_PATH: /app/models/huggingface
     # Uncomment only to test without Nginx
     # ports:
     #   - "8000:8000"
@@ -50,7 +50,7 @@ services:
       - /app/node_modules # "Anonymous volume" - hides host node_modules and uses container's
     mem_limit: 2048m
 
-  # 4. Nginx Proxy Manager (Your SSL/DuckDNS "Manager")
+  # 4. Nginx Proxy Manager (SSL/DuckDNS "Manager")
   nginx-proxy:
     image: "jc21/nginx-proxy-manager:latest"
     restart: always
