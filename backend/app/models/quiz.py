@@ -12,6 +12,8 @@ class QuizQuestion(models.Model):
     scenario_text = fields.TextField()
     explanation = fields.TextField(null=True)
 
+    options: fields.ReverseRelation["QuizOption"]
+
     class Meta:
         table = "quiz_questions"
 

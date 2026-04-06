@@ -10,6 +10,7 @@ TORTOISE_ORM = {
                 "app.models.session",
                 "app.models.scam",
                 "app.models.quiz",
+                "app.models.open_data",
                 "aerich.models",
             ],
             "default_connection": "default",

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import detection, session_api
+from app.api.endpoints import detection, learning, session_api
 
 api_router = APIRouter()
 
@@ -8,3 +8,4 @@ api_router.include_router(detection.router, prefix="/detection", tags=["Detectio
 api_router.include_router(
     session_api.router, prefix="/session", tags=["Session Tracking"]
 )
+api_router.include_router(learning.router, prefix="/learning", tags=["Learning & Quiz"])
