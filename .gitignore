@@ -46,3 +46,4 @@ ai_models/
 .env*
 .venv/
 __pycache__/
+/backend/resources/ready_for_db.csv

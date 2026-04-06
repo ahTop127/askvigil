@@ -78,11 +78,17 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-multipart" },
     { name = "sentence-transformers" },
-    { name = "torch" },
     { name = "tortoise-orm" },
     { name = "tortoise-vector" },
     { name = "transformers" },
     { name = "uvicorn" },
+]
+
+[package.optional-dependencies]
+gpu = [
+    { name = "torch" },
+    { name = "torchaudio" },
+    { name = "torchvision" },
 ]
 
 [package.metadata]
@@ -95,12 +101,24 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "sentence-transformers", specifier = "<2.8.0" },
-    { name = "torch", specifier = "<2.3" },
+    { name = "torch", marker = "extra != 'cpu' and extra != 'gpu'", specifier = "<2.3" },
+    { name = "torch", marker = "extra == 'cpu' and extra == 'gpu'", index = "https://download.pytorch.org/whl/cu121" },
+    { name = "torch", marker = "extra == 'cpu' and extra != 'gpu'", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "extra == 'cpu' and extra != 'gpu'", specifier = "<2.3", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "extra == 'gpu'", index = "https://download.pytorch.org/whl/cu121" },
+    { name = "torch", marker = "extra == 'gpu'", specifier = "<2.3", index = "https://download.pytorch.org/whl/cu121" },
+    { name = "torchaudio", marker = "extra == 'cpu' and extra == 'gpu'", index = "https://download.pytorch.org/whl/cu121" },
+    { name = "torchaudio", marker = "extra == 'cpu' and extra != 'gpu'", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torchaudio", marker = "extra == 'gpu'", index = "https://download.pytorch.org/whl/cu121" },
+    { name = "torchvision", marker = "extra == 'cpu' and extra == 'gpu'", index = "https://download.pytorch.org/whl/cu121" },
+    { name = "torchvision", marker = "extra == 'cpu' and extra != 'gpu'", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torchvision", marker = "extra == 'gpu'", index = "https://download.pytorch.org/whl/cu121" },
     { name = "tortoise-orm", specifier = ">=0.25.4" },
     { name = "tortoise-vector", specifier = ">=0.2.0" },
     { name = "transformers", specifier = "<4.40.0" },
     { name = "uvicorn", specifier = ">=0.42.0" },
 ]
+provides-extras = ["cpu", "gpu"]
 
 [[package]]
 name = "asyncclick"
@@ -1222,8 +1240,8 @@ wheels = [
 
 [[package]]
 name = "torch"
-version = "2.2.2"
-source = { registry = "https://pypi.org/simple" }
+version = "2.2.2+cu121"
+source = { registry = "https://download.pytorch.org/whl/cu121" }
 dependencies = [
     { name = "filelock" },
     { name = "fsspec" },
@@ -1244,11 +1262,34 @@ dependencies = [
     { name = "typing-extensions" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4c/0c/d8f77363a7a3350c96e6c9db4ffb101d1c0487cc0b8cdaae1e4bfb2800ad/torch-2.2.2-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:cf12cdb66c9c940227ad647bc9cf5dba7e8640772ae10dfe7569a0c1e2a28aca", size = 755466713, upload-time = "2024-03-27T21:08:48.868Z" },
-    { url = "https://files.pythonhosted.org/packages/05/9b/e5c0df26435f3d55b6699e1c61f07652b8c8a3ac5058a75d0e991f92c2b0/torch-2.2.2-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:89ddac2a8c1fb6569b90890955de0c34e1724f87431cacff4c1979b5f769203c", size = 86515814, upload-time = "2024-03-27T21:09:07.247Z" },
-    { url = "https://files.pythonhosted.org/packages/72/ce/beca89dcdcf4323880d3b959ef457a4c61a95483af250e6892fec9174162/torch-2.2.2-cp312-cp312-win_amd64.whl", hash = "sha256:451331406b760f4b1ab298ddd536486ab3cfb1312614cfe0532133535be60bea", size = 198528804, upload-time = "2024-03-27T21:09:14.691Z" },
-    { url = "https://files.pythonhosted.org/packages/79/78/29dcab24a344ffd9ee9549ec0ab2c7885c13df61cde4c65836ee275efaeb/torch-2.2.2-cp312-none-macosx_10_9_x86_64.whl", hash = "sha256:eb4d6e9d3663e26cd27dc3ad266b34445a16b54908e74725adb241aa56987533", size = 150797270, upload-time = "2024-03-27T21:08:29.623Z" },
-    { url = "https://files.pythonhosted.org/packages/4a/0e/e4e033371a7cba9da0db5ccb507a9174e41b9c29189a932d01f2f61ecfc0/torch-2.2.2-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:bf9558da7d2bf7463390b3b2a61a6a3dbb0b45b161ee1dd5ec640bf579d479fc", size = 59678388, upload-time = "2024-03-27T21:08:35.869Z" },
+    { url = "https://download.pytorch.org/whl/cu121/torch-2.2.2%2Bcu121-cp312-cp312-linux_x86_64.whl", hash = "sha256:badc14d413ff1847d15021a1ec0affa479d24dfc83e6d51b9b4b9fbfaad1b14c" },
+    { url = "https://download.pytorch.org/whl/cu121/torch-2.2.2%2Bcu121-cp312-cp312-win_amd64.whl", hash = "sha256:5b5b91c7fcda5f02e5e5644a32f593c6c17f301a1180213e353e34b51cc63b9f" },
+]
+
+[[package]]
+name = "torchaudio"
+version = "2.2.2+cu121"
+source = { registry = "https://download.pytorch.org/whl/cu121" }
+dependencies = [
+    { name = "torch" },
+]
+wheels = [
+    { url = "https://download-r2.pytorch.org/whl/cu121/torchaudio-2.2.2%2Bcu121-cp312-cp312-linux_x86_64.whl", hash = "sha256:06ae5a27facee19b1fedbc2cb271179ae60e3d04ac650e75f4ed3087a3e52123" },
+    { url = "https://download-r2.pytorch.org/whl/cu121/torchaudio-2.2.2%2Bcu121-cp312-cp312-win_amd64.whl", hash = "sha256:47ded9541c0e633da8357dfd5ca07fd5fdd53a57fd302e1a976f581193c3f9f4" },
+]
+
+[[package]]
+name = "torchvision"
+version = "0.17.2+cu121"
+source = { registry = "https://download.pytorch.org/whl/cu121" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "torch" },
+]
+wheels = [
+    { url = "https://download-r2.pytorch.org/whl/cu121/torchvision-0.17.2%2Bcu121-cp312-cp312-linux_x86_64.whl", hash = "sha256:958d5438a56e83f22dedbb78a3b4301688d5ac433845650d2ccba3285fd27213" },
+    { url = "https://download-r2.pytorch.org/whl/cu121/torchvision-0.17.2%2Bcu121-cp312-cp312-win_amd64.whl", hash = "sha256:ecd9d4eb4f68a144da9936d2760ca3f4cbbfa092fc8d744ca746afff9f4053be" },
 ]
 
 [[package]]
