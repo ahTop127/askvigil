@@ -6,7 +6,7 @@ from tortoise.contrib.fastapi import register_tortoise
 from app.core.database import TORTOISE_ORM
 from app.core.lifespan import lifespan
 
-app = FastAPI(title="AskVigil API", lifespan = lifespan)
+app = FastAPI(title="AskVigil API", lifespan=lifespan)
 
 # Add this block immediately after creating the 'app'
 # Necessary to stop backend and frontend from being blocked from each other

@@ -1,5 +1,6 @@
 # Placeholder for audio framework
 
+
 async def scan_audio(audio_input):
     """
     TODO: (Optional) Implement audio analysis pipeline.
