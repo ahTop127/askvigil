@@ -9,6 +9,7 @@ Run from backend root:
 CI/CD: after migrations, add a step with working directory `backend` and DATABASE_URL
 (or .env.{ENVIRONMENT}) available, same as the FastAPI app.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -32,10 +33,14 @@ env_filename = f".env.{app_env}"
 env_path = os.path.join(project_root, env_filename)
 
 if os.path.exists(env_path):
-    print(f" current runtime environment: {app_env.upper()}; configuration being loaded: {env_filename}")
+    print(
+        f" current runtime environment: {app_env.upper()}; configuration being loaded: {env_filename}"
+    )
     load_dotenv(env_path)
 else:
-    print(f" Warning: The environment variable file {env_path} cannot be found. The system will attempt to rely on the existing system environment variables." )
+    print(
+        f" Warning: The environment variable file {env_path} cannot be found. The system will attempt to rely on the existing system environment variables."
+    )
 
 
 from app.core.database import TORTOISE_ORM
