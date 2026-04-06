@@ -21,10 +21,10 @@ jobs:
           ref: ${{ github.head_ref }} # Checkout the actual branch for auto-commits
 
       # --- PYTHON: RUFF & BANDIT ---
-      - name: Set up Python 3.10
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Install Python Tools
         run: pip install ruff bandit
@@ -88,4 +88,4 @@ jobs:
             git reset --hard origin/main
 
             # 4. Deploy
-            docker compose -f docker-compose.yml up -d --build
+            docker compose -f docker-compose.yml up -d --build --remove-orphans

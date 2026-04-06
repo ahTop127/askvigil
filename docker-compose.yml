@@ -32,9 +32,10 @@ services:
       # We use the 'db' service name as the hostname
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql
       MODEL_PATH: /app/models/huggingface
-    # Uncomment only to test without Nginx
-    # ports:
-    #   - "8000:8000"
+    # Nginx makes this unnecessary on oracle server, but it's helpful on local
+    # We just block port 8000 on oracle.
+    ports:
+      - "8000:8000"
 
   # 3. The React Frontend
   frontend:
