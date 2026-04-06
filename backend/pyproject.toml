@@ -18,6 +18,16 @@ dependencies = [
     "tortoise-vector>=0.2.0",
     "transformers<4.40.0",
     "uvicorn>=0.42.0",
+    "opencv-python-headless>=4.13.0.92",
+    "sentence-transformers>=5.3.0",
+    "torch>=2.11.0",
+    "shap>=0.51.0",
+    "librosa>=0.11.0",
+    "paddleocr>=3.4.0",
+    "paddlepaddle>=3.2.2",
+    "urlextract>=1.9.0",
+    "httpx>=0.28.1",
+    "ffmpeg-python>=0.2.0",
 ]
 
 [tool.aerich]
@@ -25,33 +35,18 @@ tortoise_orm = "app.core.database.TORTOISE_ORM"
 location = "./migrations"
 src_folder = "./."
 
-# 1. Define the 'cpu' and 'gpu' extras
-[project.optional-dependencies]
-cpu = ["torch", "torchvision", "torchaudio"]
-gpu = ["torch", "torchvision", "torchaudio"]
+[tool.uv]
+required-environments = [
+    "sys_platform == 'win32' and platform_machine == 'AMD64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
 
-# 2. Tell uv WHERE to get them based on the extra you choose
 [tool.uv.sources]
-torch = [
-  { index = "pytorch-cpu", marker = "extra == 'cpu' and extra != 'gpu'" },
-  { index = "pytorch-cu121", marker = "extra == 'gpu'" },
-]
-torchvision = [
-  { index = "pytorch-cpu", marker = "extra == 'cpu' and extra != 'gpu'" },
-  { index = "pytorch-cu121", marker = "extra == 'gpu'" },
-]
-torchaudio = [
-  { index = "pytorch-cpu", marker = "extra == 'cpu' and extra != 'gpu'" },
-  { index = "pytorch-cu121", marker = "extra == 'gpu'" },
-]
+# Tell uv to prefer the CPU index for ALL platforms to ensure stability
+torch = [{ index = "pytorch-cpu" }]
 
-# 3. Define the custom PyTorch registries
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
-[[tool.uv.index]]
-name = "pytorch-cu121"
-url = "https://download.pytorch.org/whl/cu121"
 explicit = true
