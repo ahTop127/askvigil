@@ -65,3 +65,8 @@ We are using **GitHub Actions** for "Hands-Off" deployment.
 1. **Never** commit the `.env` file to Git (it’s in the `.gitignore`).
 2. **Never** upload large AI model files. We mount them as volumes on the server to keep the repo light.
 3. **Always** test your `docker-compose up` locally before pushing to `main`.
+
+## Developer Debugging Checklist:
+Environment giving import errors after an update?  
+Run `docker-compose down -v` followed by `docker-compose up --build`.  
+If uv.lock died, you can delete it and run uv sync again to regenerate it.  

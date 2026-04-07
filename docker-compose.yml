@@ -2,6 +2,8 @@ services:
   # 1. The Database (Using pgvector for AI capability)
   db:
     image: pgvector/pgvector:pg16
+    ports:
+      - "127.0.0.1:5432:5432" # Securely bind to the server's internal localhost only
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}

@@ -8,15 +8,10 @@ dependencies = [
     "aerich>=0.9.2",
     "asyncpg>=0.31.0",
     "fastapi>=0.135.2",
-    "numpy<2",
-    "pandas<2.2.0",
     "pydantic-settings>=2.13.1",
     "python-multipart>=0.0.22",
-    "sentence-transformers<2.8.0",
-    "torch<2.3",
     "tortoise-orm>=0.25.4",
     "tortoise-vector>=0.2.0",
-    "transformers<4.40.0",
     "uvicorn>=0.42.0",
     "opencv-python-headless>=4.13.0.92",
     "sentence-transformers>=5.3.0",
@@ -50,3 +45,4 @@ torch = [{ index = "pytorch-cpu" }]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+xplicit = true
