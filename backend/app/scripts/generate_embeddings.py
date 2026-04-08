@@ -10,7 +10,7 @@ app_dir = os.path.dirname(current_dir)
 project_root = os.path.dirname(app_dir)
 sys.path.append(project_root)
 
-app_env = os.getenv("APP_ENV", "dev")
+app_env = os.getenv("ENVIRONMENT", "dev")
 env_filename = f".env.{app_env}"
 env_path = os.path.join(project_root, env_filename)
 if os.path.exists(env_path):
