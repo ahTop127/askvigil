@@ -1,15 +1,17 @@
 from fastapi import HTTPException
 import random
-from app.models.quiz import QuizQuestion, QuizOption, QuizAttempt
+from app.models.quiz import QuizQuestion, QuizAttempt
 from app.models.scam import ScamCategory
 from app.schemas.quiz import QuizBatchSubmitIn
 from app.models.session import UserSession
+
 
 async def get_all_scam_categories():
     """
     Get the list of all fraud categories and sort them by ID
     """
     return await ScamCategory.all().order_by("id")
+
 
 async def get_random_quiz_question(category_id: int, limit: int = 5):
     """
@@ -21,7 +23,9 @@ async def get_random_quiz_question(category_id: int, limit: int = 5):
         raise HTTPException(status_code=404, detail="Scam Category not found")
 
     # get all the question id from this quiz type(flat=True indicates returning a flat list [1001, 1002...] )
-    question_ids = await QuizQuestion.filter(category_id=category_id).values_list("id", flat=True)
+    question_ids = await QuizQuestion.filter(category_id=category_id).values_list(
+        "id", flat=True
+    )
 
     if not question_ids:
         return []
@@ -30,7 +34,9 @@ async def get_random_quiz_question(category_id: int, limit: int = 5):
     selected_ids = random.sample(question_ids, min(limit, len(question_ids)))
 
     # Query the complete question record based on the extracted ID and load the corresponding options in advance through prefetch_related
-    questions = await QuizQuestion.filter(id__in=selected_ids).prefetch_related('options')
+    questions = await QuizQuestion.filter(id__in=selected_ids).prefetch_related(
+        "options"
+    )
 
     # Since the results retrieved by the filter are sorted by primary key by default,
     # let's shuffle the order again to ensure that the order of each question is also different
@@ -54,7 +60,9 @@ async def submit_quiz_batch_and_get_results(payload: QuizBatchSubmitIn) -> dict:
     # 2. Traverse all the answer records sent from the front end
     for ans in payload.answers:
         # Look up this question and all its options
-        question = await QuizQuestion.get(id=ans.question_id).prefetch_related('options')
+        question = await QuizQuestion.get(id=ans.question_id).prefetch_related(
+            "options"
+        )
 
         # Find the correct option for this question
         correct_option = next((opt for opt in question.options if opt.is_correct), None)
@@ -71,19 +79,21 @@ async def submit_quiz_batch_and_get_results(payload: QuizBatchSubmitIn) -> dict:
                 session_id=session.session_id,
                 question_id=ans.question_id,
                 selected_option_id=ans.selected_option_id,
-                is_correct=is_correct
+                is_correct=is_correct,
             )
         )
 
         # Assemble the data returned to the front end for review
-        results_list.append({
-            "question_id": question.id,
-            "scenario_text": question.scenario_text,
-            "user_selected_option_id": ans.selected_option_id,
-            "correct_option_id": correct_option.id if correct_option else None,
-            "is_correct": is_correct,
-            "explanation": question.explanation
-        })
+        results_list.append(
+            {
+                "question_id": question.id,
+                "scenario_text": question.scenario_text,
+                "user_selected_option_id": ans.selected_option_id,
+                "correct_option_id": correct_option.id if correct_option else None,
+                "is_correct": is_correct,
+                "explanation": question.explanation,
+            }
+        )
 
     # 3. Batch write the answer records to the quiz_attempts table
     if attempt_records:
@@ -93,5 +103,5 @@ async def submit_quiz_batch_and_get_results(payload: QuizBatchSubmitIn) -> dict:
     return {
         "total_questions": len(payload.answers),
         "correct_answers": correct_count,
-        "results": results_list
+        "results": results_list,
     }

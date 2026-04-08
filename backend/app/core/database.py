@@ -2,9 +2,7 @@ from app.core.config import settings
 
 # The core configuration dictionary of Tortoise ORM
 TORTOISE_ORM = {
-    "connections": {
-        "default": settings.DATABASE_URL
-    },
+    "connections": {"default": settings.DATABASE_URL},
     "apps": {
         "models": {
             # "Aerich.models" must be added. This is the internal table used by Aerich to record migration history
@@ -13,7 +11,7 @@ TORTOISE_ORM = {
                 "app.models.scam",
                 "app.models.quiz",
                 "app.models.open_data",
-                "aerich.models"
+                "aerich.models",
             ],
             "default_connection": "default",
         },

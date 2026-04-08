@@ -20,10 +20,14 @@ env_filename = f".env.{app_env}"
 env_path = os.path.join(project_root, env_filename)
 
 if os.path.exists(env_path):
-    print(f" current runtime environment: {app_env.upper()}; configuration being loaded: {env_filename}")
+    print(
+        f" current runtime environment: {app_env.upper()}; configuration being loaded: {env_filename}"
+    )
     load_dotenv(env_path)
 else:
-    print(f" Warning: The environment variable file {env_path} cannot be found. The system will attempt to rely on the existing system environment variables." )
+    print(
+        f" Warning: The environment variable file {env_path} cannot be found. The system will attempt to rely on the existing system environment variables."
+    )
 
 from app.core.database import TORTOISE_ORM
 from app.models.open_data import OpenDataSet
@@ -34,7 +38,7 @@ async def import_csv_to_db():
     await Tortoise.init(config=TORTOISE_ORM)
 
     # Dynamically calculate the absolute path of the CSV file (assuming your CSV is placed in the project root directory)
-    csv_path = os.path.join(project_root, 'resources', 'ready_for_db.csv')
+    csv_path = os.path.join(project_root, "resources", "ready_for_db.csv")
 
     if not os.path.exists(csv_path):
         print(f"Error: Data file not found {csv_path}")
@@ -45,7 +49,7 @@ async def import_csv_to_db():
     df = pd.read_csv(csv_path)
 
     # Convert the DataFrame to a list of dictionaries
-    records = df.to_dict('records')
+    records = df.to_dict("records")
 
     print(f"Prepare to write the cleaned data of {len(records)} into PostgreSQL...")
 

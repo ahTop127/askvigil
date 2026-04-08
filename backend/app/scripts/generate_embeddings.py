@@ -25,7 +25,7 @@ from sentence_transformers import SentenceTransformer
 
 async def generate_and_update_embeddings():
     print("正在加载 AI 嵌入模型 (首次运行会自动下载模型权重，请耐心等待)...")
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer("all-MiniLM-L6-v2")
 
     print("连接数据库...")
     await Tortoise.init(config=TORTOISE_ORM)
@@ -40,7 +40,11 @@ async def generate_and_update_embeddings():
 
     while True:
         # 获取一批数据
-        records = await OpenDataSet.filter(text_embedding__isnull=True).limit(batch_size).offset(0)
+        records = (
+            await OpenDataSet.filter(text_embedding__isnull=True)
+            .limit(batch_size)
+            .offset(0)
+        )
 
         if not records:
             break
@@ -58,7 +62,9 @@ async def generate_and_update_embeddings():
             record.text_embedding = embeddings[idx].tolist()
 
         # 批量保存
-        await OpenDataSet.bulk_update(records, fields=["text_embedding"], batch_size=500)
+        await OpenDataSet.bulk_update(
+            records, fields=["text_embedding"], batch_size=500
+        )
 
         offset += len(records)
         print(f"进度: {offset} / {total_count}")
