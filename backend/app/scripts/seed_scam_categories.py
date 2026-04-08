@@ -27,7 +27,7 @@ sys.path.append(project_root)
 
 # 2. Dynamically load environment variables (must be loaded before importing core.database!)
 # Read the system environment variable APP_ENV. If it is not set, it defaults to fallback to 'dev'.
-app_env = os.getenv("APP_ENV", "dev")
+app_env = os.getenv("ENVIRONMENT", "dev")
 env_filename = f".env.{app_env}"
 env_path = os.path.join(project_root, env_filename)
 
