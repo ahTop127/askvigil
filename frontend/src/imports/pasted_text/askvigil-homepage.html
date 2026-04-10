@@ -1,0 +1,421 @@
+Please modify the current web app prototype for AskVigil based on the following updated structure and requirements.
+
+Keep the design clean, modern, trustworthy, and easy to use. The target users are young adults aged 19–25 in Malaysia. The tone should feel safe, practical, and simple. Use a minimal web layout with clear sections, clear navigation, and strong call-to-action buttons.
+
+Brand name: AskVigil
+
+==================================================
+OVERALL DESIGN GOAL
+==================================================
+
+This is a scam detection and awareness website. The homepage should clearly show the most important checking function first, but also guide users to other parts of the website such as scam guidance, scam learning, and scam cases.
+
+The homepage should support 3 main navigation paths to other pages:
+1. Top navigation bar buttons
+2. “How it works” section links
+3. Links shown after scam detection results
+
+The website should feel like a real product that is easy to implement, not too complex, but still complete and user-friendly.
+
+==================================================
+HOMEPAGE LAYOUT
+==================================================
+
+Design a full homepage with the following structure from top to bottom:
+
+--------------------------------------------------
+1. TOP NAVIGATION BAR
+--------------------------------------------------
+
+At the top of the page, create a horizontal navigation bar.
+
+Left side:
+- AskVigil logo
+- Brand name: AskVigil
+
+Right side:
+Navigation buttons linking to key pages:
+- Home
+- Scam Check
+- Guidance
+- Learning
+- Scam Cases
+- About
+
+Keep the navigation simple and modern.
+
+--------------------------------------------------
+2. HERO SECTION
+--------------------------------------------------
+
+Create a two-column hero section.
+
+Left side:
+This should contain the most important feature: Scam Detection.
+
+Include a scam detection panel with multiple checking options:
+- Text message check
+- Image upload check
+- URL check
+- QR code check
+
+Use tabs, cards, or segmented buttons to switch between these check types.
+
+For each check type:
+
+A. Text check
+- Multi-line text input
+- Placeholder: “Paste suspicious message text here...”
+- Button: “Check now”
+
+B. Image check
+- Upload area for screenshot or image
+- Instruction text: “Upload a screenshot or image”
+- Button: “Check now”
+
+C. URL check
+- Single-line URL input field
+- Placeholder: “Paste suspicious URL here...”
+- Button: “Check URL”
+
+D. QR check
+- Upload QR image or QR screenshot
+- Instruction text: “Upload a QR code image”
+- Button: “Check QR”
+
+Also include:
+- Error state for empty input
+- Loading state
+- Privacy reminder popup before submission
+- The detection area should feel like the main entry point of the website
+
+Right side:
+Add a visual area for an illustration, product image, dashboard preview, or scam awareness graphic.
+This area should visually support the website’s theme of online safety, scam awareness, and digital protection.
+
+Also include a short headline and supporting text above or beside the detection module, such as:
+- Headline: “Check suspicious content before you trust it”
+- Supporting text: “AskVigil helps you detect scam messages, links, and QR codes, and guides you on what to do next.”
+
+--------------------------------------------------
+3. PLATFORM IMPACT / TRUST DATA SECTION
+--------------------------------------------------
+
+Below the hero section, add a statistics section to build trust and encourage users to try the platform.
+
+Show 3 to 4 key statistics in card format.
+
+Suggested statistics:
+- Total users protected
+- Messages checked
+- Suspicious links analysed
+- High-risk scam cases detected
+
+Each stat card should include:
+- Large number
+- Clear short label
+- Clean layout
+
+The purpose of this section is to show that the platform is active, useful, and trusted.
+
+--------------------------------------------------
+4. HOW IT WORKS SECTION
+--------------------------------------------------
+
+Add a “How it works” section that explains the 3 main parts of the website.
+
+Use 3 cards or 3 horizontal blocks.
+
+Card 1:
+Title: “Check suspicious content”
+Description: Explain that users can check messages, images, URLs, or QR codes.
+Small link/button: “Check now”
+This should scroll or jump back to the scam detection section at the top.
+
+Card 2:
+Title: “Get help after a scam”
+Description: Explain that users can view scam-type guidance and learn what to do after being targeted or scammed.
+Small link/button: “View guidance”
+This should link to the Guidance page.
+
+Card 3:
+Title: “Learn and stay aware”
+Description: Explain that users can explore scam knowledge, learning content, and practice questions.
+Small link/button: “Start learning”
+This should link to the Learning page.
+
+This section should help users understand the website even if they do not want to use the scam check immediately.
+
+--------------------------------------------------
+5. OPTIONAL PERSONALISED INTEREST SECTION
+--------------------------------------------------
+
+Add a lightweight optional section that introduces personalised guidance.
+
+This should NOT appear as mandatory for all users.
+
+Design a small card or banner section with text such as:
+- “Want more relevant scam alerts?”
+- “Tell us what topics you care about in this session.”
+
+Include a button:
+- “Personalise my experience”
+
+When clicked, open a small modal, drawer, or question panel with a few optional questions.
+
+The questions should be simple and practical, based on user interests. For example:
+1. Which topics worry you most?
+   - Job scams
+   - Phishing links
+   - OTP scams
+   - Fake promotions
+   - Social media scams
+
+2. Which platform do you use most?
+   - WhatsApp
+   - Telegram
+   - Discord
+   - Facebook
+   - Instagram
+
+3. What do you want most?
+   - Quick scam checking
+   - Real scam examples
+   - What to do after a scam
+   - Learning and practice
+
+Design note:
+- Make it clear this is optional
+- Do not ask for personal identity information
+- Store preferences only in browser/local memory
+- This section should support a privacy-friendly guided experience
+
+Also include a notification concept:
+If the user allows browser notifications, the system can later show a small browser-style popup when there is:
+- a new scam case
+- a relevant warning
+- a related news update
+
+The popup should have:
+- short title
+- short description
+- button or link to open the related AskVigil page
+
+This can be shown as a UI concept or small mockup, not a full technical implementation.
+
+--------------------------------------------------
+6. FAQ SECTION
+--------------------------------------------------
+
+Add a FAQ section with expandable accordion items.
+
+Include several common questions, such as:
+- How does AskVigil check scam messages?
+- Can I upload screenshots instead of text?
+- What should I do if I already clicked a scam link?
+- Can AskVigil check URLs and QR codes?
+- Do I need to create an account?
+- Will AskVigil store my personal information?
+
+When a question is clicked, show a short answer below it.
+
+Keep the answers concise and easy to understand.
+
+--------------------------------------------------
+7. FOOTER
+--------------------------------------------------
+
+Add a clean footer with simple website information.
+
+Suggested footer content:
+- AskVigil logo and brand name
+- Short brand sentence:
+  “Helping young adults make safer online decisions.”
+- Footer links:
+  - Scam Check
+  - Guidance
+  - Learning
+  - Scam Cases
+  - Privacy
+  - Contact
+
+==================================================
+DETECTION RESULT PAGE / RESULT PANEL
+==================================================
+
+Please also update the result page or result section after checking content.
+
+When a scam check is completed successfully, show:
+
+- Large risk score
+- Risk level badge:
+  - Low risk = green
+  - Medium risk = orange
+  - High risk = red
+
+- Short explanation of why the content looks suspicious
+Examples:
+- urgent wording
+- suspicious link
+- request for money
+- impersonation language
+- unknown sender pattern
+
+Below the result, add related navigation links based on the scam type detected.
+
+For example, if the result suggests “Job Scam”, show:
+- “View Job Scam Guidance”
+- “See similar scam cases”
+- “Learn about job scams”
+
+If the result suggests “Phishing”, show:
+- “View Phishing Guidance”
+- “See similar phishing cases”
+- “Learn how phishing works”
+
+This result area should become the third navigation path that helps users move from detection to other pages.
+
+==================================================
+GUIDANCE PAGE
+==================================================
+
+Create or update a Guidance page.
+
+Purpose:
+Help users know what to do after they encounter or fall for a scam.
+
+Structure:
+- Page title: “What should you do next?”
+- Scam type cards:
+  - Job Scam
+  - Phishing Scam
+  - OTP Scam
+  - QR Scam
+  - Suspicious Link Scam
+
+When a user clicks a scam type card, open a scam-specific guidance page or detail section.
+
+Each detail page should show:
+- Step-by-step actions
+- Clear numbered guidance
+- Easy language
+- Practical advice
+
+Example actions:
+1. Stop replying
+2. Block the sender
+3. Do not click again
+4. Change passwords if needed
+5. Contact official support
+6. Report the scam if possible
+
+==================================================
+LEARNING PAGE
+==================================================
+
+Create or update a Learning page.
+
+Purpose:
+Help users learn scam types and improve scam awareness.
+
+Include:
+- Learning cards for scam types
+- Short explanations
+- “Learn more” buttons
+
+Scam types to include:
+- Job scam
+- Phishing scam
+- OTP scam
+- Fake link scam
+- QR scam
+
+Also include a practice section entry point:
+- Button: “Start practice”
+
+==================================================
+PRACTICE PAGE
+==================================================
+
+Create or update a practice page with realistic scam awareness questions.
+
+Show one question at a time.
+
+For each question:
+- short scam scenario
+- simple choice options
+- submit button
+
+After answer submission:
+- show correct / incorrect
+- show short explanation
+
+At the end:
+- show final score
+- show short summary feedback
+
+==================================================
+SCAM CASES PAGE
+==================================================
+
+Create or update a Scam Cases page.
+
+Purpose:
+Help users browse real or example scam cases by type.
+
+Include:
+- Filter by scam type
+- Filter by platform or communication channel
+- Case cards with short summaries
+
+Each case card should include:
+- scam type
+- platform/channel
+- short case summary
+- “View details” button
+
+Detail page or modal should include:
+- what happened
+- warning signs
+- what users should learn from it
+
+==================================================
+INTERACTION / UX REQUIREMENTS
+==================================================
+
+- Keep the homepage visually clear and not too crowded
+- The scam detection section must remain the main focus
+- Use clear call-to-action buttons
+- Make scrolling feel natural
+- Include anchor links or smooth scrolling where useful
+- Make the website easy to understand for first-time users
+- Make the navigation between sections and pages very clear
+- Keep everything realistic and implementable in a student project prototype
+
+==================================================
+VISUAL STYLE
+==================================================
+
+- Modern and minimal
+- Trustworthy and calm
+- Blue, white, and soft accent colours are acceptable
+- Clear cards, rounded corners, and simple icons
+- Friendly but serious tone
+- Mobile-friendly and desktop-friendly
+
+==================================================
+KEY PRODUCT LOGIC
+==================================================
+
+The website has 3 main content directions:
+1. Scam Check
+2. Guidance after scam
+3. Learning / Scam awareness / Practice / Cases
+
+Users should be able to reach these pages in 3 ways:
+1. Top navigation bar
+2. Homepage “How it works” section
+3. Detection result links based on scam type
+
+Please update the current prototype to reflect all of the above.
+Do not make the design too complicated. Keep it practical, clear, and presentation-ready.
