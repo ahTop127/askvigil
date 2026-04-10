@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Shield, AlertCircle, CheckCircle, AlertTriangle, ArrowLeft } from "lucide-react";
+import {
+  Shield,
+  AlertCircle,
+  CheckCircle,
+  AlertTriangle,
+  ArrowLeft,
+} from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Navigation } from "../components/Navigation";
 
@@ -35,12 +41,15 @@ export default function DetectionResultPage() {
   const getScamTypeInfo = (scamType?: string) => {
     const scamTypes: Record<string, { name: string; guidancePath: string }> = {
       "job-scam": { name: "Job Scam", guidancePath: "/guidance/job-scam" },
-      "phishing": { name: "Phishing", guidancePath: "/guidance/phishing" },
+      phishing: { name: "Phishing", guidancePath: "/guidance/phishing" },
       "otp-scam": { name: "OTP Scam", guidancePath: "/guidance/otp-scam" },
       "qr-scam": { name: "QR Scam", guidancePath: "/guidance/qr-scam" },
-      "suspicious-link": { name: "Suspicious Link", guidancePath: "/guidance/suspicious-link" },
+      "suspicious-link": {
+        name: "Suspicious Link",
+        guidancePath: "/guidance/suspicious-link",
+      },
     };
-    
+
     return scamType ? scamTypes[scamType] : null;
   };
 
@@ -58,9 +67,7 @@ export default function DetectionResultPage() {
             <p className="text-gray-600 mb-6">
               We could not generate a risk score. Please try again.
             </p>
-            <Button onClick={() => navigate("/")}>
-              Return to Home
-            </Button>
+            <Button onClick={() => navigate("/")}>Return to Home</Button>
           </div>
         </main>
       </div>
@@ -112,14 +119,14 @@ export default function DetectionResultPage() {
         {/* Result Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-8">
           {/* Risk Score Display */}
-          <div className={`${config.bgColor} ${config.borderColor} border-2 rounded-2xl p-8 text-center mb-8`}>
+          <div
+            className={`${config.bgColor} ${config.borderColor} border-2 rounded-2xl p-8 text-center mb-8`}
+          >
             <Icon className={`w-20 h-20 ${config.color} mx-auto mb-4`} />
             <h1 className={`text-4xl font-bold ${config.color} mb-2`}>
               {config.label}
             </h1>
-            <p className="text-gray-600 text-lg">
-              {config.description}
-            </p>
+            <p className="text-gray-600 text-lg">{config.description}</p>
           </div>
 
           {/* Explanation */}
@@ -133,7 +140,11 @@ export default function DetectionResultPage() {
           {/* Action Buttons */}
           <div className="grid md:grid-cols-2 gap-4">
             <Button
-              onClick={() => navigate(getScamTypeInfo(result.scamType)?.guidancePath || "/guidance")}
+              onClick={() =>
+                navigate(
+                  getScamTypeInfo(result.scamType)?.guidancePath || "/guidance",
+                )
+              }
               variant="default"
               className="h-12"
             >

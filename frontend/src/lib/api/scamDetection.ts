@@ -7,7 +7,7 @@ import { logger } from "@lib/utils/logger";
  * Currently returns mock data; swap implementation for HTTP client later.
  */
 export async function detectScam(
-  input: ScamDetectionInput
+  input: ScamDetectionInput,
 ): Promise<ScamDetectionResult> {
   logger.info("detectScam called", { type: input.type });
   try {

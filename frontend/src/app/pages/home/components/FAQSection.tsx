@@ -24,7 +24,9 @@ export const FAQSection = memo(function FAQSection() {
           <h2 className="font-bold text-gray-900 mb-4 text-[48px]">
             Frequently Asked Questions
           </h2>
-          <p className="text-lg text-gray-600">Get answers to common questions</p>
+          <p className="text-lg text-gray-600">
+            Get answers to common questions
+          </p>
         </motion.div>
 
         <Accordion type="single" collapsible className="space-y-4">
@@ -44,8 +46,8 @@ export const FAQSection = memo(function FAQSection() {
               <AccordionContent className="text-gray-600">
                 AskVigil uses advanced pattern recognition to analyze suspicious
                 messages, links, images, and QR codes. Our system checks for
-                common scam indicators like urgent language, suspicious URLs, and
-                phishing patterns to give you an instant risk assessment.
+                common scam indicators like urgent language, suspicious URLs,
+                and phishing patterns to give you an instant risk assessment.
               </AccordionContent>
             </AccordionItem>
           </motion.div>
@@ -88,8 +90,8 @@ export const FAQSection = memo(function FAQSection() {
               <AccordionContent className="text-gray-600">
                 Visit our Guidance section for step-by-step instructions on what
                 to do after being scammed. Depending on the scam type, we
-                provide specific guidance on contacting authorities, securing your
-                accounts, and preventing further damage.
+                provide specific guidance on contacting authorities, securing
+                your accounts, and preventing further damage.
               </AccordionContent>
             </AccordionItem>
           </motion.div>
@@ -110,7 +112,8 @@ export const FAQSection = memo(function FAQSection() {
               <AccordionContent className="text-gray-600">
                 Yes! AskVigil is completely free to use. Our mission is to
                 protect young Malaysians from online scams by providing
-                accessible, easy-to-use scam detection and educational resources.
+                accessible, easy-to-use scam detection and educational
+                resources.
               </AccordionContent>
             </AccordionItem>
           </motion.div>

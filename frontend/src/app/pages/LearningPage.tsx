@@ -46,7 +46,8 @@ export default function LearningPage() {
             Learn about scams.
           </h1>
           <p className="text-2xl text-gray-700 max-w-3xl">
-            Knowledge is your best defense. Explore different types of scams and learn how to protect yourself.
+            Knowledge is your best defense. Explore different types of scams and
+            learn how to protect yourself.
           </p>
         </div>
 
@@ -58,8 +59,8 @@ export default function LearningPage() {
               const v = scam.learning;
 
               return (
-                <div 
-                  key={scam.id} 
+                <div
+                  key={scam.id}
                   id={scam.id}
                   className="scroll-mt-32 group cursor-pointer"
                   onClick={() => navigate(`/learning/${scam.id}`)}
@@ -74,9 +75,11 @@ export default function LearningPage() {
                 >
                   <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-3 border-green-400">
                     {/* Top: Colored Background + Image */}
-                    <div className={`relative h-64 bg-gradient-to-br ${v.bgColor} flex items-center justify-center`}>
+                    <div
+                      className={`relative h-64 bg-gradient-to-br ${v.bgColor} flex items-center justify-center`}
+                    >
                       <div className="w-full h-full flex items-center justify-center overflow-hidden">
-                        <img 
+                        <img
                           src={v.image}
                           alt={scam.title}
                           className={`w-full h-full object-cover drop-shadow-2xl`}
@@ -108,13 +111,14 @@ export default function LearningPage() {
             {/* Decorative elements */}
             <div className="absolute top-0 right-0 w-48 h-48 bg-[#669E84]/10 rounded-full blur-3xl" />
             <div className="absolute bottom-0 left-0 w-56 h-56 bg-[#54A388]/10 rounded-full blur-3xl" />
-            
+
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-semibold text-[#255832] mb-4">
                 Ready to test your knowledge?
               </h2>
               <p className="text-lg text-gray-700 mb-6 max-w-2xl mx-auto">
-                Practice identifying scams with interactive scenarios and real-world examples.
+                Practice identifying scams with interactive scenarios and
+                real-world examples.
               </p>
               <button
                 onClick={() => navigate("/practice")}

@@ -35,16 +35,11 @@ export interface UsePersonalizationReturn {
   closeDialog: () => void;
 }
 
-const TOPICS = [
-  "phishing",
-  "job-scams",
-  "investment",
-  "romance",
-] as const;
+const TOPICS = ["phishing", "job-scams", "investment", "romance"] as const;
 
 export function usePersonalization(): UsePersonalizationReturn {
   const [showCard, setShowCard] = useState(
-    () => !hasUserPreferences() && !readDismissed()
+    () => !hasUserPreferences() && !readDismissed(),
   );
   const [showDialog, setShowDialog] = useState(false);
   const [selectedTopics, setSelectedTopics] = useState<string[]>(() => {
@@ -52,7 +47,7 @@ export function usePersonalization(): UsePersonalizationReturn {
     return p?.topics ?? [];
   });
   const [selectedGoal, setSelectedGoal] = useState(
-    () => getUserPreferences()?.goal ?? ""
+    () => getUserPreferences()?.goal ?? "",
   );
   const [wantsAlerts, setWantsAlertsState] = useState(() => {
     const p = getUserPreferences();
@@ -62,7 +57,7 @@ export function usePersonalization(): UsePersonalizationReturn {
 
   const toggleTopic = useCallback((topic: string) => {
     setSelectedTopics((prev) =>
-      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
+      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic],
     );
   }, []);
 
@@ -105,10 +100,7 @@ export function usePersonalization(): UsePersonalizationReturn {
   const dismissCard = useCallback(() => {
     setShowCard(false);
     try {
-      localStorage.setItem(
-        APP_CONFIG.storageKeys.preferencesDismissed,
-        "true"
-      );
+      localStorage.setItem(APP_CONFIG.storageKeys.preferencesDismissed, "true");
     } catch {
       /* ignore */
     }

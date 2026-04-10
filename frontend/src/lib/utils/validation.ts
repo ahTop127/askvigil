@@ -7,8 +7,7 @@ export interface ValidationResult {
   error?: string;
 }
 
-const URL_REGEX =
-  /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w\-./?%&=+#]*)?$/i;
+const URL_REGEX = /^(https?:\/\/)?([\w-]+\.)+[\w-]+(\/[\w\-./?%&=+#]*)?$/i;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -32,7 +31,7 @@ export function isValidImageFile(file: File): boolean {
     return false;
   }
   return APP_CONFIG.detection.supportedImageFormats.includes(
-    file.type as (typeof APP_CONFIG.detection.supportedImageFormats)[number]
+    file.type as (typeof APP_CONFIG.detection.supportedImageFormats)[number],
   );
 }
 
@@ -50,7 +49,7 @@ export function isValidTextInput(text: string): boolean {
  */
 export function validateDetectionInput(
   type: DetectionType,
-  content: string | File
+  content: string | File,
 ): ValidationResult {
   switch (type) {
     case "text": {
@@ -71,9 +70,10 @@ export function validateDetectionInput(
       if (!isValidImageFile(content)) {
         return {
           isValid: false,
-          error: content.size > APP_CONFIG.detection.maxFileSize
-            ? ERROR_MESSAGES.fileTooLarge
-            : ERROR_MESSAGES.unsupportedImage,
+          error:
+            content.size > APP_CONFIG.detection.maxFileSize
+              ? ERROR_MESSAGES.fileTooLarge
+              : ERROR_MESSAGES.unsupportedImage,
         };
       }
       return { isValid: true };

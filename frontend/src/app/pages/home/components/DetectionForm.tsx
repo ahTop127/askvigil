@@ -56,16 +56,16 @@ function TextDetectionInput({
 }) {
   return (
     <div>
-    <Textarea
-      placeholder={UI_TEXT.detection.textPlaceholder}
-      value={value}
-      onChange={(e) => {
-        onChange(e.target.value);
-      }}
-      maxLength={1000}
-      className="min-h-[140px] resize-none text-base bg-gray-50 border-2 border-gray-200 focus:border-[#EAA866] text-gray-900 placeholder:text-gray-400 rounded-xl"
-      disabled={disabled}
-    />
+      <Textarea
+        placeholder={UI_TEXT.detection.textPlaceholder}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+        }}
+        maxLength={1000}
+        className="min-h-[140px] resize-none text-base bg-gray-50 border-2 border-gray-200 focus:border-[#EAA866] text-gray-900 placeholder:text-gray-400 rounded-xl"
+        disabled={disabled}
+      />
       <div
         className={`text-right text-sm mt-2 ${
           value.length > 900 ? "text-red-500" : "text-gray-500"
@@ -110,53 +110,50 @@ function ImageDetectionInput({
       tabIndex={0}
     >
       {!file ? (
-            <>
-              <Upload className="w-12 h-12 text-[#EAA866] mx-auto mb-3" />
-              <p className="text-gray-700 mb-1 font-medium">
-                {UI_TEXT.detection.imageDropTitle}
-              </p>
-              <p className="text-sm text-gray-500">
-                {UI_TEXT.detection.imageDropHint}
-              </p>
-            </>
-          ) : (
-            <>
-              {/*image preview*/}
-              <img
-                src={URL.createObjectURL(file)}
-                alt="Preview"
-                className="max-h-48 mx-auto rounded-lg mb-3 object-contain"
-              />
-
-              <p className="text-sm text-gray-600">{file.name}</p>
-
-              <p className="text-xs text-gray-400 mt-1">
-                Click to change image
-              </p>
-                  {/*remove button*/}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove();
-                }}
-                className="text-red-500 text-xm mt-2 hover:underline"
-              >
-                Remove image
-              </button>
-            </>
-          )}
-
-          <input
-            id="image-upload"
-            type="file"
-            accept="image/*"
-            onChange={onFileChange}
-            className="hidden"
-            disabled={disabled}
+        <>
+          <Upload className="w-12 h-12 text-[#EAA866] mx-auto mb-3" />
+          <p className="text-gray-700 mb-1 font-medium">
+            {UI_TEXT.detection.imageDropTitle}
+          </p>
+          <p className="text-sm text-gray-500">
+            {UI_TEXT.detection.imageDropHint}
+          </p>
+        </>
+      ) : (
+        <>
+          {/*image preview*/}
+          <img
+            src={URL.createObjectURL(file)}
+            alt="Preview"
+            className="max-h-48 mx-auto rounded-lg mb-3 object-contain"
           />
-          
-        </div>
-      );
+
+          <p className="text-sm text-gray-600">{file.name}</p>
+
+          <p className="text-xs text-gray-400 mt-1">Click to change image</p>
+          {/*remove button*/}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="text-red-500 text-xm mt-2 hover:underline"
+          >
+            Remove image
+          </button>
+        </>
+      )}
+
+      <input
+        id="image-upload"
+        type="file"
+        accept="image/*"
+        onChange={onFileChange}
+        className="hidden"
+        disabled={disabled}
+      />
+    </div>
+  );
 }
 
 function URLDetectionInput({
@@ -247,7 +244,7 @@ async function createImage(url: string): Promise<HTMLImageElement> {
 async function getCroppedFile(
   imageSrc: string,
   pixelCrop: { x: number; y: number; width: number; height: number },
-  fileName: string
+  fileName: string,
 ): Promise<File> {
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
@@ -269,7 +266,7 @@ async function getCroppedFile(
     0,
     0,
     pixelCrop.width,
-    pixelCrop.height
+    pixelCrop.height,
   );
 
   return new Promise((resolve, reject) => {
@@ -283,11 +280,11 @@ async function getCroppedFile(
         resolve(
           new File([blob], fileName, {
             type: "image/jpeg",
-          })
+          }),
         );
       },
       "image/jpeg",
-      0.95
+      0.95,
     );
   });
 }
@@ -297,191 +294,194 @@ async function getCroppedFile(
  */
 const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
   function DetectionForm(props, ref) {
-      const {
-        activeTab,
-        onTabChange,
-        textInput,
-        onTextChange,
-        urlInput,
-        onUrlChange,
-        imageFile,
-        qrFile,
-        onImageFile,
-        onQrFile,
-        error,
-        isChecking,
-        onRequestCheck,
-      } = props;
+    const {
+      activeTab,
+      onTabChange,
+      textInput,
+      onTextChange,
+      urlInput,
+      onUrlChange,
+      imageFile,
+      qrFile,
+      onImageFile,
+      onQrFile,
+      error,
+      isChecking,
+      onRequestCheck,
+    } = props;
 
-      const [showCropModal, setShowCropModal] = useState(false);
-      const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
-      const [tempImageName, setTempImageName] = useState("cropped-image.jpg");
+    const [showCropModal, setShowCropModal] = useState(false);
+    const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
+    const [tempImageName, setTempImageName] = useState("cropped-image.jpg");
 
-      const [crop, setCrop] = useState({ x: 0, y: 0 });
-      const [zoom, setZoom] = useState(1);
-      const [croppedAreaPixels, setCroppedAreaPixels] = useState<{
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-      } | null>(null);
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null>(null);
 
-      useImperativeHandle(
-        ref,
-        () => ({
-          requestCheck: () => onRequestCheck(),
-        }),
-        [onRequestCheck]
-      );
+    useImperativeHandle(
+      ref,
+      () => ({
+        requestCheck: () => onRequestCheck(),
+      }),
+      [onRequestCheck],
+    );
 
-      const onCropComplete = useCallback(
-        (_croppedArea: unknown, croppedPixels: { x: number; y: number; width: number; height: number }) => {
-          setCroppedAreaPixels(croppedPixels);
-        },
-        []
-      );
+    const onCropComplete = useCallback(
+      (
+        _croppedArea: unknown,
+        croppedPixels: { x: number; y: number; width: number; height: number },
+      ) => {
+        setCroppedAreaPixels(croppedPixels);
+      },
+      [],
+    );
 
-      const resetCropState = useCallback(() => {
-        if (tempImageUrl) {
-          URL.revokeObjectURL(tempImageUrl);
-        }
+    const resetCropState = useCallback(() => {
+      if (tempImageUrl) {
+        URL.revokeObjectURL(tempImageUrl);
+      }
 
-        setTempImageUrl(null);
-        setTempImageName("cropped-image.jpg");
-        setShowCropModal(false);
-        setCrop({ x: 0, y: 0 });
-        setZoom(1);
-        setCroppedAreaPixels(null);
-      }, [tempImageUrl]);
+      setTempImageUrl(null);
+      setTempImageName("cropped-image.jpg");
+      setShowCropModal(false);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+    }, [tempImageUrl]);
 
-      const handleCropCancel = useCallback(() => {
+    const handleCropCancel = useCallback(() => {
+      resetCropState();
+    }, [resetCropState]);
+
+    const handleCropSave = useCallback(async () => {
+      if (!tempImageUrl || !croppedAreaPixels) return;
+
+      try {
+        const croppedFile = await getCroppedFile(
+          tempImageUrl,
+          croppedAreaPixels,
+          `cropped-${tempImageName}`,
+        );
+
+        onImageFile(croppedFile);
         resetCropState();
-      }, [resetCropState]);
+      } catch (err) {
+        console.error("Crop failed:", err);
+      }
+    }, [
+      croppedAreaPixels,
+      onImageFile,
+      resetCropState,
+      tempImageName,
+      tempImageUrl,
+    ]);
 
-      const handleCropSave = useCallback(async () => {
-        if (!tempImageUrl || !croppedAreaPixels) return;
+    const handleFileChange = useCallback(
+      (e: ChangeEvent<HTMLInputElement>, type: "image" | "qr") => {
+        const file = e.target.files?.[0];
+        if (!file) return;
 
-        try {
-          const croppedFile = await getCroppedFile(
-            tempImageUrl,
-            croppedAreaPixels,
-            `cropped-${tempImageName}`
-          );
-
-          onImageFile(croppedFile);
-          resetCropState();
-        } catch (err) {
-          console.error("Crop failed:", err);
+        if (type === "image") {
+          const imageUrl = URL.createObjectURL(file);
+          setTempImageUrl(imageUrl);
+          setTempImageName(file.name);
+          setShowCropModal(true);
+          return;
         }
-      }, [croppedAreaPixels, onImageFile, resetCropState, tempImageName, tempImageUrl]);
 
-      const handleFileChange = useCallback(
-        (e: ChangeEvent<HTMLInputElement>, type: "image" | "qr") => {
-          const file = e.target.files?.[0];
-          if (!file) return;
+        onQrFile(file);
+      },
+      [onQrFile],
+    );
 
-          if (type === "image") {
-            const imageUrl = URL.createObjectURL(file);
-            setTempImageUrl(imageUrl);
-            setTempImageName(file.name);
-            setShowCropModal(true);
-            return;
-          }
-
-          onQrFile(file);
-        },
-        [onQrFile]
-      );
-
-      const handleDrop = useCallback(
-        (e: DragEvent<HTMLDivElement>, type: "image" | "qr") => {
-          e.preventDefault();
-
-          const file = e.dataTransfer.files?.[0];
-          if (!file?.type.startsWith("image/")) return;
-
-          if (type === "image") {
-            const imageUrl = URL.createObjectURL(file);
-            setTempImageUrl(imageUrl);
-            setTempImageName(file.name);
-            setShowCropModal(true);
-            return;
-          }
-
-          onQrFile(file);
-        },
-        [onQrFile]
-      );
-
-      const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+    const handleDrop = useCallback(
+      (e: DragEvent<HTMLDivElement>, type: "image" | "qr") => {
         e.preventDefault();
-      }, []);
 
-      const tabValue = useMemo(() => activeTab, [activeTab]);
+        const file = e.dataTransfer.files?.[0];
+        if (!file?.type.startsWith("image/")) return;
 
-      return (
-        <div className="relative bg-white rounded-3xl shadow-sm border-2 border-[#EAA866]/10 p-8 md:p-10">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#EAA866] rounded-full" />
+        if (type === "image") {
+          const imageUrl = URL.createObjectURL(file);
+          setTempImageUrl(imageUrl);
+          setTempImageName(file.name);
+          setShowCropModal(true);
+          return;
+        }
 
-          <Tabs
-            value={tabValue}
-            onValueChange={onTabChange}
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 border border-gray-200 h-auto p-1 gap-1">
-              <TabsTrigger
-                value="text"
-                className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
-              >
-                <FileSearch className="w-4 h-4 mr-1 shrink-0" />
-                {UI_TEXT.detection.tabText}
-              </TabsTrigger>
-              <TabsTrigger
-                value="image"
-                className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
-              >
-                <Upload className="w-4 h-4 mr-1 shrink-0" />
-                {UI_TEXT.detection.tabImage}
-              </TabsTrigger>
-              {/* <TabsTrigger
+        onQrFile(file);
+      },
+      [onQrFile],
+    );
+
+    const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+    }, []);
+
+    const tabValue = useMemo(() => activeTab, [activeTab]);
+
+    return (
+      <div className="relative bg-white rounded-3xl shadow-sm border-2 border-[#EAA866]/10 p-8 md:p-10">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#EAA866] rounded-full" />
+
+        <Tabs value={tabValue} onValueChange={onTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 border border-gray-200 h-auto p-1 gap-1">
+            <TabsTrigger
+              value="text"
+              className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
+            >
+              <FileSearch className="w-4 h-4 mr-1 shrink-0" />
+              {UI_TEXT.detection.tabText}
+            </TabsTrigger>
+            <TabsTrigger
+              value="image"
+              className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
+            >
+              <Upload className="w-4 h-4 mr-1 shrink-0" />
+              {UI_TEXT.detection.tabImage}
+            </TabsTrigger>
+            {/* <TabsTrigger
                 value="url"
                 className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
               >
                 <LinkIcon className="w-4 h-4 mr-1 shrink-0" />
                 {UI_TEXT.detection.tabUrl}
               </TabsTrigger> */}
-              {/* <TabsTrigger
+            {/* <TabsTrigger
                 value="qr"
                 className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
               >
                 <QrCode className="w-4 h-4 mr-1 shrink-0" />
                 {UI_TEXT.detection.tabQR}
               </TabsTrigger> */}
-            </TabsList>
+          </TabsList>
 
-            <TabsContent value="text" className="space-y-4">
-              <TextDetectionInput
-                value={textInput}
-                onChange={onTextChange}
-                disabled={isChecking}
-              />
-            </TabsContent>
+          <TabsContent value="text" className="space-y-4">
+            <TextDetectionInput
+              value={textInput}
+              onChange={onTextChange}
+              disabled={isChecking}
+            />
+          </TabsContent>
 
-            <TabsContent value="image" className="space-y-4">
-              <ImageDetectionInput
-                file={imageFile}
-                disabled={isChecking}
-                onDrop={(e) => handleDrop(e, "image")}
-                onDragOver={handleDragOver}
-                onPick={() =>
-                  document.getElementById("image-upload")?.click()
-                }
-                onFileChange={(e) => handleFileChange(e, "image")}
-                onRemove={() => onImageFile(null)}
-              />
-            </TabsContent>
+          <TabsContent value="image" className="space-y-4">
+            <ImageDetectionInput
+              file={imageFile}
+              disabled={isChecking}
+              onDrop={(e) => handleDrop(e, "image")}
+              onDragOver={handleDragOver}
+              onPick={() => document.getElementById("image-upload")?.click()}
+              onFileChange={(e) => handleFileChange(e, "image")}
+              onRemove={() => onImageFile(null)}
+            />
+          </TabsContent>
 
-            {/* <TabsContent value="url" className="space-y-4">
+          {/* <TabsContent value="url" className="space-y-4">
               <URLDetectionInput
                 value={urlInput}
                 onChange={onUrlChange}
@@ -499,46 +499,47 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
                 onFileChange={(e) => handleFileChange(e, "qr")}
               />
             </TabsContent> */}
-          </Tabs>
+        </Tabs>
 
-          {error && (
-            <div
-              className="flex items-center gap-2 text-red-700 bg-red-50 px-4 py-3 rounded-xl mb-4 border-2 border-red-200"
-              role="alert"
-            >
-              <AlertCircle className="w-5 h-5 flex-shrink-0" aria-hidden />
-              <p className="text-sm font-medium">{error}</p>
-            </div>
-          )}
-
-          <Button
-            type="button"
-            onClick={onRequestCheck}
-            disabled={isChecking}
-            className="w-full h-14 text-base font-semibold bg-[#EAA866] hover:bg-[#D89654] text-white border-0 transition-all mt-6"
+        {error && (
+          <div
+            className="flex items-center gap-2 text-red-700 bg-red-50 px-4 py-3 rounded-xl mb-4 border-2 border-red-200"
+            role="alert"
           >
-            {isChecking ? (
-              <>
-                <div
-                  className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
-                  aria-hidden
-                />
-                {UI_TEXT.detection.analyzing}
-              </>
-            ) : (
-              <>
-                <Shield className="w-5 h-5 mr-2" aria-hidden />
-                {UI_TEXT.detection.buttonCheck}
-              </>
-            )}
-          </Button>
+            <AlertCircle className="w-5 h-5 flex-shrink-0" aria-hidden />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        )}
 
+        <Button
+          type="button"
+          onClick={onRequestCheck}
+          disabled={isChecking}
+          className="w-full h-14 text-base font-semibold bg-[#EAA866] hover:bg-[#D89654] text-white border-0 transition-all mt-6"
+        >
+          {isChecking ? (
+            <>
+              <div
+                className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+                aria-hidden
+              />
+              {UI_TEXT.detection.analyzing}
+            </>
+          ) : (
+            <>
+              <Shield className="w-5 h-5 mr-2" aria-hidden />
+              {UI_TEXT.detection.buttonCheck}
+            </>
+          )}
+        </Button>
 
-          {showCropModal && tempImageUrl && (
+        {showCropModal && tempImageUrl && (
           <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden">
               <div className="p-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Crop image</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Crop image
+                </h3>
                 <p className="text-sm text-gray-500">
                   Select the suspicious part of the image before analysis.
                 </p>
@@ -558,7 +559,9 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
 
               <div className="p-4 border-t border-gray-200 space-y-3">
                 <div>
-                  <label className="block text-sm text-gray-700 mb-2">Zoom</label>
+                  <label className="block text-sm text-gray-700 mb-2">
+                    Zoom
+                  </label>
                   <input
                     type="range"
                     min={1}
@@ -571,7 +574,11 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={handleCropCancel}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCropCancel}
+                  >
                     Cancel
                   </Button>
                   <Button type="button" onClick={() => void handleCropSave()}>
@@ -582,9 +589,9 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
             </div>
           </div>
         )}
-        </div>
-      );
-    }
+      </div>
+    );
+  },
 );
 
 export const DetectionForm = memo(DetectionFormInner);
