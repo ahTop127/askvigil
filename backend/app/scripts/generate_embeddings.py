@@ -27,10 +27,11 @@ async def generate_and_update_embeddings():
     # Create a virtual FastAPI instance to trigger lifespan
     dummy_app = FastAPI()
 
-    print("The global lifecycle is being triggered and the AI model is being loaded from the Registry...")
+    print(
+        "The global lifecycle is being triggered and the AI model is being loaded from the Registry..."
+    )
     # Manually enter the lifespan context, which will load the model and store it in the MODEL_REGISTRY
     async with lifespan(dummy_app):
-
         # 3. Obtain model information from the global registry
         model_info = MODEL_REGISTRY.get("text_minilm")
         if not model_info:
@@ -39,7 +40,7 @@ async def generate_and_update_embeddings():
 
         # Extract the true SentenceTransformer model object
         model = model_info["model"]
-        print(f"Successfully obtained the model from the Registry!")
+        print("Successfully obtained the model from the Registry!")
 
         print("Connect to the database...")
         await Tortoise.init(config=TORTOISE_ORM)
@@ -49,7 +50,9 @@ async def generate_and_update_embeddings():
         offset = 0
 
         total_count = await OpenDataSet.filter(text_embedding__isnull=True).count()
-        print(f"It was found that a vector needs to be generated for the {total_count} data.")
+        print(
+            f"It was found that a vector needs to be generated for the {total_count} data."
+        )
 
         while True:
             records = (
@@ -63,7 +66,9 @@ async def generate_and_update_embeddings():
 
             print(f"The next {len(records)} data entry is being processed...")
 
-            texts = [record.clean_text if record.clean_text else "" for record in records]
+            texts = [
+                record.clean_text if record.clean_text else "" for record in records
+            ]
 
             # 5. Encode using the model obtained from the Registry
             embeddings = model.encode(texts)
@@ -78,7 +83,9 @@ async def generate_and_update_embeddings():
             offset += len(records)
             print(f"Progress: {offset} / {total_count}")
 
-        print("All vectors have been generated! Your database now has the ability of AI search!")
+        print(
+            "All vectors have been generated! Your database now has the ability of AI search!"
+        )
         await Tortoise.close_connections()
 
     # After leaving the async with code block, lifespan will automatically execute the cleanup code following yield (MODEL_REGISTRY.clear()).

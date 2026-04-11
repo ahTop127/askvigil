@@ -1,0 +1,597 @@
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useImperativeHandle,
+  useMemo,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
+import {
+  FileSearch,
+  Link as LinkIcon,
+  QrCode,
+  Shield,
+  Upload,
+  AlertCircle,
+} from "lucide-react";
+import { Button } from "@components/ui/button";
+import { Textarea } from "@components/ui/textarea";
+import { Input } from "@components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
+import { UI_TEXT } from "@lib/constants/text";
+import type { DetectionType } from "@lib/types";
+import { useState } from "react";
+import Cropper from "react-easy-crop";
+
+export interface DetectionFormProps {
+  activeTab: DetectionType;
+  onTabChange: (tab: string) => void;
+  textInput: string;
+  onTextChange: (value: string) => void;
+  urlInput: string;
+  onUrlChange: (value: string) => void;
+  imageFile: File | null;
+  qrFile: File | null;
+  onImageFile: (file: File | null) => void;
+  onQrFile: (file: File | null) => void;
+  error: string;
+  isChecking: boolean;
+  onRequestCheck: () => void;
+}
+
+export type DetectionFormHandle = {
+  /** Triggers the same validation + privacy flow as the primary button. */
+  requestCheck: () => void;
+};
+
+function TextDetectionInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <Textarea
+        placeholder={UI_TEXT.detection.textPlaceholder}
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+        }}
+        maxLength={1000}
+        className="min-h-[140px] resize-none text-base bg-gray-50 border-2 border-gray-200 focus:border-[#EAA866] text-gray-900 placeholder:text-gray-400 rounded-xl"
+        disabled={disabled}
+      />
+      <div
+        className={`text-right text-sm mt-2 ${
+          value.length > 900 ? "text-red-500" : "text-gray-500"
+        }`}
+      >
+        {value.length} / 1000 characters
+      </div>
+    </div>
+  );
+}
+
+function ImageDetectionInput({
+  file,
+  disabled,
+  onDrop,
+  onDragOver,
+  onPick,
+  onFileChange,
+  onRemove,
+}: {
+  file: File | null;
+  disabled?: boolean;
+  onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onPick: () => void;
+  onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-[#EAA866] transition-colors cursor-pointer bg-gray-50 hover:bg-[#EAA866]/5"
+      onClick={onPick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onPick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      {!file ? (
+        <>
+          <Upload className="w-12 h-12 text-[#EAA866] mx-auto mb-3" />
+          <p className="text-gray-700 mb-1 font-medium">
+            {UI_TEXT.detection.imageDropTitle}
+          </p>
+          <p className="text-sm text-gray-500">
+            {UI_TEXT.detection.imageDropHint}
+          </p>
+        </>
+      ) : (
+        <>
+          {/*image preview*/}
+          <img
+            src={URL.createObjectURL(file)}
+            alt="Preview"
+            className="max-h-48 mx-auto rounded-lg mb-3 object-contain"
+          />
+
+          <p className="text-sm text-gray-600">{file.name}</p>
+
+          <p className="text-xs text-gray-400 mt-1">Click to change image</p>
+          {/*remove button*/}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="text-red-500 text-xm mt-2 hover:underline"
+          >
+            Remove image
+          </button>
+        </>
+      )}
+
+      <input
+        id="image-upload"
+        type="file"
+        accept="image/*"
+        onChange={onFileChange}
+        className="hidden"
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+function URLDetectionInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor="url-check-input" className="sr-only">
+        {UI_TEXT.detection.tabUrl}
+      </label>
+      <Input
+        id="url-check-input"
+        type="url"
+        placeholder={UI_TEXT.detection.urlPlaceholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="h-12 text-base bg-gray-50 border-2 border-gray-200 focus:border-[#EAA866] rounded-xl"
+      />
+    </div>
+  );
+}
+
+function QRCodeDetectionInput({
+  file,
+  disabled,
+  onDrop,
+  onDragOver,
+  onPick,
+  onFileChange,
+}: {
+  file: File | null;
+  disabled?: boolean;
+  onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onPick: () => void;
+  onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-[#EAA866] transition-colors cursor-pointer bg-gray-50 hover:bg-[#EAA866]/5"
+      onClick={onPick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onPick();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <QrCode className="w-12 h-12 text-[#EAA866] mx-auto mb-3" aria-hidden />
+      <p className="text-gray-700 mb-1 font-medium">
+        {UI_TEXT.detection.qrDropTitle}
+      </p>
+      <p className="text-sm text-gray-500">
+        {file ? file.name : UI_TEXT.detection.qrDropHint}
+      </p>
+      <input
+        id="qr-upload"
+        type="file"
+        accept="image/*"
+        onChange={onFileChange}
+        className="hidden"
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+async function createImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", reject);
+    image.src = url;
+  });
+}
+
+async function getCroppedFile(
+  imageSrc: string,
+  pixelCrop: { x: number; y: number; width: number; height: number },
+  fileName: string,
+): Promise<File> {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("Could not create canvas context");
+  }
+
+  canvas.width = pixelCrop.width;
+  canvas.height = pixelCrop.height;
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    pixelCrop.width,
+    pixelCrop.height,
+  );
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Canvas is empty"));
+          return;
+        }
+
+        resolve(
+          new File([blob], fileName, {
+            type: "image/jpeg",
+          }),
+        );
+      },
+      "image/jpeg",
+      0.95,
+    );
+  });
+}
+
+/**
+ * Tabbed detection inputs (text, image, URL, QR) with shared actions.
+ */
+const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
+  function DetectionForm(props, ref) {
+    const {
+      activeTab,
+      onTabChange,
+      textInput,
+      onTextChange,
+      urlInput,
+      onUrlChange,
+      imageFile,
+      qrFile,
+      onImageFile,
+      onQrFile,
+      error,
+      isChecking,
+      onRequestCheck,
+    } = props;
+
+    const [showCropModal, setShowCropModal] = useState(false);
+    const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
+    const [tempImageName, setTempImageName] = useState("cropped-image.jpg");
+
+    const [crop, setCrop] = useState({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null>(null);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        requestCheck: () => onRequestCheck(),
+      }),
+      [onRequestCheck],
+    );
+
+    const onCropComplete = useCallback(
+      (
+        _croppedArea: unknown,
+        croppedPixels: { x: number; y: number; width: number; height: number },
+      ) => {
+        setCroppedAreaPixels(croppedPixels);
+      },
+      [],
+    );
+
+    const resetCropState = useCallback(() => {
+      if (tempImageUrl) {
+        URL.revokeObjectURL(tempImageUrl);
+      }
+
+      setTempImageUrl(null);
+      setTempImageName("cropped-image.jpg");
+      setShowCropModal(false);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+    }, [tempImageUrl]);
+
+    const handleCropCancel = useCallback(() => {
+      resetCropState();
+    }, [resetCropState]);
+
+    const handleCropSave = useCallback(async () => {
+      if (!tempImageUrl || !croppedAreaPixels) return;
+
+      try {
+        const croppedFile = await getCroppedFile(
+          tempImageUrl,
+          croppedAreaPixels,
+          `cropped-${tempImageName}`,
+        );
+
+        onImageFile(croppedFile);
+        resetCropState();
+      } catch (err) {
+        console.error("Crop failed:", err);
+      }
+    }, [
+      croppedAreaPixels,
+      onImageFile,
+      resetCropState,
+      tempImageName,
+      tempImageUrl,
+    ]);
+
+    const handleFileChange = useCallback(
+      (e: ChangeEvent<HTMLInputElement>, type: "image" | "qr") => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (type === "image") {
+          const imageUrl = URL.createObjectURL(file);
+          setTempImageUrl(imageUrl);
+          setTempImageName(file.name);
+          setShowCropModal(true);
+          return;
+        }
+
+        onQrFile(file);
+      },
+      [onQrFile],
+    );
+
+    const handleDrop = useCallback(
+      (e: DragEvent<HTMLDivElement>, type: "image" | "qr") => {
+        e.preventDefault();
+
+        const file = e.dataTransfer.files?.[0];
+        if (!file?.type.startsWith("image/")) return;
+
+        if (type === "image") {
+          const imageUrl = URL.createObjectURL(file);
+          setTempImageUrl(imageUrl);
+          setTempImageName(file.name);
+          setShowCropModal(true);
+          return;
+        }
+
+        onQrFile(file);
+      },
+      [onQrFile],
+    );
+
+    const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+    }, []);
+
+    const tabValue = useMemo(() => activeTab, [activeTab]);
+
+    return (
+      <div className="relative bg-white rounded-3xl shadow-sm border-2 border-[#EAA866]/10 p-8 md:p-10">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#EAA866] rounded-full" />
+
+        <Tabs value={tabValue} onValueChange={onTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 border border-gray-200 h-auto p-1 gap-1">
+            <TabsTrigger
+              value="text"
+              className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
+            >
+              <FileSearch className="w-4 h-4 mr-1 shrink-0" />
+              {UI_TEXT.detection.tabText}
+            </TabsTrigger>
+            <TabsTrigger
+              value="image"
+              className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
+            >
+              <Upload className="w-4 h-4 mr-1 shrink-0" />
+              {UI_TEXT.detection.tabImage}
+            </TabsTrigger>
+            {/* <TabsTrigger
+                value="url"
+                className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
+              >
+                <LinkIcon className="w-4 h-4 mr-1 shrink-0" />
+                {UI_TEXT.detection.tabUrl}
+              </TabsTrigger> */}
+            {/* <TabsTrigger
+                value="qr"
+                className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
+              >
+                <QrCode className="w-4 h-4 mr-1 shrink-0" />
+                {UI_TEXT.detection.tabQR}
+              </TabsTrigger> */}
+          </TabsList>
+
+          <TabsContent value="text" className="space-y-4">
+            <TextDetectionInput
+              value={textInput}
+              onChange={onTextChange}
+              disabled={isChecking}
+            />
+          </TabsContent>
+
+          <TabsContent value="image" className="space-y-4">
+            <ImageDetectionInput
+              file={imageFile}
+              disabled={isChecking}
+              onDrop={(e) => handleDrop(e, "image")}
+              onDragOver={handleDragOver}
+              onPick={() => document.getElementById("image-upload")?.click()}
+              onFileChange={(e) => handleFileChange(e, "image")}
+              onRemove={() => onImageFile(null)}
+            />
+          </TabsContent>
+
+          {/* <TabsContent value="url" className="space-y-4">
+              <URLDetectionInput
+                value={urlInput}
+                onChange={onUrlChange}
+                disabled={isChecking}
+              />
+            </TabsContent>
+
+            <TabsContent value="qr" className="space-y-4">
+              <QRCodeDetectionInput
+                file={qrFile}
+                disabled={isChecking}
+                onDrop={(e) => handleDrop(e, "qr")}
+                onDragOver={handleDragOver}
+                onPick={() => document.getElementById("qr-upload")?.click()}
+                onFileChange={(e) => handleFileChange(e, "qr")}
+              />
+            </TabsContent> */}
+        </Tabs>
+
+        {error && (
+          <div
+            className="flex items-center gap-2 text-red-700 bg-red-50 px-4 py-3 rounded-xl mb-4 border-2 border-red-200"
+            role="alert"
+          >
+            <AlertCircle className="w-5 h-5 flex-shrink-0" aria-hidden />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        )}
+
+        <Button
+          type="button"
+          onClick={onRequestCheck}
+          disabled={isChecking}
+          className="w-full h-14 text-base font-semibold bg-[#EAA866] hover:bg-[#D89654] text-white border-0 transition-all mt-6"
+        >
+          {isChecking ? (
+            <>
+              <div
+                className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
+                aria-hidden
+              />
+              {UI_TEXT.detection.analyzing}
+            </>
+          ) : (
+            <>
+              <Shield className="w-5 h-5 mr-2" aria-hidden />
+              {UI_TEXT.detection.buttonCheck}
+            </>
+          )}
+        </Button>
+
+        {showCropModal && tempImageUrl && (
+          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden">
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Crop image
+                </h3>
+                <p className="text-sm text-gray-500">
+                  Select the suspicious part of the image before analysis.
+                </p>
+              </div>
+
+              <div className="relative w-full h-[420px] bg-black">
+                <Cropper
+                  image={tempImageUrl}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={4 / 5}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                />
+              </div>
+
+              <div className="p-4 border-t border-gray-200 space-y-3">
+                <div>
+                  <label className="block text-sm text-gray-700 mb-2">
+                    Zoom
+                  </label>
+                  <input
+                    type="range"
+                    min={1}
+                    max={3}
+                    step={0.1}
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCropCancel}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={() => void handleCropSave()}>
+                    Continue
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  },
+);
+
+export const DetectionForm = memo(DetectionFormInner);
