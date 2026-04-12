@@ -34,7 +34,7 @@ async def fetch_scam_categories():
         """,
 )
 async def fetch_quiz_questions(
-    category_id: Optional[int] = Query(
+    category_id: Optional[int] = Path(
         default=None, description="Scam category ID (optional)"
     ),
 ):
