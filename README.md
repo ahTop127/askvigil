@@ -2,6 +2,10 @@
 
 Welcome to AskVigil by SleepUnderflow. We are using a containerized Python stack. This means if it runs on your laptop in Docker, it **will** work on the Oracle server. You must have docker desktop running to run the code. Saving a file will automatically reload the code, you only need to run `docker-compose up --build` if you changed the structure, like a library requirement in requirements.txt.
 
+General Syntax for inserting data into cloud storage:  
+`curl.exe -X PUT --data-binary "@local_file_name" "PAR_URL/remote_file_name"`
+PAR_URL goes into the .env file, it is not to be shared publicly.
+
 ---
 
 ## 🛠 The Tech Stack

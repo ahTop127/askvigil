@@ -40,7 +40,8 @@ frontend/npm-debug.log*
 postgres_data/
 npm_data/
 npm_letsencrypt/
-ai_models/
+data_persistence/
+resources/
 *.log
 # Backend Environment variables
 .env*
