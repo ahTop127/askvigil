@@ -12,6 +12,21 @@ services:
     volumes:
       - ./data_persistence/postgres_data:/var/lib/postgresql/data
       - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # Cap db resource usage to avoid hanging
+    blkio_config:
+      device_write_bps:
+        - path: /dev/sda
+          rate: 10mb
+      device_write_iops:
+        - path: /dev/sda
+          rate: 400
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+    # Much faster db population, but dangerous (data corruption) if it crashes!
+    command: postgres -c fsync=off -c synchronous_commit=off 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
