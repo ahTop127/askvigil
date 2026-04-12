@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from typing import List, Optional
 
 from app.schemas.quiz import (
