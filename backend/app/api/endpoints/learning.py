@@ -36,15 +36,14 @@ async def fetch_scam_categories():
         """,
 )
 async def fetch_quiz_questions(
-        # 2. 将 Path 改为 Query，并将类型改为 Optional[int]，默认值为 None
-        category_id: Optional[int] = Query(None, description="Optional Scam category ID"),
+    # 2. 将 Path 改为 Query，并将类型改为 Optional[int]，默认值为 None
+    category_id: Optional[int] = Query(None, description="Optional Scam category ID"),
 ):
     # Service 层原封不动直接调用
     questions = await learning_svc.get_random_quiz_question(
         category_id=category_id, limit=5
     )
     return questions
-
 
 
 @router.post(
