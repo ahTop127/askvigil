@@ -3,6 +3,7 @@ import os
 import sys
 from tortoise import Tortoise
 from dotenv import load_dotenv
+import numpy as np
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 app_dir = os.path.dirname(current_dir)
@@ -33,13 +34,14 @@ async def generate_and_update_embeddings():
     # Manually enter the lifespan context, which will load the model and store it in the MODEL_REGISTRY
     async with lifespan(dummy_app):
         # 3. Obtain model information from the global registry
-        model_info = MODEL_REGISTRY.get("text_minilm")
+        model_info = MODEL_REGISTRY.get("text")
         if not model_info:
             print("Error: The Text model failed to load in lifespan!")
             return
 
-        # Extract the true SentenceTransformer model object
-        model = model_info["model"]
+        # Extract the true ONNX session/tokenizer
+        tokenizer = model_info["tokenizer"]
+        session = model_info["session"]
         print("Successfully obtained the model from the Registry!")
 
         print("Connect to the database...")
@@ -55,23 +57,17 @@ async def generate_and_update_embeddings():
         )
 
         while True:
-            records = (
-                await OpenDataSet.filter(text_embedding__isnull=True)
-                .limit(batch_size)
-                .offset(0)
-            )
+            records = await OpenDataSet.filter(text_embedding__isnull=True).limit(batch_size)
 
             if not records:
                 break
 
             print(f"The next {len(records)} data entry is being processed...")
 
-            texts = [
-                record.clean_text if record.clean_text else "" for record in records
-            ]
-
             # 5. Encode using the model obtained from the Registry
-            embeddings = model.encode(texts)
+            # embeddings = model.encode(texts)
+            texts = [record.clean_text if record.clean_text else "" for record in records]
+            embeddings = encode_texts_with_onnx(texts, tokenizer, session)
 
             for idx, record in enumerate(records):
                 record.text_embedding = embeddings[idx].tolist()
@@ -90,6 +86,25 @@ async def generate_and_update_embeddings():
 
     # After leaving the async with code block, lifespan will automatically execute the cleanup code following yield (MODEL_REGISTRY.clear()).
     print("When the life cycle ends, clear the memory.")
+
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output[0]
+    input_mask_expanded = np.expand_dims(attention_mask, -1).astype(float)
+    return np.sum(token_embeddings * input_mask_expanded, 1) / np.clip(
+        input_mask_expanded.sum(1), a_min=1e-9, a_max=None
+    )
+
+def encode_texts_with_onnx(texts: list[str], tokenizer, session) -> np.ndarray:
+    encoded = tokenizer(
+        texts,
+        padding=True,
+        truncation=True,
+        max_length=512,
+        return_tensors="np",
+    )
+    outputs = session.run(None, dict(encoded))
+    # text model 用 mean pooling
+    return mean_pooling(outputs, encoded["attention_mask"])
 
 
 if __name__ == "__main__":
