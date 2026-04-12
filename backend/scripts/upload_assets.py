@@ -11,20 +11,26 @@ CLOUD_STORAGE_URL = os.getenv("OCI_PAR_URL")  # From environment
 
 def upload_directory(local_path, remote_prefix):
     """
-    local_path: 'local_models/text_model'
-    remote_prefix: 'ai_models/text_model'
+    Ensures local_path contents are uploaded under remote_prefix.
+    Example: 
+    local_path: './text_onnx'
+    remote_prefix: 'ai_models/text_onnx'
+    Result: 'ai_models/text_onnx/model.onnx'
     """
     path = Path(local_path)
-
+    remote_prefix = remote_prefix.strip("/") # Remove trailing/leading slashes
+    
     with httpx.Client(timeout=600.0) as client:
-        for file in path.rglob("*"):  # Recursive glob to find all files
+        # rglob("*") finds all files and subdirectories
+        for file in path.rglob("*"): 
             if file.is_file():
-                # Construct the remote path
-                relative_path = file.relative_to(path.parent)
-                remote_name = str(relative_path).replace(
-                    "\\", "/"
-                )  # Ensure Linux-style paths
-
+                # 1. Calculate path relative to the target folder itself
+                # If file is ./text_onnx/sub/weights.bin, relative is sub/weights.bin
+                inner_path = file.relative_to(path)
+                
+                # 2. Construct the full remote path
+                remote_name = f"{remote_prefix}/{inner_path}".replace("\\", "/")
+                
                 print(f"Uploading {file} to {remote_name}...")
 
                 with open(file, "rb") as f:
@@ -34,8 +40,6 @@ def upload_directory(local_path, remote_prefix):
                     print("Success.")
                 else:
                     print(f"Failed: {resp.status_code}")
-
-
 if __name__ == "__main__":
     # Example usage:
-    upload_directory("./text_model", "ai_models/text_model")
+    upload_directory("data_persistence/ai_models/text_onnx", "ai_models/text_onnx")
