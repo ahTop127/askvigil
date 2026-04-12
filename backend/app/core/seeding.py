@@ -48,7 +48,9 @@ def _quote_ident(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
-async def _connect(params: dict[str, object], database: str | None = None) -> asyncpg.Connection:
+async def _connect(
+    params: dict[str, object], database: str | None = None
+) -> asyncpg.Connection:
     return await asyncpg.connect(
         host=params["host"],
         port=params["port"],
@@ -66,6 +68,8 @@ It will execute external commands, such as:
     import_open_data.py
     generate_embeddings.py
 """
+
+
 async def _run_subprocess(cmd: list[str], cwd: Path) -> None:
     print(f"[Seeding] Running command: {' '.join(cmd)}")
     proc = await asyncio.create_subprocess_exec(
@@ -84,9 +88,12 @@ async def _run_subprocess(cmd: list[str], cwd: Path) -> None:
     if proc.returncode != 0:
         raise SeedingError(f"Command failed ({proc.returncode}): {' '.join(cmd)}")
 
+
 """
 It will check whether the DATABASE exists. If not, CREATE DATABASE askvigil_db
 """
+
+
 async def _ensure_database_exists(params: dict[str, object]) -> None:
     target_db = str(params["database"])
     admin_db = os.getenv("POSTGRES_ADMIN_DB", "postgres")
@@ -240,7 +247,9 @@ async def run_seeding() -> None:
             print("[Seeding] quiz tables are empty. Importing quiz SQL...")
             await _run_quiz_sql(conn)
         elif qq_count > 0 and qo_count > 0:
-            print(f"[Seeding] quiz data exists (questions={qq_count}, options={qo_count}). Skip.")
+            print(
+                f"[Seeding] quiz data exists (questions={qq_count}, options={qo_count}). Skip."
+            )
         else:
             # Inconsistent partial data, do not blindly import to avoid PK conflict
             raise SeedingError(
@@ -257,7 +266,9 @@ async def run_seeding() -> None:
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
-            print(f"[Seeding] open_dataset has {open_count} rows. Skip clean-data import.")
+            print(
+                f"[Seeding] open_dataset has {open_count} rows. Skip clean-data import."
+            )
 
         # 5) embeddings (only missing rows)
         missing_embeddings = int(
@@ -267,7 +278,9 @@ async def run_seeding() -> None:
             or 0
         )
         if missing_embeddings > 0:
-            print(f"[Seeding] {missing_embeddings} rows missing embeddings. Generating...")
+            print(
+                f"[Seeding] {missing_embeddings} rows missing embeddings. Generating..."
+            )
             await conn.close()
             await _run_generate_embeddings()
             conn = await _connect(params)

@@ -57,7 +57,9 @@ async def generate_and_update_embeddings():
         )
 
         while True:
-            records = await OpenDataSet.filter(text_embedding__isnull=True).limit(batch_size)
+            records = await OpenDataSet.filter(text_embedding__isnull=True).limit(
+                batch_size
+            )
 
             if not records:
                 break
@@ -66,7 +68,9 @@ async def generate_and_update_embeddings():
 
             # 5. Encode using the model obtained from the Registry
             # embeddings = model.encode(texts)
-            texts = [record.clean_text if record.clean_text else "" for record in records]
+            texts = [
+                record.clean_text if record.clean_text else "" for record in records
+            ]
             embeddings = encode_texts_with_onnx(texts, tokenizer, session)
 
             for idx, record in enumerate(records):
@@ -87,12 +91,14 @@ async def generate_and_update_embeddings():
     # After leaving the async with code block, lifespan will automatically execute the cleanup code following yield (MODEL_REGISTRY.clear()).
     print("When the life cycle ends, clear the memory.")
 
+
 def mean_pooling(model_output, attention_mask):
     token_embeddings = model_output[0]
     input_mask_expanded = np.expand_dims(attention_mask, -1).astype(float)
     return np.sum(token_embeddings * input_mask_expanded, 1) / np.clip(
         input_mask_expanded.sum(1), a_min=1e-9, a_max=None
     )
+
 
 def encode_texts_with_onnx(texts: list[str], tokenizer, session) -> np.ndarray:
     encoded = tokenizer(
