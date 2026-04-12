@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Path
 from typing import List, Optional
 
 from app.schemas.quiz import (
