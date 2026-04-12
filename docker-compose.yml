@@ -10,7 +10,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # - postgres_data:/var/lib/postgresql/data # Moving, delete after health check
+      - ./data_persistence/postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -27,13 +28,17 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./ai_models:/app/models # The model lives here on the server
+      # - ./ai_models:/app/models # The model lives here on the server
       - ./backend:/app # Mount the actual backend folder
+      - ./data_persistence:/app/persistence #
       - /app/.venv # PROTECT: Use the container's internal Linux venv
     environment:
+      PYTHONUNBUFFERED: 1
       # We use the 'db' service name as the hostname
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql
       MODEL_PATH: /app/models/huggingface
+      OCI_PAR_URL: ${OCI_PAR_URL} 
+      PERSISTENCE_PATH: /app/persistence
     # Nginx makes this unnecessary on oracle server, but it's helpful on local
     # We just block port 8000 on oracle.
     ports:
@@ -64,6 +69,8 @@ services:
     volumes:
       - ./npm_data:/data
       - ./npm_letsencrypt:/etc/letsencrypt
+      - ./data_persistence/npm_data:/data
+      - ./data_persistence/npm_letsencrypt:/etc/letsencrypt
 
 volumes:
   postgres_data:
