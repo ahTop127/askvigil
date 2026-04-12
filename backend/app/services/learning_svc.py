@@ -4,6 +4,7 @@ from app.models.quiz import QuizQuestion, QuizAttempt
 from app.models.scam import ScamCategory
 from app.schemas.quiz import QuizBatchSubmitIn
 from app.models.session import UserSession
+from typing import Optional
 
 
 async def get_all_scam_categories():
@@ -13,20 +14,22 @@ async def get_all_scam_categories():
     return await ScamCategory.all().order_by("id")
 
 
-async def get_random_quiz_question(category_id: int, limit: int = 5):
+async def get_random_quiz_question(category_id: Optional[int] = None, limit: int = 5):
     """
     Gets a random quiz question
+    If category_id is None, sample from all questions.
     """
+    base_query = QuizQuestion.all()
+
     # check the quiz type is exist
-    category = await ScamCategory.get_or_create(id=category_id)
-    if not category:
-        raise HTTPException(status_code=404, detail="Scam Category not found")
+    if category_id is not None:
+        category = await ScamCategory.get_or_none(id=category_id)
+        if not category:
+            raise HTTPException(status_code=404, detail="Scam Category not found")
+        base_query = base_query.filter(category_id=category_id)
 
     # get all the question id from this quiz type(flat=True indicates returning a flat list [1001, 1002...] )
-    question_ids = await QuizQuestion.filter(category_id=category_id).values_list(
-        "id", flat=True
-    )
-
+    question_ids = await base_query.values_list("id", flat=True)
     if not question_ids:
         return []
 

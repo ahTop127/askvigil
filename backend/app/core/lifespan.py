@@ -7,6 +7,8 @@ import os
 import httpx
 from pathlib import Path
 
+from app.core.seeding import run_seeding
+
 # Global Registry
 MODEL_REGISTRY = {}
 # Define the Root of the data storage
@@ -73,6 +75,9 @@ async def lifespan(app: FastAPI):
     # The API will wait here until the download is finished
     print("[Lifespan] Starting asset synchronization...")
     await sync_assets()
+
+    # wangsi New addition: Perform database idempotent initialization before startup
+    await run_seeding()
 
     # 2. AI Preload - ONNX Inference Sessions (INT8)
     # Use 'CPUExecutionProvider' for ARM Neoverse N1

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Path
-from typing import List
+from fastapi import APIRouter, Path, Query
+from typing import List, Optional
 
 from app.schemas.quiz import (
     QuizQuestionOut,
@@ -34,7 +34,9 @@ async def fetch_scam_categories():
         """,
 )
 async def fetch_quiz_questions(
-    category_id: int = Path(..., description="The ID of the Scam Category"),
+    category_id: Optional[int] = Query(
+        default=None, description="Scam category ID (optional)"
+    ),
 ):
 
     questions = await learning_svc.get_random_quiz_question(
