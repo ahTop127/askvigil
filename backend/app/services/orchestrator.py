@@ -63,7 +63,7 @@ def _handle_image_flow(image_file: str):
     # if qr_urls:
     #     results["qr_urls"] = [await nlp_service.scan_url(u) for u in qr_urls]
 
-    # 2. Look for Text via OCR
+    # 2. Look for Text via OCR which is implemented in the vision service file
     extracted_text = vision_service.extract_ocr_text(image_file)
 
     # optional for testing
