@@ -17,12 +17,12 @@ if os.path.exists(env_path):
     load_dotenv(env_path)
 
 from app.core.database import TORTOISE_ORM
-from app.models.open_data import OpenDataSet
 
 # 2. Introduce FastAPI and Lifespan (instead of directly introducing SentenceTransformer)
 from fastapi import FastAPI
 from app.core.lifespan import lifespan, MODEL_REGISTRY
 from app.services.nlp_service import get_onnx_embedding
+
 
 
 async def generate_and_update_embeddings():
