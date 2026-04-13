@@ -75,34 +75,64 @@ async def lifespan(app: FastAPI):
     # The API will wait here until the download is finished
     print("[Lifespan] Starting asset synchronization...")
     await sync_assets()
-
-    # wangsi New addition: Perform database idempotent initialization before startup
-    await run_seeding()
-
+    
     # 2. AI Preload - ONNX Inference Sessions (INT8)
-    # Use 'CPUExecutionProvider' for ARM Neoverse N1
-    providers = ["CPUExecutionProvider"]
+    # Use 'ACLExecutionProvider' for ARM Neoverse N1
 
     print("[Lifespan] Loading Quantized ONNX Models...")
-    MODEL_REGISTRY["text"] = {
-        "session": ort.InferenceSession(
-            TEXT_MODEL_PATH / "model_quantized.onnx", providers=providers
-        ),
-        "tokenizer": AutoTokenizer.from_pretrained(
-            str(TEXT_MODEL_PATH), local_files_only=True, fix_mistral_regex=True
-        ),
-    }
+    try:
+        # Load Text Model (MiniLM)
+        MODEL_REGISTRY["text"] = {
+            "session": load_onnx_session(str(TEXT_MODEL_PATH)),
+            "tokenizer": AutoTokenizer.from_pretrained(str(TEXT_MODEL_PATH), local_files_only=True)
+        }
+        
+        # Load URL Model (URLBert)
+        MODEL_REGISTRY["url"] = {
+            "session": load_onnx_session(str(URL_MODEL_PATH)),
+            "tokenizer": AutoTokenizer.from_pretrained(str(URL_MODEL_PATH), local_files_only=True)
+        }
+        
+        print("Models loaded successfully with SessionOptions(threads=1).")
+        
+    except Exception as e:
+        print(f"CRITICAL: Failed to load models: {e}")
+        raise e
 
-    MODEL_REGISTRY["url"] = {
-        "session": ort.InferenceSession(
-            URL_MODEL_PATH / "model_quantized.onnx", providers=providers
-        ),
-        "tokenizer": AutoTokenizer.from_pretrained(
-            str(TEXT_MODEL_PATH), local_files_only=True, fix_mistral_regex=True
-        ),
-    }
+    # Run seeding only after loading models
+    # wangsi New addition: Perform database idempotent initialization before startup
+    await run_seeding()
 
     yield
     # Shutdown logic
     MODEL_REGISTRY.clear()
     print("Models unloaded.")
+
+
+def load_onnx_session(model_path: str):
+    """Encapsulated loader with ARM-specific optimizations."""
+    options = ort.SessionOptions()
+    options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+    
+    # Match your docker-compose: Force 1 thread per operation
+    options.intra_op_num_threads = 1
+    options.inter_op_num_threads = 1
+    
+    # Attempt ACL (Arm Compute Library) first, fallback to CPU
+    providers = [
+        ('ACLExecutionProvider', {'enable_fast_math': 'True'}),
+        'CPUExecutionProvider'
+    ]
+    
+    model_file = f"{model_path}/model_quantized.onnx"
+    session = ort.InferenceSession(model_file, sess_options=options, providers=providers)
+    
+    # --- ACL CHECK ---
+    active_providers = session.get_providers()
+    if 'ACLExecutionProvider' in active_providers:
+        print(f"  [SUCCESS] {Path(model_path).name} loaded with ACL (Arm Compute Library).")
+    else:
+        print(f"  [FALLBACK] {Path(model_path).name} using standard CPUExecutionProvider.")
+    
+    return session
