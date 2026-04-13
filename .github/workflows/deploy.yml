@@ -73,7 +73,7 @@ jobs:
           script: |
             # 1. The SSH URL for the repo
             REPO_URL="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-            TARGET_DIR="~/AskVigil"
+            TARGET_DIR="/home/ubuntu/AskVigil"
 
             # 2. First-time setup: If the folder doesn't exist, clone it
             if [ ! -d "$TARGET_DIR/.git" ]; then
@@ -83,10 +83,14 @@ jobs:
 
             cd $TARGET_DIR
 
+            # Pause DB
+            docker compose stop db
+
             # 3. Clean Slate: Fetch latest ver and auto-lint fixes to force the server to match GitHub exactly.
             git remote set-url origin $REPO_URL
             git fetch origin main
             git reset --hard origin/main
+            git clean -fd
 
             # 4. Deploy
             docker compose --env-file .env -f docker-compose.yml up -d --build --pull --remove-orphans
