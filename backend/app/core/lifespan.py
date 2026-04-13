@@ -158,10 +158,10 @@ async def ensure_architectural_integrity():
     Prevents 'UndefinedColumn' errors caused by stale Docker volumes.
     """
     conn = Tortoise.get_connection("default")
-    
+
     # 1. Extensions
     await conn.execute_script("CREATE EXTENSION IF NOT EXISTS vector;")
-    
+
     # 2. Column & Index Patching
     # We check each column individually to handle incremental updates to init.sql
     patch_sql = """
@@ -206,7 +206,7 @@ async def ensure_architectural_integrity():
         RAISE NOTICE 'Architectural integrity check complete.';
     END $$;
     """
-    
+
     try:
         await conn.execute_script(patch_sql)
         print("Schema synchronization successful.")

@@ -26,6 +26,7 @@ def mean_pooling(model_output, attention_mask):
         input_mask_expanded.sum(1), a_min=1e-9, a_max=None
     )
 
+
 async def get_onnx_embedding(input_data: str | list[str], mode: str = "text"):
     config = MODEL_REGISTRY[mode]
     tokenizer = config["tokenizer"]
@@ -41,19 +42,20 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text"):
     # Inference offload to threadpool
     outputs = await asyncio.to_thread(session.run, None, inputs)
 
-    # Note: Even if the model is INT8, 'outputs' (Hidden States) 
+    # Note: Even if the model is INT8, 'outputs' (Hidden States)
     # are returned as FP32 by the ONNX Quantization wrapper.
     if mode == "text":
         embeddings = mean_pooling(outputs, encoded_input["attention_mask"])
     else:
         embeddings = outputs[0][:, 0, :]
 
-    # Explicit cast to float32 is a safety measure 
+    # Explicit cast to float32 is a safety measure
     # for pgvector compatibility and to prevent asyncpg float64 overhead.
     if isinstance(input_data, str):
         return embeddings.squeeze().astype(np.float32).tolist()
-    
+
     return embeddings.astype(np.float32)
+
 
 async def scan_url(raw_url: str):
     """Processes a single URL through resolution and embedding."""

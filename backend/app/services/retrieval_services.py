@@ -10,7 +10,7 @@ async def hybrid_search_rrf(
     # $1 = query_vector (cast to vector)
     # $2 = query_text (processed by plainto_tsquery)
     # $3 = limit
-    
+
     sql = f"""
     WITH semantic_rank AS (
         SELECT id, ROW_NUMBER() OVER (ORDER BY text_embedding <=> $1::vector) as rank
