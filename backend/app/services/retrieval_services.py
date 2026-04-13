@@ -1,6 +1,9 @@
 from tortoise import Tortoise
 
-async def hybrid_search_rrf(query_text: str, query_vector: list[float], limit: int = 5, k: int = 60):
+
+async def hybrid_search_rrf(
+    query_text: str, query_vector: list[float], limit: int = 5, k: int = 60
+):
     """
     Executes Hybrid Retrieval using Reciprocal Rank Fusion.
     Combines:
@@ -8,7 +11,7 @@ async def hybrid_search_rrf(query_text: str, query_vector: list[float], limit: i
     2. ts_rank (Full-Text Search) for Lexical Keywords
     """
     conn = Tortoise.get_connection("default")
-    
+
     # We use a CTE to rank both sets and then join them
     sql = f"""
     WITH semantic_rank AS (
@@ -36,13 +39,16 @@ async def hybrid_search_rrf(query_text: str, query_vector: list[float], limit: i
     ORDER BY rrf_score DESC
     LIMIT %s;
     """
-    
+
     # Parameters for the query
     params = [
-        str(query_vector), str(query_vector), # Semantic
-        query_text, query_text, query_text,   # Lexical
-        limit                                  # Final Limit
+        str(query_vector),
+        str(query_vector),  # Semantic
+        query_text,
+        query_text,
+        query_text,  # Lexical
+        limit,  # Final Limit
     ]
-    
+
     results = await conn.execute_query_dict(sql, params)
     return results

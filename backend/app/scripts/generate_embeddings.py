@@ -3,7 +3,6 @@ import os
 import sys
 from tortoise import Tortoise
 from dotenv import load_dotenv
-import numpy as np
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 app_dir = os.path.dirname(current_dir)
@@ -22,7 +21,6 @@ from app.core.database import TORTOISE_ORM
 from fastapi import FastAPI
 from app.core.lifespan import lifespan, MODEL_REGISTRY
 from app.services.nlp_service import get_onnx_embedding
-
 
 
 async def generate_and_update_embeddings():
@@ -76,7 +74,9 @@ async def generate_and_update_embeddings():
                 texts = [
                     record.clean_text if record.clean_text else "" for record in records
                 ]
-                embeddings = await get_onnx_embedding(texts, mode="text") # get from nlp_service.py                
+                embeddings = await get_onnx_embedding(
+                    texts, mode="text"
+                )  # get from nlp_service.py
 
                 for idx, record in enumerate(records):
                     record.text_embedding = embeddings[idx].tolist()
@@ -107,7 +107,6 @@ async def generate_and_update_embeddings():
 
     # After leaving the async with code block, lifespan will automatically execute the cleanup code following yield (MODEL_REGISTRY.clear()).
     print("When the life cycle ends, clear the memory.")
-
 
 
 if __name__ == "__main__":
