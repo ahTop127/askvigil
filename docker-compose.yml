@@ -82,6 +82,9 @@ services:
   # 4. Nginx Proxy Manager (SSL/DuckDNS "Manager")
   nginx-proxy:
     image: "jc21/nginx-proxy-manager:latest"
+    depends_on:
+      frontend:
+        condition: service_started # Wait for frontend before running
     restart: always
     ports:
       - "80:80" # Public HTTP
