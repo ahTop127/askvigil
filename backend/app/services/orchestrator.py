@@ -1,6 +1,5 @@
 from fastapi import UploadFile
 from app.services import nlp_service, vision_service, audio_service
-import vision_service
 
 
 async def scan_universal_input(file: UploadFile = None, text: str = None):

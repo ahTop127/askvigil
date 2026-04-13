@@ -282,7 +282,7 @@ async def run_seeding() -> None:
                 f"[Seeding] {missing_embeddings} rows missing embeddings. Generating..."
             )
             await conn.close()
-            await _run_generate_embeddings()
+            # await _run_generate_embeddings()
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:

@@ -8,6 +8,7 @@ import httpx
 from pathlib import Path
 
 from app.core.seeding import run_seeding
+from tortoise import Tortoise
 
 # Global Registry
 MODEL_REGISTRY = {}
@@ -75,6 +76,9 @@ async def lifespan(app: FastAPI):
     # The API will wait here until the download is finished
     print("[Lifespan] Starting asset synchronization...")
     await sync_assets()
+
+    # Verify Schema
+    await ensure_architectural_integrity()
 
     # 2. AI Preload - ONNX Inference Sessions (INT8)
     # Use 'ACLExecutionProvider' for ARM Neoverse N1
@@ -146,3 +150,65 @@ def load_onnx_session(model_path: str):
         )
 
     return session
+
+
+async def ensure_architectural_integrity():
+    """
+    Synchronizes physical PG schema with architectural requirements.
+    Prevents 'UndefinedColumn' errors caused by stale Docker volumes.
+    """
+    conn = Tortoise.get_connection("default")
+    
+    # 1. Extensions
+    await conn.execute_script("CREATE EXTENSION IF NOT EXISTS vector;")
+    
+    # 2. Column & Index Patching
+    # We check each column individually to handle incremental updates to init.sql
+    patch_sql = """
+    DO $$ 
+    BEGIN 
+        -- Ensure columns exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='source') THEN
+            ALTER TABLE open_dataset ADD COLUMN source VARCHAR(50);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='label') THEN
+            ALTER TABLE open_dataset ADD COLUMN label VARCHAR(20);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='category') THEN
+            ALTER TABLE open_dataset ADD COLUMN category VARCHAR(100);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='original_text') THEN
+            ALTER TABLE open_dataset ADD COLUMN original_text TEXT;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='text_embedding') THEN
+            ALTER TABLE open_dataset ADD COLUMN text_embedding vector(384);
+        END IF;
+
+        -- Handle Generated Column and Lexical Search
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='text_search_vector') THEN
+            ALTER TABLE open_dataset 
+            ADD COLUMN text_search_vector tsvector 
+            GENERATED ALWAYS AS (to_tsvector('english', coalesce(clean_text, ''))) STORED;
+        END IF;
+
+        -- Ensure High-Integrity Indexes
+        CREATE INDEX IF NOT EXISTS idx_hnsw_embeddings 
+            ON open_dataset USING hnsw (text_embedding vector_cosine_ops) 
+            WITH (m = 16, ef_construction = 64);
+            
+        CREATE INDEX IF NOT EXISTS idx_gin_lexical 
+            ON open_dataset USING GIN (text_search_vector);
+
+        RAISE NOTICE 'Architectural integrity check complete.';
+    END $$;
+    """
+    
+    try:
+        await conn.execute_script(patch_sql)
+        print("Schema synchronization successful.")
+    except Exception as e:
+        print(f"Schema sync failed: {str(e)}")

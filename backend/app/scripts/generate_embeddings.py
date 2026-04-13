@@ -16,6 +16,7 @@ if os.path.exists(env_path):
     load_dotenv(env_path)
 
 from app.core.database import TORTOISE_ORM
+from app.models.open_data import OpenDataSet
 
 # 2. Introduce FastAPI and Lifespan (instead of directly introducing SentenceTransformer)
 from fastapi import FastAPI
