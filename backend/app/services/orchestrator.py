@@ -1,5 +1,6 @@
 from fastapi import UploadFile
 from app.services import nlp_service, vision_service, audio_service
+import vision_service
 
 
 async def scan_universal_input(file: UploadFile = None, text: str = None):
@@ -52,16 +53,22 @@ async def _handle_video_flow(video_file: UploadFile):
 
     return {"audio": audio_results, "video": video_results}, audio_text
 
-
-async def _handle_image_flow(image_file: UploadFile):
+#jiayi: i removed the async here and also changed the input to str for testing purposes, can change back to async and UploadFile later
+def _handle_image_flow(image_file: str): 
     results = {"qr_urls": []}
 
-    # 1. Look for QR Codes
-    qr_urls = vision_service.detect_qr_codes(image_file)
-    if qr_urls:
-        results["qr_urls"] = [await nlp_service.scan_url(u) for u in qr_urls]
+    # # 1. Look for QR Codes
+    # qr_urls = vision_service.detect_qr_codes(image_file)
+    # if qr_urls:
+    #     results["qr_urls"] = [await nlp_service.scan_url(u) for u in qr_urls]
 
     # 2. Look for Text via OCR
     extracted_text = vision_service.extract_ocr_text(image_file)
 
-    return results, extracted_text
+    #optional for testing
+    #print(f"Extracted OCR Text: {extracted_text}")
+
+    return extracted_text
+
+#if you wanna test uncomment this
+#result_test = _handle_image_flow("OCR_TEST_EN.png")
