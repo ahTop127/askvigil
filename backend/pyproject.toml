@@ -17,7 +17,6 @@ dependencies = [
     "torch>=2.11.0",
     "shap>=0.51.0",
     "librosa>=0.11.0",
-    "paddlepaddle>=3.2.2",
     "urlextract>=1.9.0",
     "httpx>=0.28.1",
     "ffmpeg-python>=0.2.0",
