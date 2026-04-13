@@ -53,8 +53,9 @@ async def _handle_video_flow(video_file: UploadFile):
 
     return {"audio": audio_results, "video": video_results}, audio_text
 
-#jiayi: i removed the async here and also changed the input to str for testing purposes, can change back to async and UploadFile later
-def _handle_image_flow(image_file: str): 
+
+# jiayi: i removed the async here and also changed the input to str for testing purposes, can change back to async and UploadFile later
+def _handle_image_flow(image_file: str):
     results = {"qr_urls": []}
 
     # # 1. Look for QR Codes
@@ -65,10 +66,11 @@ def _handle_image_flow(image_file: str):
     # 2. Look for Text via OCR
     extracted_text = vision_service.extract_ocr_text(image_file)
 
-    #optional for testing
-    #print(f"Extracted OCR Text: {extracted_text}")
+    # optional for testing
+    # print(f"Extracted OCR Text: {extracted_text}")
 
     return extracted_text
 
-#if you wanna test uncomment this
-#result_test = _handle_image_flow("OCR_TEST_EN.png")
+
+# if you wanna test uncomment this
+# result_test = _handle_image_flow("OCR_TEST_EN.png")

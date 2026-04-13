@@ -2,9 +2,10 @@
 import cv2
 import re
 from paddleocr import PaddleOCR
- 
-#intialize the ocr model once at the module level to avoid repeated loading
+
+# intialize the ocr model once at the module level to avoid repeated loading
 ocr = PaddleOCR()
+
 
 def extract_audio_from_video(video_file) -> str:
     """
@@ -45,21 +46,20 @@ def extract_ocr_text(image_file) -> str:
     Another to join the text lines based on the detected language (Chinese vs English/Bahasa Malaysia).
     """
 
-    
     def detect_language(text: str) -> str:
         """
         Detect the language of the text based on character analysis.
         """
-        chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
-        english_chars = len(re.findall(r'[A-Za-z]', text))
+        chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", text))
+        english_chars = len(re.findall(r"[A-Za-z]", text))
 
-        #based on most characters, determine language
+        # based on most characters, determine language
         total = chinese_chars + english_chars
 
         if total == 0:
             return "Unknown"
 
-        #ratio-based decision
+        # ratio-based decision
         chinese_ratio = chinese_chars / total
         english_ratio = english_chars / total
 
@@ -69,7 +69,7 @@ def extract_ocr_text(image_file) -> str:
             return "English or Bahasa Malaysia"
         else:
             return "Mixed"
-        
+
     def join_text(lines, lang="unknown"):
         """
         Join lines of text based on detected language.
@@ -80,39 +80,40 @@ def extract_ocr_text(image_file) -> str:
             return "".join(lines).strip()
         else:
             return " ".join(lines).strip()
-        
-    #load image
+
+    # load image
     img = cv2.imread(image_file)
     if img is None:
         raise ValueError(f"Could not read image: {image_file}")
 
-    #grayscale
+    # grayscale
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    #enlarge
-    gray_enlarged = cv2.resize(gray_img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+    # enlarge
+    gray_enlarged = cv2.resize(
+        gray_img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC
+    )
 
-    #threshold
+    # threshold
     _, thresh_img = cv2.threshold(gray_enlarged, 170, 255, cv2.THRESH_BINARY)
 
-    #convert to 3 channel
+    # convert to 3 channel
     thresh_img = cv2.cvtColor(thresh_img, cv2.COLOR_GRAY2BGR)
 
-    #OCR
+    # OCR
     result_img = ocr.predict(thresh_img)
 
-    #different lines of text extracted from OCR result --> risk explaination (highlighting text)
+    # different lines of text extracted from OCR result --> risk explaination (highlighting text)
     extracted_lines = []
     for item in result_img:
         if isinstance(item, dict) and "rec_texts" in item:
             extracted_lines.extend(item["rec_texts"])
 
     full_text_temp = " ".join(extracted_lines)
-    
-    #detect language
+
+    # detect language
     detected_lang = detect_language(full_text_temp)
-    #join text based on language
+    # join text based on language
     full_text = join_text(extracted_lines, detected_lang)
 
     return full_text
-        
