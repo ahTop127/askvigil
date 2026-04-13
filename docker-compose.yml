@@ -11,7 +11,7 @@ services:
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - ./data_persistence/postgres_data:/var/lib/postgresql/data
-      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infrastructure/postgres:/docker-entrypoint-initdb.d:ro
     # Cap db resource usage to avoid hanging
     blkio_config:
       device_write_bps:
