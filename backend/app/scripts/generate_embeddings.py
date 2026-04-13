@@ -47,11 +47,6 @@ async def generate_and_update_embeddings():
                 print("Error: The Text model failed to load in lifespan!")
                 return
 
-            # Extract the true ONNX session/tokenizer
-            tokenizer = model_info["tokenizer"]
-            session = model_info["session"]
-            print("Successfully obtained the model from the Registry!")
-
             print("Connect to the database...")
             await Tortoise.init(config=TORTOISE_ORM)
             db_inited = True
