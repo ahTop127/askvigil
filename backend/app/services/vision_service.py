@@ -1,10 +1,11 @@
 # Placeholder for OCR/video framework
 import cv2
 import re
-from paddleocr import PaddleOCR
+import easyocr
+import numpy as np
 
 # intialize the ocr model once at the module level to avoid repeated loading
-ocr = PaddleOCR()
+reader = easyocr.Reader(['en'], gpu=False)
 
 
 def extract_audio_from_video(video_file) -> str:
@@ -39,7 +40,7 @@ def detect_qr_codes(image_file) -> list[str]:
 
 def extract_ocr_text(image_file) -> str:
     """
-    TODO: Use PaddleOCR to extract text from images/screenshots.
+    TODO: Use EasyOCR to extract text from images/screenshots.
     Return "" if no text found.
     We have two helper functions here:
     One to detect the language of the text
@@ -91,23 +92,32 @@ def extract_ocr_text(image_file) -> str:
 
     # enlarge
     gray_enlarged = cv2.resize(
-        gray_img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC
+        # 2x linear optimized for arm/easyocr
+        gray_img, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR
+        # gray_img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC # cubic too much for oracle arm server
     )
 
-    # threshold
-    _, thresh_img = cv2.threshold(gray_enlarged, 170, 255, cv2.THRESH_BINARY)
+    # Adaptive thresholding
+    processed_img = cv2.adaptiveThreshold(
+        gray_enlarged, 255, 
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        cv2.THRESH_BINARY, 11, 2
+    )
+    # Otsu's thresholding (alternative adaptive thresholding)
+    # _, processed_img = cv2.threshold(gray_enlarged, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # convert to 3 channel
-    thresh_img = cv2.cvtColor(thresh_img, cv2.COLOR_GRAY2BGR)
+    # Automatic Inversion (In case of dark mode)
+    # If the background is dark (mean < 127), flip it so text is black on white
+    if np.mean(processed_img) < 127:
+        processed_img = cv2.bitwise_not(processed_img)
 
-    # OCR
-    result_img = ocr.predict(thresh_img)
+    # EasyOCR can read grayscale perfectly unless you have colourful text.
+    # Only enable below if we need colourful text detection.
+    # # convert to 3 channel 
+    # processed_img = cv2.cvtColor(processed_img, cv2.COLOR_GRAY2BGR)
 
-    # different lines of text extracted from OCR result --> risk explaination (highlighting text)
-    extracted_lines = []
-    for item in result_img:
-        if isinstance(item, dict) and "rec_texts" in item:
-            extracted_lines.extend(item["rec_texts"])
+    # EasyOCR. detail=0 returns a simple list of strings
+    extracted_lines = reader.readtext(processed_img, detail=0)
 
     full_text_temp = " ".join(extracted_lines)
 

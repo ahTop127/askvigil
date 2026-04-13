@@ -88,4 +88,4 @@ jobs:
             git reset --hard origin/main
 
             # 4. Deploy
-            docker compose -f docker-compose.yml up -d --build --remove-orphans
+            docker compose --env-file .env -f docker-compose.yml up -d --build --remove-orphans

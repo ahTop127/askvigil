@@ -17,13 +17,14 @@ dependencies = [
     "torch>=2.11.0",
     "shap>=0.51.0",
     "librosa>=0.11.0",
-    "paddleocr>=3.4.0",
     "paddlepaddle>=3.2.2",
     "urlextract>=1.9.0",
     "httpx>=0.28.1",
     "ffmpeg-python>=0.2.0",
     "optimum[onnxruntime]>=2.1.0",
     "onnxruntime>=1.24.4",
+    "easyocr>=1.7.2",
+    "torchvision>=0.26.0",
 ]
 
 [tool.aerich]
@@ -41,6 +42,7 @@ required-environments = [
 [tool.uv.sources]
 # Tell uv to prefer the CPU index for ALL platforms to ensure stability
 torch = [{ index = "pytorch-cpu" }]
+torchvision = [{ index = "pytorch-cpu" }]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

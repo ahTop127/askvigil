@@ -63,7 +63,7 @@ services:
       resources:
         limits:
           cpus: '2.0'      # Never let the backend take more than 2 cores
-          memory: 4G       # Hard cap on RAM
+          memory: 8G       # Hard cap on RAM
 
   # 3. The React Frontend
   frontend:
