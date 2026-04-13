@@ -6,6 +6,5 @@ import "./styles/index.css";
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
     <App />
-  </ErrorBoundary>
+  </ErrorBoundary>,
 );
-  

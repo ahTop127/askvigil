@@ -16,33 +16,43 @@ interface Question {
 const questions: Question[] = [
   {
     id: 1,
-    message: "URGENT! Your bank account has been suspended. Click here immediately to verify: bit.ly/verify-acc",
+    message:
+      "URGENT! Your bank account has been suspended. Click here immediately to verify: bit.ly/verify-acc",
     isScam: true,
-    explanation: "This is a scam. Banks never ask you to verify accounts via links in messages. The urgent language and shortened URL are red flags.",
+    explanation:
+      "This is a scam. Banks never ask you to verify accounts via links in messages. The urgent language and shortened URL are red flags.",
   },
   {
     id: 2,
-    message: "Hi! This is Sarah from ABC Company. Thanks for your interview yesterday. We'll contact you next week with our decision.",
+    message:
+      "Hi! This is Sarah from ABC Company. Thanks for your interview yesterday. We'll contact you next week with our decision.",
     isScam: false,
-    explanation: "This appears legitimate. It's a normal follow-up message after an interview with no requests for money or personal information.",
+    explanation:
+      "This appears legitimate. It's a normal follow-up message after an interview with no requests for money or personal information.",
   },
   {
     id: 3,
-    message: "Congratulations! You've been selected for a work-from-home job earning RM5000/month. Send RM300 registration fee to confirm your position.",
+    message:
+      "Congratulations! You've been selected for a work-from-home job earning RM5000/month. Send RM300 registration fee to confirm your position.",
     isScam: true,
-    explanation: "This is a job scam. Legitimate employers never ask for upfront payment. The high salary for minimal work is too good to be true.",
+    explanation:
+      "This is a job scam. Legitimate employers never ask for upfront payment. The high salary for minimal work is too good to be true.",
   },
   {
     id: 4,
-    message: "Your delivery package is waiting. Track it here: pos-malaysia-track.com/track123",
+    message:
+      "Your delivery package is waiting. Track it here: pos-malaysia-track.com/track123",
     isScam: true,
-    explanation: "This is a phishing scam. The domain is fake (real Pos Malaysia uses poslaju.com.my). Scammers create fake tracking sites to steal information.",
+    explanation:
+      "This is a phishing scam. The domain is fake (real Pos Malaysia uses poslaju.com.my). Scammers create fake tracking sites to steal information.",
   },
   {
     id: 5,
-    message: "Hi, I'm calling from your bank. Someone is trying to withdraw money from your account. Please share the OTP we just sent you to block the transaction.",
+    message:
+      "Hi, I'm calling from your bank. Someone is trying to withdraw money from your account. Please share the OTP we just sent you to block the transaction.",
     isScam: true,
-    explanation: "This is an OTP scam. Real banks will NEVER ask for your OTP. They're using urgency to trick you into giving access to your account.",
+    explanation:
+      "This is an OTP scam. Real banks will NEVER ask for your OTP. They're using urgency to trick you into giving access to your account.",
   },
 ];
 
@@ -62,8 +72,8 @@ export default function PracticePage() {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
   const handleStart = () => {
@@ -93,7 +103,7 @@ export default function PracticePage() {
     return (
       <div className="min-h-screen bg-[#F5F3E8] relative overflow-hidden">
         {/* Background Illustration */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center opacity-40"
           style={{
             backgroundImage: `url('https://images.unsplash.com/photo-1662092560436-5bdae9a1acea?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpc29tZXRyaWMlMjBjaXR5JTIwaWxsdXN0cmF0aW9uJTIwY29sb3JmdWx8ZW58MXx8fHwxNzc1MDI3ODkxfDA&ixlib=rb-4.1.0&q=80&w=1080')`,
@@ -116,9 +126,10 @@ export default function PracticePage() {
               <h1 className="text-4xl md:text-5xl font-bold text-[#FF6B35] mb-4">
                 Will Scammers Makan You?
               </h1>
-              
+
               <p className="text-lg text-gray-700 mb-8 leading-relaxed max-w-xl mx-auto">
-                Take this quiz to find out how vulnerable you are to scams and learn how to stay off the scammers' plates.
+                Take this quiz to find out how vulnerable you are to scams and
+                learn how to stay off the scammers' plates.
               </p>
 
               <button
@@ -142,9 +153,11 @@ export default function PracticePage() {
 
   // Results Screen
   if (isComplete) {
-    const score = userAnswers.filter((answer, index) => answer === questions[index].isScam).length;
+    const score = userAnswers.filter(
+      (answer, index) => answer === questions[index].isScam,
+    ).length;
     const percentage = Math.round((score / questions.length) * 100);
-    
+
     const getMessage = () => {
       if (percentage >= 80) return "Excellent! You're great at spotting scams.";
       if (percentage >= 60) return "Good job! Keep learning to improve.";
@@ -170,42 +183,45 @@ export default function PracticePage() {
               <div className="text-7xl mb-6 animate-bounce-once">
                 {getEmoji()}
               </div>
-              
+
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
                 Quiz Complete!
               </h1>
-              
+
               <div className="mb-6">
                 <div className="text-7xl font-bold text-[#669E84] mb-2">
                   {score}/{questions.length}
                 </div>
-                <p className="text-2xl text-gray-700">
-                  {getMessage()}
-                </p>
+                <p className="text-2xl text-gray-700">{getMessage()}</p>
               </div>
 
               <div className="bg-[#669E84]/10 border border-[#669E84]/30 rounded-2xl p-6 mb-8 max-w-md mx-auto">
                 <p className="text-gray-700 text-lg">
-                  You correctly identified <span className="font-bold text-[#669E84]">{score}</span> out of <span className="font-bold">{questions.length}</span> scam scenarios.
+                  You correctly identified{" "}
+                  <span className="font-bold text-[#669E84]">{score}</span> out
+                  of <span className="font-bold">{questions.length}</span> scam
+                  scenarios.
                 </p>
               </div>
             </div>
 
             {/* Detailed Results */}
             <div className="space-y-6 mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Review Your Answers</h2>
-              
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                Review Your Answers
+              </h2>
+
               {questions.map((question, index) => {
                 const userAnswer = userAnswers[index];
                 const isCorrect = userAnswer === question.isScam;
-                
+
                 return (
                   <div
                     key={question.id}
                     className={`border-2 rounded-2xl p-6 ${
                       isCorrect
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-red-200 bg-red-50'
+                        ? "border-green-200 bg-green-50"
+                        : "border-red-200 bg-red-50"
                     }`}
                   >
                     <div className="flex items-start gap-4 mb-4">
@@ -215,29 +231,40 @@ export default function PracticePage() {
                         <XCircle className="w-7 h-7 text-red-600 flex-shrink-0 mt-1" />
                       )}
                       <div className="flex-1">
-                        <h3 className={`font-semibold text-lg mb-2 ${
-                          isCorrect ? 'text-green-900' : 'text-red-900'
-                        }`}>
-                          Question {index + 1}: {isCorrect ? 'Correct' : 'Incorrect'}
+                        <h3
+                          className={`font-semibold text-lg mb-2 ${
+                            isCorrect ? "text-green-900" : "text-red-900"
+                          }`}
+                        >
+                          Question {index + 1}:{" "}
+                          {isCorrect ? "Correct" : "Incorrect"}
                         </h3>
                         <div className="bg-white rounded-xl p-4 mb-3 border border-gray-200">
                           <p className="text-gray-800 leading-relaxed">
                             {question.message}
                           </p>
                         </div>
-                        <p className={`text-sm ${
-                          isCorrect ? 'text-green-800' : 'text-red-800'
-                        }`}>
-                          <span className="font-semibold">Your answer:</span> {userAnswer ? 'Scam' : 'Safe'}
+                        <p
+                          className={`text-sm ${
+                            isCorrect ? "text-green-800" : "text-red-800"
+                          }`}
+                        >
+                          <span className="font-semibold">Your answer:</span>{" "}
+                          {userAnswer ? "Scam" : "Safe"}
                         </p>
-                        <p className={`text-sm mb-2 ${
-                          isCorrect ? 'text-green-800' : 'text-red-800'
-                        }`}>
-                          <span className="font-semibold">Correct answer:</span> {question.isScam ? 'Scam' : 'Safe'}
+                        <p
+                          className={`text-sm mb-2 ${
+                            isCorrect ? "text-green-800" : "text-red-800"
+                          }`}
+                        >
+                          <span className="font-semibold">Correct answer:</span>{" "}
+                          {question.isScam ? "Scam" : "Safe"}
                         </p>
-                        <p className={`leading-relaxed ${
-                          isCorrect ? 'text-green-800' : 'text-red-800'
-                        }`}>
+                        <p
+                          className={`leading-relaxed ${
+                            isCorrect ? "text-green-800" : "text-red-800"
+                          }`}
+                        >
                           {question.explanation}
                         </p>
                       </div>
@@ -273,7 +300,7 @@ export default function PracticePage() {
     <div className="min-h-screen bg-[#FFFDF2]">
       {/* Navigation */}
       <Navigation />
-      
+
       {/* Back Button */}
       <BackButton />
 
@@ -286,13 +313,19 @@ export default function PracticePage() {
               Question {currentQuestionIndex + 1} of {questions.length}
             </span>
             <span className="text-sm text-gray-600">
-              Answered: <span className="font-semibold text-[#669E84]">{userAnswers.length}</span> / {questions.length}
+              Answered:{" "}
+              <span className="font-semibold text-[#669E84]">
+                {userAnswers.length}
+              </span>{" "}
+              / {questions.length}
             </span>
           </div>
           <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
             <div
               className="h-full bg-[#669E84] transition-all duration-500"
-              style={{ width: `${(userAnswers.length / questions.length) * 100}%` }}
+              style={{
+                width: `${(userAnswers.length / questions.length) * 100}%`,
+              }}
             />
           </div>
         </div>

@@ -1,7 +1,6 @@
 import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft } from "lucide-react";
 
-
 type BackButtonProps = {
   fallbackTo?: string;
 };

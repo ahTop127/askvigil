@@ -1,7 +1,9 @@
+import numpy as np
 import asyncio
 import torch
 from urlextract import URLExtract
 from app.core.lifespan import MODEL_REGISTRY
+from app.services.retrieval_services import hybrid_search_rrf
 
 extractor = URLExtract()
 
@@ -16,12 +18,54 @@ async def safe_resolve_redirect(url: str) -> str:
     return url
 
 
+def mean_pooling(model_output, attention_mask):
+    """Pooling for MiniLM: Average of token embeddings."""
+    token_embeddings = model_output[0]
+    input_mask_expanded = np.expand_dims(attention_mask, -1).astype(float)
+    return np.sum(token_embeddings * input_mask_expanded, 1) / np.clip(
+        input_mask_expanded.sum(1), a_min=1e-9, a_max=None
+    )
+
+
+async def get_onnx_embedding(input_data: str | list[str], mode: str = "text"):
+    """
+    Unified inference call. Supports single strings or lists (batches).
+    """
+    config = MODEL_REGISTRY[mode]
+    tokenizer = config["tokenizer"]
+    session = config["session"]
+
+    # Tokenize (Handles both str and list[str] natively)
+    encoded_input = tokenizer(
+        input_data, padding=True, truncation=True, max_length=512, return_tensors="np"
+    )
+
+    # Run Inference
+    # input_feed maps tokenizer outputs to ONNX expected inputs (input_ids, attention_mask, etc.)
+    inputs = {k: v for k, v in encoded_input.items()}
+    # Run Inference on the threadpool to keep FastAPI responsive
+    outputs = await asyncio.to_thread(
+        session.run, None, inputs
+    )  # outputs[0] = last_hidden_state, outputs[1] = attentions (if exported)
+
+    if mode == "text":
+        # Returns [Batch, 384]
+        embeddings = mean_pooling(outputs, encoded_input["attention_mask"])
+    else:
+        # URLBert [Batch, 768] - Grab the CLS token for every item in batch
+        embeddings = outputs[0][:, 0, :]
+
+    # If it's a single string, we return it as a flat array [384]
+    # If it's a list, we return the matrix [N, 384]
+    return embeddings.squeeze() if isinstance(input_data, str) else embeddings
+
+
 async def scan_url(raw_url: str):
     """Processes a single URL through resolution and embedding."""
     resolved_url = await safe_resolve_redirect(raw_url)
 
     # URLBERT Inference
-    obj = MODEL_REGISTRY.get("url_bert")
+    obj = MODEL_REGISTRY.get("url")
     if not obj:
         return {"error": "URL model not loaded"}
 
@@ -47,20 +91,26 @@ async def scan_url(raw_url: str):
 
 
 async def scan_text(text: str):
-    """Dedicated function for MiniLM inference and text risk scoring."""
-    obj = MODEL_REGISTRY.get("text_minilm")
-    if not obj:
-        return {"error": "Text model not loaded"}
+    # 1. Get Embedding (ONNX INT8)
+    emb_data = await get_onnx_embedding(text, mode="text")
+    vector = emb_data.tolist()
 
-    # Offload CPU-bound inference to threadpool
-    emb = await asyncio.to_thread(obj["model"].encode, text)
+    # 2. Hybrid Retrieval (RRF)
+    # This fetches the "Institutional Memory"
+    top_matches = await hybrid_search_rrf(text, vector, limit=5)
+
+    # 3. Preparation for MLP Training
+    # We extract the RRF scores of the top 5 matches to feed into the MLP
+    rrf_features = [m["rrf_score"] for m in top_matches]
+
+    # Pad if fewer than 5 matches found
+    while len(rrf_features) < 5:
+        rrf_features.append(0.0)
 
     return {
-        "clean_text": text,
-        # "embedding_sample": emb[:5].tolist(),
-        "embedding": emb.tolist(),
-        "category": "Pending",
-        "risk_score": 0.0,
+        "embedding": vector,
+        "rrf_features": rrf_features,  # These go to the MLP in Step 5
+        "top_matches": top_matches,
     }
 
 

@@ -38,7 +38,8 @@ async def import_csv_to_db():
     await Tortoise.init(config=TORTOISE_ORM)
 
     # Dynamically calculate the absolute path of the CSV file (assuming your CSV is placed in the project root directory)
-    csv_path = os.path.join(project_root, "resources", "ready_for_db.csv")
+    # csv_path = os.path.join(project_root, "resources", "ready_for_db.csv")
+    csv_path = os.path.join(project_root, "resources", "ready_for_db_small.csv")
 
     if not os.path.exists(csv_path):
         print(f"Error: Data file not found {csv_path}")

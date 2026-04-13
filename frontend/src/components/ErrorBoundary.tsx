@@ -43,10 +43,7 @@ export class ErrorBoundary extends Component<
             {this.state.error?.message ?? "An unexpected error occurred."}
           </p>
           <div className="flex gap-2">
-            <Button
-              type="button"
-              onClick={() => window.location.reload()}
-            >
+            <Button type="button" onClick={() => window.location.reload()}>
               Retry
             </Button>
             <Button

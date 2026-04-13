@@ -69,7 +69,10 @@ export const PersonalizationCard = memo(function PersonalizationCard({
         </div>
       )}
 
-      <Dialog open={p.showDialog} onOpenChange={(open) => !open && p.closeDialog()}>
+      <Dialog
+        open={p.showDialog}
+        onOpenChange={(open) => !open && p.closeDialog()}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Your interests</DialogTitle>

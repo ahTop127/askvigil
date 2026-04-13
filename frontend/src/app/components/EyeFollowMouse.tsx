@@ -20,11 +20,14 @@ export function EyeFollowMouse({ mousePosition }: EyeFollowMouseProps) {
     const deltaX = mousePosition.x - eyeCenterX;
     const deltaY = mousePosition.y - eyeCenterY;
     const angle = Math.atan2(deltaY, deltaX);
-    
+
     // Limit pupil movement within the eye (max distance from center)
     const maxDistance = 25;
-    const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY) / 15, maxDistance);
-    
+    const distance = Math.min(
+      Math.sqrt(deltaX * deltaX + deltaY * deltaY) / 15,
+      maxDistance,
+    );
+
     const pupilX = Math.cos(angle) * distance;
     const pupilY = Math.sin(angle) * distance;
 
@@ -34,11 +37,8 @@ export function EyeFollowMouse({ mousePosition }: EyeFollowMouseProps) {
   return (
     <div className="relative animate-bounce-slow">
       {/* Eye Container */}
-      
 
       {/* Decorative stars */}
-      
-      
     </div>
   );
 }

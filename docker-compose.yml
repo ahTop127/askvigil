@@ -10,7 +10,23 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data_persistence/postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # Cap db resource usage to avoid hanging
+    blkio_config:
+      device_write_bps:
+        - path: /dev/sda
+          rate: 10mb
+      device_write_iops:
+        - path: /dev/sda
+          rate: 400
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+    # Much faster db population, but dangerous (data corruption) if it crashes!
+    command: postgres -c fsync=off -c synchronous_commit=off 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
@@ -27,17 +43,27 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./ai_models:/app/models # The model lives here on the server
       - ./backend:/app # Mount the actual backend folder
+      - ./data_persistence:/app/persistence #
       - /app/.venv # PROTECT: Use the container's internal Linux venv
     environment:
+      OMP_NUM_THREADS: 1  # Force each process to use only 1 core
+      MKL_NUM_THREADS: 1
+      PYTHONUNBUFFERED: 1
       # We use the 'db' service name as the hostname
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql
       MODEL_PATH: /app/models/huggingface
+      OCI_PAR_URL: ${OCI_PAR_URL} 
+      PERSISTENCE_PATH: /app/persistence
     # Nginx makes this unnecessary on oracle server, but it's helpful on local
     # We just block port 8000 on oracle.
     ports:
       - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'      # Never let the backend take more than 2 cores
+          memory: 4G       # Hard cap on RAM
 
   # 3. The React Frontend
   frontend:
@@ -49,22 +75,27 @@ services:
     depends_on:
       - backend
     volumes:
-      - .:/app
+      - ./frontend:/app
       - /app/node_modules # "Anonymous volume" - hides host node_modules and uses container's
     mem_limit: 2048m
 
   # 4. Nginx Proxy Manager (SSL/DuckDNS "Manager")
   nginx-proxy:
     image: "jc21/nginx-proxy-manager:latest"
+    depends_on:
+      frontend:
+        condition: service_started # Wait for frontend before running
     restart: always
     ports:
       - "80:80" # Public HTTP
       - "81:81" # Management UI (Used to set up DuckDNS)
       - "443:443" # Public HTTPS
     volumes:
-      - ./npm_data:/data
-      - ./npm_letsencrypt:/etc/letsencrypt
+      - ./data_persistence/npm_data:/data
+      - ./data_persistence/npm_letsencrypt:/etc/letsencrypt
 
 volumes:
   postgres_data:
   backend_packages: # Defines the persistent "storage bin"
+
+

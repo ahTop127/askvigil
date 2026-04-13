@@ -37,7 +37,10 @@ export function generateRandomScamType(seed?: number): string {
   return SCAM_IDS[Math.floor(r() * SCAM_IDS.length)];
 }
 
-export function generateMockExplanation(riskLevel: RiskLevel, seed?: number): string {
+export function generateMockExplanation(
+  riskLevel: RiskLevel,
+  seed?: number,
+): string {
   const r = rng(seed);
   if (riskLevel === "high") {
     const explanations = [
@@ -61,7 +64,7 @@ function scoreToRisk(score: number): RiskLevel {
 
 export function generateMockDetectionResult(
   input: ScamDetectionInput,
-  seed?: number
+  seed?: number,
 ): ScamDetectionResult {
   const r = rng(seed);
   const score = Math.floor(r() * 100);
@@ -82,13 +85,15 @@ export function generateMockGuidanceContent(scamType: string): GuidanceContent {
       {
         id: "1",
         title: "Stop and document",
-        description: "Do not send more money or share more data. Save screenshots and messages.",
+        description:
+          "Do not send more money or share more data. Save screenshots and messages.",
         priority: "high",
       },
       {
         id: "2",
         title: "Contact your bank",
-        description: "If payment details were shared, notify your bank or card issuer immediately.",
+        description:
+          "If payment details were shared, notify your bank or card issuer immediately.",
         priority: "high",
       },
     ],

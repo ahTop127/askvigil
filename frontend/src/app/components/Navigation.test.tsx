@@ -6,10 +6,9 @@ import { Navigation } from "./Navigation";
 let router: ReturnType<typeof createMemoryRouter>;
 
 function renderWithRouter(initialPath = "/") {
-  router = createMemoryRouter(
-    [{ path: "*", element: <Navigation /> }],
-    { initialEntries: [initialPath] }
-  );
+  router = createMemoryRouter([{ path: "*", element: <Navigation /> }], {
+    initialEntries: [initialPath],
+  });
   return render(<RouterProvider router={router} />);
 }
 

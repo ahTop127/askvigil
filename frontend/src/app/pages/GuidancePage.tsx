@@ -46,7 +46,8 @@ export default function GuidancePage() {
             Get help after a scam.
           </h1>
           <p className="text-2xl text-gray-700 max-w-3xl">
-            Immediate guidance for what to do next. Select your situation to get step-by-step support.
+            Immediate guidance for what to do next. Select your situation to get
+            step-by-step support.
           </p>
         </div>
 
@@ -58,8 +59,8 @@ export default function GuidancePage() {
               const v = scam.guidance;
 
               return (
-                <div 
-                  key={scam.id} 
+                <div
+                  key={scam.id}
                   id={scam.id}
                   className="scroll-mt-32 group cursor-pointer"
                   onClick={() => navigate(`/guidance/${scam.id}`)}
@@ -74,9 +75,11 @@ export default function GuidancePage() {
                 >
                   <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-3 border-orange-400">
                     {/* Top: Colored Background + Image */}
-                    <div className={`relative h-64 bg-gradient-to-br ${v.bgColor} flex items-center justify-center`}>
+                    <div
+                      className={`relative h-64 bg-gradient-to-br ${v.bgColor} flex items-center justify-center`}
+                    >
                       <div className="w-full h-full flex items-center justify-center overflow-hidden">
-                        <img 
+                        <img
                           src={v.image}
                           alt={scam.title}
                           className={`w-full h-full object-cover drop-shadow-2xl`}
@@ -108,22 +111,27 @@ export default function GuidancePage() {
             {/* Decorative elements */}
             <div className="absolute top-0 right-0 w-48 h-48 bg-[#EAA866]/10 rounded-full blur-3xl" />
             <div className="absolute bottom-0 left-0 w-56 h-56 bg-[#D89654]/10 rounded-full blur-3xl" />
-            
+
             <div className="relative z-10">
               <Shield className="w-16 h-16 text-[#D89654] mx-auto mb-4" />
               <h2 className="text-3xl md:text-4xl font-semibold text-[#D89654] mb-4">
                 Need immediate help?
               </h2>
               <p className="text-lg text-gray-700 mb-6 max-w-2xl mx-auto">
-                If you've lost money or shared sensitive information, contact the authorities immediately.
+                If you've lost money or shared sensitive information, contact
+                the authorities immediately.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <div className="bg-white rounded-2xl px-6 py-4 shadow-md">
-                  <p className="text-sm text-gray-600 mb-1">Malaysia Police Hotline</p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    Malaysia Police Hotline
+                  </p>
                   <p className="text-2xl font-bold text-[#D89654]">999</p>
                 </div>
                 <div className="bg-white rounded-2xl px-6 py-4 shadow-md">
-                  <p className="text-sm text-gray-600 mb-1">NSRC Scam Hotline</p>
+                  <p className="text-sm text-gray-600 mb-1">
+                    NSRC Scam Hotline
+                  </p>
                   <p className="text-2xl font-bold text-[#D89654]">997</p>
                 </div>
               </div>

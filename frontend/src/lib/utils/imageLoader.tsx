@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type ImgHTMLAttributes } from "react";
 
-export interface ImageWithLoaderProps
-  extends Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> {
+export interface ImageWithLoaderProps extends Omit<
+  ImgHTMLAttributes<HTMLImageElement>,
+  "src"
+> {
   src: string;
 }
 
@@ -28,7 +30,7 @@ export function ImageWithLoader({
           obs.disconnect();
         }
       },
-      { rootMargin: "120px" }
+      { rootMargin: "120px" },
     );
     obs.observe(el);
     return () => obs.disconnect();

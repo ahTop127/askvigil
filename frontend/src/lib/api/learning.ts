@@ -9,6 +9,12 @@ export async function getScamKnowledge(id: string): Promise<LearningContent> {
 }
 
 export async function getAllLearningContent(): Promise<LearningContent[]> {
-  const ids = ["job-scam", "phishing", "otp-scam", "qr-scam", "suspicious-link"];
+  const ids = [
+    "job-scam",
+    "phishing",
+    "otp-scam",
+    "qr-scam",
+    "suspicious-link",
+  ];
   return Promise.all(ids.map((id) => getScamKnowledge(id)));
 }

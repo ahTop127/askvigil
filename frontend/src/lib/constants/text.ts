@@ -27,7 +27,8 @@ export const UI_TEXT = {
   },
   detection: {
     hubTitle: "Scam Detection Hub",
-    hubSubtitle: "Check suspicious content in seconds and protect yourself online",
+    hubSubtitle:
+      "Check suspicious content in seconds and protect yourself online",
     startHere: "Start Here",
     tabText: "Text Message",
     tabImage: "Image/Screenshot",

@@ -51,11 +51,14 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
       clearError();
       setActiveTab(tab);
     },
-    [clearError, setActiveTab]
+    [clearError, setActiveTab],
   );
 
   return (
-    <section id="check-section" className="py-20 bg-[#F7F8FA] relative overflow-hidden">
+    <section
+      id="check-section"
+      className="py-20 bg-[#F7F8FA] relative overflow-hidden"
+    >
       <div className="max-w-4xl mx-auto px-4 relative z-10">
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-[#EAA866] text-white px-4 py-2 rounded-full text-sm font-medium mb-4">
@@ -108,8 +111,12 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
       <Dialog open={showPrivacyDialog} onOpenChange={setShowPrivacyDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">{UI_TEXT.privacy.title}</DialogTitle>
-            <DialogDescription className="text-base leading-relaxed text-gray-600">{UI_TEXT.privacy.description}</DialogDescription>
+            <DialogTitle className="text-2xl font-bold">
+              {UI_TEXT.privacy.title}
+            </DialogTitle>
+            <DialogDescription className="text-base leading-relaxed text-gray-600">
+              {UI_TEXT.privacy.description}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={cancelPrivacy}>

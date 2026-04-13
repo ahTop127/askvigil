@@ -102,7 +102,8 @@ export const ResultDisplay = memo(
                 {result.explanation}
               </p>
               <p className="text-center text-xs text-gray-500 mt-2">
-                {APP_CONFIG.name} · {new Date(result.timestamp).toLocaleString()}
+                {APP_CONFIG.name} ·{" "}
+                {new Date(result.timestamp).toLocaleString()}
               </p>
             </div>
 
@@ -131,5 +132,5 @@ export const ResultDisplay = memo(
   (prev, next) =>
     prev.result.score === next.result.score &&
     prev.result.riskLevel === next.result.riskLevel &&
-    prev.result.timestamp === next.result.timestamp
+    prev.result.timestamp === next.result.timestamp,
 );
