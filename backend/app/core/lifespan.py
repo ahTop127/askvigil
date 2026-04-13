@@ -75,7 +75,7 @@ async def lifespan(app: FastAPI):
     # The API will wait here until the download is finished
     print("[Lifespan] Starting asset synchronization...")
     await sync_assets()
-    
+
     # 2. AI Preload - ONNX Inference Sessions (INT8)
     # Use 'ACLExecutionProvider' for ARM Neoverse N1
 
@@ -84,17 +84,21 @@ async def lifespan(app: FastAPI):
         # Load Text Model (MiniLM)
         MODEL_REGISTRY["text"] = {
             "session": load_onnx_session(str(TEXT_MODEL_PATH)),
-            "tokenizer": AutoTokenizer.from_pretrained(str(TEXT_MODEL_PATH), local_files_only=True)
+            "tokenizer": AutoTokenizer.from_pretrained(
+                str(TEXT_MODEL_PATH), local_files_only=True
+            ),
         }
-        
+
         # Load URL Model (URLBert)
         MODEL_REGISTRY["url"] = {
             "session": load_onnx_session(str(URL_MODEL_PATH)),
-            "tokenizer": AutoTokenizer.from_pretrained(str(URL_MODEL_PATH), local_files_only=True)
+            "tokenizer": AutoTokenizer.from_pretrained(
+                str(URL_MODEL_PATH), local_files_only=True
+            ),
         }
-        
+
         print("Models loaded successfully with SessionOptions(threads=1).")
-        
+
     except Exception as e:
         print(f"CRITICAL: Failed to load models: {e}")
         raise e
@@ -114,25 +118,31 @@ def load_onnx_session(model_path: str):
     options = ort.SessionOptions()
     options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-    
+
     # Match your docker-compose: Force 1 thread per operation
     options.intra_op_num_threads = 1
     options.inter_op_num_threads = 1
-    
+
     # Attempt ACL (Arm Compute Library) first, fallback to CPU
     providers = [
-        ('ACLExecutionProvider', {'enable_fast_math': 'True'}),
-        'CPUExecutionProvider'
+        ("ACLExecutionProvider", {"enable_fast_math": "True"}),
+        "CPUExecutionProvider",
     ]
-    
+
     model_file = f"{model_path}/model_quantized.onnx"
-    session = ort.InferenceSession(model_file, sess_options=options, providers=providers)
-    
+    session = ort.InferenceSession(
+        model_file, sess_options=options, providers=providers
+    )
+
     # --- ACL CHECK ---
     active_providers = session.get_providers()
-    if 'ACLExecutionProvider' in active_providers:
-        print(f"  [SUCCESS] {Path(model_path).name} loaded with ACL (Arm Compute Library).")
+    if "ACLExecutionProvider" in active_providers:
+        print(
+            f"  [SUCCESS] {Path(model_path).name} loaded with ACL (Arm Compute Library)."
+        )
     else:
-        print(f"  [FALLBACK] {Path(model_path).name} using standard CPUExecutionProvider.")
-    
+        print(
+            f"  [FALLBACK] {Path(model_path).name} using standard CPUExecutionProvider."
+        )
+
     return session

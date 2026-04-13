@@ -44,7 +44,9 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text"):
     # input_feed maps tokenizer outputs to ONNX expected inputs (input_ids, attention_mask, etc.)
     inputs = {k: v for k, v in encoded_input.items()}
     # Run Inference on the threadpool to keep FastAPI responsive
-    outputs = await asyncio.to_thread(session.run, None, inputs) # outputs[0] = last_hidden_state, outputs[1] = attentions (if exported)
+    outputs = await asyncio.to_thread(
+        session.run, None, inputs
+    )  # outputs[0] = last_hidden_state, outputs[1] = attentions (if exported)
 
     if mode == "text":
         # Returns [Batch, 384]
@@ -99,16 +101,16 @@ async def scan_text(text: str):
 
     # 3. Preparation for MLP Training
     # We extract the RRF scores of the top 5 matches to feed into the MLP
-    rrf_features = [m['rrf_score'] for m in top_matches]
-    
+    rrf_features = [m["rrf_score"] for m in top_matches]
+
     # Pad if fewer than 5 matches found
     while len(rrf_features) < 5:
         rrf_features.append(0.0)
 
     return {
         "embedding": vector,
-        "rrf_features": rrf_features, # These go to the MLP in Step 5
-        "top_matches": top_matches
+        "rrf_features": rrf_features,  # These go to the MLP in Step 5
+        "top_matches": top_matches,
     }
 
 

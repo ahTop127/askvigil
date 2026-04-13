@@ -18,16 +18,17 @@ if os.path.exists(env_path):
     load_dotenv(env_path)
 
 from app.core.database import TORTOISE_ORM
-from app.models.open_data import OpenDataSet
 
 # 2. Introduce FastAPI and Lifespan (instead of directly introducing SentenceTransformer)
 from fastapi import FastAPI
 from app.core.lifespan import lifespan, MODEL_REGISTRY
 from app.services.nlp_service import get_onnx_embedding
 
+
 def fast_vector_to_str(vector: np.ndarray) -> str:
     """Convert NumPy to pgvector string without heap bloating."""
     return "[" + ",".join(map(str, vector)) + "]"
+
 
 async def generate_and_update_embeddings():
     # Create a virtual FastAPI instance to trigger lifespan
@@ -73,8 +74,8 @@ async def generate_and_update_embeddings():
             total_count = await conn.execute_query_dict(
                 "SELECT COUNT(*) FROM open_dataset WHERE text_embedding IS NULL"
             )
-            total_count = total_count[0]['count']
-            
+            total_count = total_count[0]["count"]
+
             print(f"Vectors need to be generated for: {total_count} records.")
             global_start = time.perf_counter()
 
@@ -82,7 +83,7 @@ async def generate_and_update_embeddings():
                 # Query only the raw ID and Text to keep the Python heap slim
                 records = await conn.execute_query_dict(
                     "SELECT id, clean_text FROM open_dataset WHERE text_embedding IS NULL LIMIT %s",
-                    [batch_size]
+                    [batch_size],
                 )
                 # records = await OpenDataSet.filter(text_embedding__isnull=True).limit(
                 #     batch_size
@@ -109,10 +110,10 @@ async def generate_and_update_embeddings():
                 # We use %s placeholders to maintain SQL security
                 values_placeholders = []
                 flat_params = []
-                
+
                 for idx, record in enumerate(records):
                     # record.text_embedding = embeddings[idx].tolist()
-                    
+
                     v_str = fast_vector_to_str(embeddings[idx])
                     values_placeholders.append("(%s, %s::vector)")
                     flat_params.extend([record["id"], v_str])
@@ -124,7 +125,7 @@ async def generate_and_update_embeddings():
                     FROM (VALUES {", ".join(values_placeholders)}) AS v(id, vec)
                     WHERE v.id = o.id;
                 """
-                
+
                 # Execute one single round-trip
                 await conn.execute_query(sql, flat_params)
 
@@ -142,7 +143,7 @@ async def generate_and_update_embeddings():
                 offset += len(records)
                 batch_time = batch_end - batch_start
                 total_elapsed = batch_end - global_start
-                
+
                 items_per_sec = len(records) / batch_time
                 avg_items_per_sec = offset / total_elapsed
                 ms_per_item = (batch_time / len(records)) * 1000
