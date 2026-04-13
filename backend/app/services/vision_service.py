@@ -5,7 +5,7 @@ import easyocr
 import numpy as np
 
 # intialize the ocr model once at the module level to avoid repeated loading
-reader = easyocr.Reader(['en'], gpu=False)
+reader = easyocr.Reader(["en"], gpu=False)
 
 
 def extract_audio_from_video(video_file) -> str:
@@ -93,15 +93,17 @@ def extract_ocr_text(image_file) -> str:
     # enlarge
     gray_enlarged = cv2.resize(
         # 2x linear optimized for arm/easyocr
-        gray_img, None, fx=2, fy=2, interpolation=cv2.INTER_LINEAR
+        gray_img,
+        None,
+        fx=2,
+        fy=2,
+        interpolation=cv2.INTER_LINEAR,
         # gray_img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC # cubic too much for oracle arm server
     )
 
     # Adaptive thresholding
     processed_img = cv2.adaptiveThreshold(
-        gray_enlarged, 255, 
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-        cv2.THRESH_BINARY, 11, 2
+        gray_enlarged, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
     )
     # Otsu's thresholding (alternative adaptive thresholding)
     # _, processed_img = cv2.threshold(gray_enlarged, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
@@ -113,7 +115,7 @@ def extract_ocr_text(image_file) -> str:
 
     # EasyOCR can read grayscale perfectly unless you have colourful text.
     # Only enable below if we need colourful text detection.
-    # # convert to 3 channel 
+    # # convert to 3 channel
     # processed_img = cv2.cvtColor(processed_img, cv2.COLOR_GRAY2BGR)
 
     # EasyOCR. detail=0 returns a simple list of strings
