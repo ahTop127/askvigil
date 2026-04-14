@@ -2,6 +2,7 @@ import numpy as np
 import asyncio
 import torch
 from urlextract import URLExtract
+
 # from app.core.lifespan import MODEL_REGISTRY
 from app.core.registry import MODEL_REGISTRY
 from app.services.retrieval_services import hybrid_search_rrf

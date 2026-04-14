@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
     # Note: We do NOT 'await' this. We fire and forget.
     os.environ["RUNNING_IN_APP"] = "1"
     asyncio.create_task(generate_and_update_embeddings())
-    
+
     print("--- Server is LIVE. Background ingestion is running. ---")
 
     yield
