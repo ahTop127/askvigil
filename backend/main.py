@@ -16,7 +16,7 @@ app = FastAPI(title="AskVigil API", lifespan=lifespan)
 origin_regex = r"https?://(localhost|localhost:\d+|.*\.?askvigil\.duckdns\.org)"
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=origin_regex, # Use this instead of allow_origins
+    allow_origin_regex=origin_regex,  # Use this instead of allow_origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
