@@ -44,7 +44,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app # Mount the actual backend folder
-      - ./data_persistence:/app/persistence #
+      - ./data_persistence:/app/data_persistence #
       - /app/.venv # PROTECT: Use the container's internal Linux venv
     environment:
       OMP_NUM_THREADS: 1  # Force each process to use only 1 core
@@ -54,7 +54,7 @@ services:
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql
       MODEL_PATH: /app/models/huggingface
       OCI_PAR_URL: ${OCI_PAR_URL} 
-      PERSISTENCE_PATH: /app/persistence
+      PERSISTENCE_PATH: /app/data_persistence
     # Nginx makes this unnecessary on oracle server, but it's helpful on local
     # We just block port 8000 on oracle.
     ports:

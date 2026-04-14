@@ -10,9 +10,13 @@ app = FastAPI(title="AskVigil API", lifespan=lifespan)
 
 # Add this block immediately after creating the 'app'
 # Necessary to stop backend and frontend from being blocked from each other
+# Define a regex that covers:
+# 1. Localhost (any port)
+# 2. Your main domain and any potential subdomains
+origin_regex = r"https?://(localhost|localhost:\d+|.*\.?askvigil\.duckdns\.org)"
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://sleepunderflow.duckdns.org", "http://localhost:3000"],
+    allow_origin_regex=origin_regex, # Use this instead of allow_origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

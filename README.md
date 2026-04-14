@@ -52,8 +52,8 @@ PAR_URL goes into the .env file, it is not to be shared publicly.
 6.  **Verification:**
     * **Local Frontend:** [http://localhost:3000](http://localhost:3000)
     * **Local API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs) (FastAPI generates this automatically!)
-    * **Production:** [https://sleepunderflow.duckdns.org]
-    * **Docs:** Go to [https://sleepunderflow.duckdns.org] and append /api, /docs, /redoc, or /openapi.json for for whichever ones you want.
+    * **Production:** [https://askvigil.duckdns.org]
+    * **Docs:** Go to [https://askvigil.duckdns.org] and append /api, /docs, /redoc, or /openapi.json for for whichever ones you want.
 
 ---
 

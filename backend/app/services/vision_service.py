@@ -82,8 +82,18 @@ def extract_ocr_text(image_file) -> str:
         else:
             return " ".join(lines).strip()
 
-    # load image
-    img = cv2.imread(image_file)
+    # 1. Read the bytes from the UploadFile object
+    # image_file.file.read() moves the file pointer to the end, a reread needs image_file.seek(0)
+    file_bytes = image_file.file.read() 
+    
+    # 2. Convert bytes to a numpy array
+    nparr = np.frombuffer(file_bytes, np.uint8)
+    
+    # 3. Decode the image (this replaces cv2.imread)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    # # load image
+    # img = cv2.imread(image_file)
     if img is None:
         raise ValueError(f"Could not read image: {image_file}")
 

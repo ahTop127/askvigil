@@ -6,10 +6,10 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig(() => {
-  const proxyTarget = "https://sleepunderflow.duckdns.org";
+  const proxyTarget = "https://askvigil.duckdns.org";
   const proxyHttpsAgent = new https.Agent({
     // Avoid SNI/TLS mismatch when proxying to HTTPS upstream.
-    servername: "sleepunderflow.duckdns.org",
+    servername: "askvigil.duckdns.org",
   });
 
   return {
