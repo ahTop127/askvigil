@@ -4,8 +4,11 @@ import {
   useCallback,
   useImperativeHandle,
   useMemo,
+  useRef,
+  useState,
   type ChangeEvent,
   type DragEvent,
+  type SyntheticEvent,
 } from "react";
 import {
   FileSearch,
@@ -21,8 +24,13 @@ import { Input } from "@components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs";
 import { UI_TEXT } from "@lib/constants/text";
 import type { DetectionType } from "@lib/types";
-import { useState } from "react";
-import Cropper from "react-easy-crop";
+import ReactCrop, {
+  centerCrop,
+  convertToPixelCrop,
+  type Crop,
+  type PixelCrop,
+} from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 
 export interface DetectionFormProps {
   activeTab: DetectionType;
@@ -232,21 +240,14 @@ function QRCodeDetectionInput({
   );
 }
 
-async function createImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", reject);
-    image.src = url;
-  });
-}
-
+/** Pixel crop is in displayed `<img>` CSS pixels; map to natural size for export. */
 async function getCroppedFile(
-  imageSrc: string,
-  pixelCrop: { x: number; y: number; width: number; height: number },
+  imageEl: HTMLImageElement,
+  pixelCrop: PixelCrop,
   fileName: string,
 ): Promise<File> {
-  const image = await createImage(imageSrc);
+  const scaleX = imageEl.naturalWidth / imageEl.width;
+  const scaleY = imageEl.naturalHeight / imageEl.height;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
@@ -254,19 +255,21 @@ async function getCroppedFile(
     throw new Error("Could not create canvas context");
   }
 
-  canvas.width = pixelCrop.width;
-  canvas.height = pixelCrop.height;
+  const outW = Math.max(1, Math.round(pixelCrop.width * scaleX));
+  const outH = Math.max(1, Math.round(pixelCrop.height * scaleY));
+  canvas.width = outW;
+  canvas.height = outH;
 
   ctx.drawImage(
-    image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
+    imageEl,
+    pixelCrop.x * scaleX,
+    pixelCrop.y * scaleY,
+    pixelCrop.width * scaleX,
+    pixelCrop.height * scaleY,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height,
+    outW,
+    outH,
   );
 
   return new Promise((resolve, reject) => {
@@ -313,15 +316,10 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
     const [showCropModal, setShowCropModal] = useState(false);
     const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
     const [tempImageName, setTempImageName] = useState("cropped-image.jpg");
+    const cropImageRef = useRef<HTMLImageElement>(null);
 
-    const [crop, setCrop] = useState({ x: 0, y: 0 });
-    const [zoom, setZoom] = useState(1);
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState<{
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    } | null>(null);
+    const [crop, setCrop] = useState<Crop>();
+    const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
 
     useImperativeHandle(
       ref,
@@ -331,15 +329,11 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
       [onRequestCheck],
     );
 
-    const onCropComplete = useCallback(
-      (
-        _croppedArea: unknown,
-        croppedPixels: { x: number; y: number; width: number; height: number },
-      ) => {
-        setCroppedAreaPixels(croppedPixels);
-      },
-      [],
-    );
+    const onCropImageLoad = useCallback((e: SyntheticEvent<HTMLImageElement>) => {
+      const { width, height } = e.currentTarget;
+      setCrop(centerCrop({ unit: "%", width: 100, height: 100 }, width, height));
+      setCompletedCrop(null);
+    }, []);
 
     const resetCropState = useCallback(() => {
       if (tempImageUrl) {
@@ -349,9 +343,8 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
       setTempImageUrl(null);
       setTempImageName("cropped-image.jpg");
       setShowCropModal(false);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedAreaPixels(null);
+      setCrop(undefined);
+      setCompletedCrop(null);
     }, [tempImageUrl]);
 
     const handleCropCancel = useCallback(() => {
@@ -359,12 +352,15 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
     }, [resetCropState]);
 
     const handleCropSave = useCallback(async () => {
-      if (!tempImageUrl || !croppedAreaPixels) return;
+      const img = cropImageRef.current;
+      if (!img || !crop) return;
 
       try {
+        const pixelCrop =
+          completedCrop ?? convertToPixelCrop(crop, img.width, img.height);
         const croppedFile = await getCroppedFile(
-          tempImageUrl,
-          croppedAreaPixels,
+          img,
+          pixelCrop,
           `cropped-${tempImageName}`,
         );
 
@@ -373,13 +369,7 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
       } catch (err) {
         console.error("Crop failed:", err);
       }
-    }, [
-      croppedAreaPixels,
-      onImageFile,
-      resetCropState,
-      tempImageName,
-      tempImageUrl,
-    ]);
+    }, [completedCrop, crop, onImageFile, resetCropState, tempImageName]);
 
     const handleFileChange = useCallback(
       (e: ChangeEvent<HTMLInputElement>, type: "image" | "qr") => {
@@ -545,34 +535,27 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
                 </p>
               </div>
 
-              <div className="relative w-full h-[420px] bg-black">
-                <Cropper
-                  image={tempImageUrl}
+              <div className="relative w-full min-h-[320px] max-h-[min(70vh,520px)] bg-black flex items-center justify-center p-2 overflow-auto">
+                <ReactCrop
                   crop={crop}
-                  zoom={zoom}
-                  aspect={4 / 5}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
-                />
+                  onChange={(_pixelCrop, percentCrop) => setCrop(percentCrop)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  keepSelection
+                  minWidth={32}
+                  minHeight={32}
+                  className="max-w-full"
+                >
+                  <img
+                    ref={cropImageRef}
+                    src={tempImageUrl}
+                    alt="Crop preview"
+                    className="max-w-full max-h-[min(60vh,480px)] w-auto h-auto block"
+                    onLoad={onCropImageLoad}
+                  />
+                </ReactCrop>
               </div>
 
-              <div className="p-4 border-t border-gray-200 space-y-3">
-                <div>
-                  <label className="block text-sm text-gray-700 mb-2">
-                    Zoom
-                  </label>
-                  <input
-                    type="range"
-                    min={1}
-                    max={3}
-                    step={0.1}
-                    value={zoom}
-                    onChange={(e) => setZoom(Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-
+              <div className="p-4 border-t border-gray-200">
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"
@@ -581,7 +564,11 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
                   >
                     Cancel
                   </Button>
-                  <Button type="button" onClick={() => void handleCropSave()}>
+                  <Button
+                    type="button"
+                    disabled={!crop}
+                    onClick={() => void handleCropSave()}
+                  >
                     Continue
                   </Button>
                 </div>

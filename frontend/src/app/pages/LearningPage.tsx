@@ -73,7 +73,7 @@ export default function LearningPage() {
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-3 border-green-400">
+                  <div className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border-3 border-[#709982]">
                     {/* Top: Colored Background + Image */}
                     <div
                       className={`relative h-64 bg-gradient-to-br ${v.bgColor} flex items-center justify-center`}

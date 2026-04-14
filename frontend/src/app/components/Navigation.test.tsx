@@ -15,7 +15,7 @@ function renderWithRouter(initialPath = "/") {
 describe("Navigation", () => {
   it("renders logo and primary nav labels", () => {
     renderWithRouter();
-    expect(screen.getByText("AskVigil")).toBeInTheDocument();
+    expect(screen.getByAltText("AskVigil Logo")).toBeInTheDocument();
     expect(screen.getByText("Home")).toBeInTheDocument();
     expect(screen.getByText("Guidance")).toBeInTheDocument();
     expect(screen.getByText("Learning")).toBeInTheDocument();
@@ -24,7 +24,7 @@ describe("Navigation", () => {
 
   it("clicking logo navigates to home", () => {
     renderWithRouter("/guidance/job-scam");
-    fireEvent.click(screen.getByText("AskVigil"));
+    fireEvent.click(screen.getByAltText("AskVigil Logo"));
     expect(router.state.location.pathname).toBe("/");
   });
 });

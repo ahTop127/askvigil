@@ -501,7 +501,7 @@ export default function LearningDetailPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
-                onClick={() => navigate("/practice")}
+                onClick={() => navigate(`/practice?scamType=${scamType}`)}
                 className="bg-[#669E84] hover:bg-[#54A388] text-white border-0 h-14 px-8 text-lg font-semibold shadow-lg"
               >
                 Practice Detection
