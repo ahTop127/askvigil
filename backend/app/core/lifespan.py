@@ -17,7 +17,7 @@ import asyncio
 # MODEL_REGISTRY = {}
 # Define the Root of the data storage
 CLOUD_STORAGE_URL = os.getenv("OCI_PAR_URL")  # From environment
-PERSISTENCE_ROOT = Path("/app/persistence").resolve()
+PERSISTENCE_ROOT = Path("/app/data_persistence").resolve()
 # AI models subdirectory
 BASE_MODEL_DIR = Path(PERSISTENCE_ROOT / "ai_models").resolve()
 # Specific sub-paths

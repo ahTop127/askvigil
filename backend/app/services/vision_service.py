@@ -3,9 +3,11 @@ import cv2
 import re
 import easyocr
 import numpy as np
+from fastapi import UploadFile
 
 # intialize the ocr model once at the module level to avoid repeated loading
-reader = easyocr.Reader(["en"], gpu=False)
+# Note: if easyocr is still too laggy, try rapidocr
+reader = easyocr.Reader(['en'], gpu=False, verbose=False)
 
 
 def extract_audio_from_video(video_file) -> str:
@@ -38,7 +40,7 @@ def detect_qr_codes(image_file) -> list[str]:
     return []
 
 
-def extract_ocr_text(image_file) -> str:
+def extract_ocr_text(image_file: UploadFile) -> str:
     """
     TODO: Use EasyOCR to extract text from images/screenshots.
     Return "" if no text found.
@@ -82,14 +84,21 @@ def extract_ocr_text(image_file) -> str:
         else:
             return " ".join(lines).strip()
 
-    # 1. Read the bytes from the UploadFile object
-    # image_file.file.read() moves the file pointer to the end, a reread needs image_file.seek(0)
-    file_bytes = image_file.file.read()
-
-    # 2. Convert bytes to a numpy array
+    # 1. Reset the pointer in case a previous service touched it
+    image_file.file.seek(0)
+    
+    # 2. Read the bytes
+    # Note: Use image_file.file.read() in sync functions, 
+    # or await image_file.read() in async functions.
+    file_bytes = image_file.file.read() 
+    
+    # 3. Reset the pointer again for the next service
+    image_file.file.seek(0)
+    
+    # 4. Convert bytes to numpy array
     nparr = np.frombuffer(file_bytes, np.uint8)
-
-    # 3. Decode the image (this replaces cv2.imread)
+    
+    # 5. Decode the image (this replaces cv2.imread)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     # # load image

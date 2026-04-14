@@ -115,7 +115,10 @@ async def generate_and_update_embeddings():
             await OpenDataSet.bulk_update(
                 records, fields=["text_embedding"], batch_size=batch_size
             )
-
+            # Garbage collection
+            del records
+            del texts
+            del embeddings
             # Free up CPU time slices to reduce the risk of the system being occupied for a long time
             await asyncio.sleep(0.01)
 

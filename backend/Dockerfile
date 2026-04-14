@@ -21,6 +21,9 @@ COPY uv.lock pyproject.toml ./
 # 3. Sync the environment
 RUN uv sync --frozen
 
+# Cache easy OCR so it doesn't keep redownloading
+RUN /app/.venv/bin/python -c "import easyocr; easyocr.Reader(['en'], gpu=False)"
+
 # 4. Copy app code
 COPY . .
 

@@ -54,7 +54,7 @@ async def _handle_video_flow(video_file: UploadFile):
 
 
 # jiayi: i removed the async here and also changed the input to str for testing purposes, can change back to async and UploadFile later
-def _handle_image_flow(image_file: str):
+async def _handle_image_flow(image_file: UploadFile):
     results = {"qr_urls": []}
 
     # # 1. Look for QR Codes
@@ -68,7 +68,7 @@ def _handle_image_flow(image_file: str):
     # optional for testing
     # print(f"Extracted OCR Text: {extracted_text}")
 
-    return extracted_text
+    return results, extracted_text
 
 
 # if you wanna test uncomment this
