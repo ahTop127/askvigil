@@ -104,9 +104,13 @@ export async function getQuizCategories(): Promise<QuizCategory[]> {
   return (await response.json()) as QuizCategory[];
 }
 
-export async function getQuizQuestions(categoryId: number): Promise<QuizQuestion[]> {
+export async function getQuizQuestions(
+  categoryId: number,
+): Promise<QuizQuestion[]> {
   const response = await fetch(
-    buildUrl(`/v1/learning/quizzes?category_id=${encodeURIComponent(String(categoryId))}`),
+    buildUrl(
+      `/v1/learning/quizzes?category_id=${encodeURIComponent(String(categoryId))}`,
+    ),
     {
       method: "GET",
       headers: { Accept: "application/json" },

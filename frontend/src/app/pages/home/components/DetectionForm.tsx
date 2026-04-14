@@ -329,11 +329,16 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
       [onRequestCheck],
     );
 
-    const onCropImageLoad = useCallback((e: SyntheticEvent<HTMLImageElement>) => {
-      const { width, height } = e.currentTarget;
-      setCrop(centerCrop({ unit: "%", width: 100, height: 100 }, width, height));
-      setCompletedCrop(null);
-    }, []);
+    const onCropImageLoad = useCallback(
+      (e: SyntheticEvent<HTMLImageElement>) => {
+        const { width, height } = e.currentTarget;
+        setCrop(
+          centerCrop({ unit: "%", width: 100, height: 100 }, width, height),
+        );
+        setCompletedCrop(null);
+      },
+      [],
+    );
 
     const resetCropState = useCallback(() => {
       if (tempImageUrl) {

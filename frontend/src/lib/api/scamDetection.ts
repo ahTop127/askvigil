@@ -27,7 +27,9 @@ export async function detectScam(
 
     if (!response.ok) {
       const detail = await tryReadError(response);
-      throw new Error(detail ?? `Detection request failed (${response.status})`);
+      throw new Error(
+        detail ?? `Detection request failed (${response.status})`,
+      );
     }
 
     const raw = (await response.json()) as unknown;
@@ -40,7 +42,10 @@ export async function detectScam(
   }
 }
 
-function mapScanResponse(raw: unknown, input: ScamDetectionInput): ScamDetectionResult {
+function mapScanResponse(
+  raw: unknown,
+  input: ScamDetectionInput,
+): ScamDetectionResult {
   const textData = getTextData(raw);
   const riskRaw = textData?.risk_score ?? getRrfTopScore(raw);
   const score = toScorePercent(riskRaw);
@@ -55,7 +60,9 @@ function mapScanResponse(raw: unknown, input: ScamDetectionInput): ScamDetection
       ? textData.clean_text.trim()
       : null;
   const explanation =
-    clean && clean.length > 200 ? `${clean.slice(0, 200)}…` : clean ?? `Scam check completed for ${input.type}.`;
+    clean && clean.length > 200
+      ? `${clean.slice(0, 200)}…`
+      : (clean ?? `Scam check completed for ${input.type}.`);
 
   return {
     score,

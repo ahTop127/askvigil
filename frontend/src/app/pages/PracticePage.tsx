@@ -16,7 +16,10 @@ import {
 } from "@lib/api/quiz";
 
 /** Map Yes/No UI to backend option ids (two options per question). */
-function getScamAndSafeOptionIds(q: QuizQuestion): { scamId: number; safeId: number } {
+function getScamAndSafeOptionIds(q: QuizQuestion): {
+  scamId: number;
+  safeId: number;
+} {
   const [a, b] = q.options;
   if (!a || !b) {
     return { scamId: -1, safeId: -1 };
@@ -61,7 +64,9 @@ export default function PracticePage() {
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
   const [isComplete, setIsComplete] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(
+    null,
+  );
   const [sessionId, setSessionId] = useState<string>("");
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [results, setResults] = useState<QuizResultItem[]>([]);
@@ -134,7 +139,9 @@ export default function PracticePage() {
     try {
       const [sid, quizQuestions] = await Promise.all([
         initQuizSession(),
-        isRandomQuizMode ? getRandomQuizQuestions() : getQuizQuestions(selectedCategoryId),
+        isRandomQuizMode
+          ? getRandomQuizQuestions()
+          : getQuizQuestions(selectedCategoryId),
       ]);
       if (!quizQuestions.length) {
         setLoadError(
@@ -232,7 +239,11 @@ export default function PracticePage() {
               </p>
               <button
                 onClick={() => void handleStart()}
-                disabled={isLoadingCategories || isLoadingQuiz || selectedCategoryId === null}
+                disabled={
+                  isLoadingCategories ||
+                  isLoadingQuiz ||
+                  selectedCategoryId === null
+                }
                 className="inline-flex items-center gap-3 bg-[#FF6B35] hover:bg-[#E55A28] text-white px-10 py-5 rounded-full text-lg font-semibold transition-all shadow-lg hover:shadow-xl hover:scale-105 animate-pulse-soft"
               >
                 <Sparkles className="w-5 h-5" />
@@ -240,7 +251,9 @@ export default function PracticePage() {
                 <Sparkles className="w-5 h-5" />
               </button>
               {loadError && (
-                <p className="mt-4 text-sm text-red-600 font-medium">{loadError}</p>
+                <p className="mt-4 text-sm text-red-600 font-medium">
+                  {loadError}
+                </p>
               )}
               <p className="mt-6 text-sm text-gray-500">
                 5 questions • 5 minutes
@@ -272,7 +285,9 @@ export default function PracticePage() {
         <main className="max-w-5xl mx-auto px-4 py-12">
           <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8 md:p-12">
             <div className="text-center mb-12">
-              <div className="text-7xl mb-6 animate-bounce-once">{getEmoji()}</div>
+              <div className="text-7xl mb-6 animate-bounce-once">
+                {getEmoji()}
+              </div>
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
                 Quiz Complete!
               </h1>
@@ -297,9 +312,17 @@ export default function PracticePage() {
                 Review Your Answers
               </h2>
               {results.map((result, index) => {
-                const q = questions.find((item) => item.id === result.question_id);
-                const userLabel = labelForOptionId(q, result.user_selected_option_id);
-                const correctLabel = labelForOptionId(q, result.correct_option_id);
+                const q = questions.find(
+                  (item) => item.id === result.question_id,
+                );
+                const userLabel = labelForOptionId(
+                  q,
+                  result.user_selected_option_id,
+                );
+                const correctLabel = labelForOptionId(
+                  q,
+                  result.correct_option_id,
+                );
 
                 return (
                   <div
@@ -319,7 +342,9 @@ export default function PracticePage() {
                       <div className="flex-1">
                         <h3
                           className={`font-semibold text-lg mb-2 ${
-                            result.is_correct ? "text-green-900" : "text-red-900"
+                            result.is_correct
+                              ? "text-green-900"
+                              : "text-red-900"
                           }`}
                         >
                           Question {index + 1}:{" "}
@@ -332,7 +357,9 @@ export default function PracticePage() {
                         </div>
                         <p
                           className={`text-sm ${
-                            result.is_correct ? "text-green-800" : "text-red-800"
+                            result.is_correct
+                              ? "text-green-800"
+                              : "text-red-800"
                           }`}
                         >
                           <span className="font-semibold">Your answer:</span>{" "}
@@ -340,7 +367,9 @@ export default function PracticePage() {
                         </p>
                         <p
                           className={`text-sm mb-2 ${
-                            result.is_correct ? "text-green-800" : "text-red-800"
+                            result.is_correct
+                              ? "text-green-800"
+                              : "text-red-800"
                           }`}
                         >
                           <span className="font-semibold">Correct answer:</span>{" "}
@@ -348,7 +377,9 @@ export default function PracticePage() {
                         </p>
                         <p
                           className={`leading-relaxed ${
-                            result.is_correct ? "text-green-800" : "text-red-800"
+                            result.is_correct
+                              ? "text-green-800"
+                              : "text-red-800"
                           }`}
                         >
                           {result.explanation}
@@ -443,9 +474,13 @@ export default function PracticePage() {
               ✅ No, it&apos;s safe
             </button>
           </div>
-          {loadError && <p className="mt-4 text-sm text-red-600">{loadError}</p>}
+          {loadError && (
+            <p className="mt-4 text-sm text-red-600">{loadError}</p>
+          )}
           {isSubmitting && (
-            <p className="mt-4 text-sm text-gray-600">Submitting your answers...</p>
+            <p className="mt-4 text-sm text-gray-600">
+              Submitting your answers...
+            </p>
           )}
         </div>
       </main>
