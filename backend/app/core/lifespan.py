@@ -9,9 +9,12 @@ from pathlib import Path
 
 from app.core.seeding import run_seeding
 from tortoise import Tortoise
+from app.core.registry import MODEL_REGISTRY
+from app.scripts.generate_embeddings import generate_and_update_embeddings
+import asyncio
 
-# Global Registry
-MODEL_REGISTRY = {}
+# # Global Registry
+# MODEL_REGISTRY = {}
 # Define the Root of the data storage
 CLOUD_STORAGE_URL = os.getenv("OCI_PAR_URL")  # From environment
 PERSISTENCE_ROOT = Path("/app/persistence").resolve()
@@ -110,6 +113,11 @@ async def lifespan(app: FastAPI):
     # Run seeding only after loading models
     # wangsi New addition: Perform database idempotent initialization before startup
     await run_seeding()
+    # Note: We do NOT 'await' this. We fire and forget.
+    os.environ["RUNNING_IN_APP"] = "1"
+    asyncio.create_task(generate_and_update_embeddings())
+    
+    print("--- Server is LIVE. Background ingestion is running. ---")
 
     yield
     # Shutdown logic

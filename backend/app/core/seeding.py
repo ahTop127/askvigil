@@ -282,7 +282,9 @@ async def run_seeding() -> None:
                 f"[Seeding] {missing_embeddings} rows missing embeddings. Generating..."
             )
             await conn.close()
-            await _run_generate_embeddings()
+            # Doesn't actually work here, subprocesses cannot see model registry.'
+            # Run this manually in lifespan.py as a asyncio for server to survive.
+            # await _run_generate_embeddings() 
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
