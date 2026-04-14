@@ -7,7 +7,7 @@ export const APP_CONFIG = {
   version: "1.0.0",
 
   api: {
-    baseUrl: import.meta.env.VITE_API_URL ?? "http://localhost:3000/api",
+    baseUrl: "/api",
     timeout: 30_000,
   },
 
