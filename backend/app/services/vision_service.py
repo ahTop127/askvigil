@@ -79,7 +79,7 @@ def extract_ocr_text(image_file: UploadFile) -> str:
         For Chinese, join without spaces.
         For English and Bahasa Malaysia, join with spaces.
         """
-        if lang == "chinese":
+        if lang == "Chinese":
             return "".join(lines).strip()
         else:
             return " ".join(lines).strip()

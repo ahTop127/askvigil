@@ -1,4 +1,5 @@
 from fastapi import UploadFile
+from fastapi.concurrency import run_in_threadpool
 from app.services import nlp_service, vision_service, audio_service
 
 
@@ -63,7 +64,8 @@ async def _handle_image_flow(image_file: UploadFile):
     #     results["qr_urls"] = [await nlp_service.scan_url(u) for u in qr_urls]
 
     # 2. Look for Text via OCR which is implemented in the vision service file
-    extracted_text = vision_service.extract_ocr_text(image_file)
+    # Run in async so we don't hog the server
+    extracted_text = await run_in_threadpool(vision_service.extract_ocr_text, image_file)
 
     # optional for testing
     # print(f"Extracted OCR Text: {extracted_text}")

@@ -3,6 +3,7 @@ import os
 import sys
 from tortoise import Tortoise
 from dotenv import load_dotenv
+import gc
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 app_dir = os.path.dirname(current_dir)
@@ -115,15 +116,16 @@ async def generate_and_update_embeddings():
             await OpenDataSet.bulk_update(
                 records, fields=["text_embedding"], batch_size=batch_size
             )
+            offset += len(records)
+            print(f"Progress: {offset} / {total_count}")
             # Garbage collection
             del records
             del texts
             del embeddings
+            gc.collect()
             # Free up CPU time slices to reduce the risk of the system being occupied for a long time
             await asyncio.sleep(0.01)
 
-            offset += len(records)
-            print(f"Progress: {offset} / {total_count}")
 
         print(
             "All vectors have been generated! Your database now has the ability of AI search!"
