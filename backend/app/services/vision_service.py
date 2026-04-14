@@ -7,7 +7,7 @@ from fastapi import UploadFile
 
 # intialize the ocr model once at the module level to avoid repeated loading
 # Note: if easyocr is still too laggy, try rapidocr
-reader = easyocr.Reader(['en'], gpu=False, verbose=False)
+reader = easyocr.Reader(["en"], gpu=False, verbose=False)
 
 
 def extract_audio_from_video(video_file) -> str:
@@ -86,18 +86,18 @@ def extract_ocr_text(image_file: UploadFile) -> str:
 
     # 1. Reset the pointer in case a previous service touched it
     image_file.file.seek(0)
-    
+
     # 2. Read the bytes
-    # Note: Use image_file.file.read() in sync functions, 
+    # Note: Use image_file.file.read() in sync functions,
     # or await image_file.read() in async functions.
-    file_bytes = image_file.file.read() 
-    
+    file_bytes = image_file.file.read()
+
     # 3. Reset the pointer again for the next service
     image_file.file.seek(0)
-    
+
     # 4. Convert bytes to numpy array
     nparr = np.frombuffer(file_bytes, np.uint8)
-    
+
     # 5. Decode the image (this replaces cv2.imread)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
