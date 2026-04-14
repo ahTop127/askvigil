@@ -39,7 +39,7 @@ async def import_csv_to_db():
 
     # Dynamically calculate the absolute path of the CSV file (assuming your CSV is placed in the project root directory)
     # csv_path = os.path.join(project_root, "resources", "ready_for_db.csv")
-    csv_path = os.path.join(project_root, "resources", "scam_dataset.csv")
+    csv_path = os.path.join(project_root, "resources", "ready_for_db_small.csv")
     # csv_path = Path("data_persistence/datasets/scam_dataset.csv").resolve()
 
     if not os.path.exists(csv_path):
