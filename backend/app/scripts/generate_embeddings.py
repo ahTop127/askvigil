@@ -126,7 +126,6 @@ async def generate_and_update_embeddings():
             # Free up CPU time slices to reduce the risk of the system being occupied for a long time
             await asyncio.sleep(0.01)
 
-
         print(
             "All vectors have been generated! Your database now has the ability of AI search!"
         )

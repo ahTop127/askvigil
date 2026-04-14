@@ -65,7 +65,9 @@ async def _handle_image_flow(image_file: UploadFile):
 
     # 2. Look for Text via OCR which is implemented in the vision service file
     # Run in async so we don't hog the server
-    extracted_text = await run_in_threadpool(vision_service.extract_ocr_text, image_file)
+    extracted_text = await run_in_threadpool(
+        vision_service.extract_ocr_text, image_file
+    )
 
     # optional for testing
     # print(f"Extracted OCR Text: {extracted_text}")
