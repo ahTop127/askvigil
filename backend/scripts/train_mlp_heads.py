@@ -49,10 +49,11 @@ class UnifiedDataset(Dataset):
         - Target class gets high u (0.5 to 10.0)
         - Distractor class gets low u (0.0 to 1.0)
         """
-        is_spam_target = (target_vector == [1.0, 0.0])
-        
+        is_spam_target = target_vector == [1.0, 0.0]
+
         for r in records:
-            if r.text_embedding is None: continue
+            if r.text_embedding is None:
+                continue
             emb = np.array(r.text_embedding, dtype=np.float32)
 
             if is_spam_target:
@@ -65,7 +66,7 @@ class UnifiedDataset(Dataset):
             # Apply the SAME saturation function as nlp_service
             spam_feat = u_spam / (u_spam + settings.LAMBDA_SPAM)
             ham_feat = u_ham / (u_ham + settings.LAMBDA_HAM)
-            
+
             # 30% Noise/Novelty injection (Forces model to use text embeddings)
             if np.random.rand() < 0.3:
                 momentum_vec = np.array([0.0, 0.0], dtype=np.float32)

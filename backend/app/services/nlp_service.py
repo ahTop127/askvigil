@@ -99,13 +99,21 @@ async def scan_text(text: str):
     # 1. Calculate Relative Evidence Units (u)
     # (Match_RRF / MAX_RRF)^2 ensures a Rank-1 match = 1.0 unit
     # Squaring it here makes Rank-50 matches (~0.25 units) significantly quieter (0.06 units)
-    spam_u = sum((np.float32(m["rrf_score"]) / settings.MAX_POSSIBLE_RRF)**2 for m in top_matches if m["label"] == "spam")
-    ham_u = sum((np.float32(m["rrf_score"]) / settings.MAX_POSSIBLE_RRF)**2 for m in top_matches if m["label"] == "ham")
+    spam_u = sum(
+        (np.float32(m["rrf_score"]) / settings.MAX_POSSIBLE_RRF) ** 2
+        for m in top_matches
+        if m["label"] == "spam"
+    )
+    ham_u = sum(
+        (np.float32(m["rrf_score"]) / settings.MAX_POSSIBLE_RRF) ** 2
+        for m in top_matches
+        if m["label"] == "ham"
+    )
 
     # 2. Apply Asymmetric Bias (The "Security Guard" Logic)
     # We multiply spam_u by 1.5 to give it a "Veto" power over ham noise
-    spam_feat = np.float32(spam_u / (spam_u + settings.LAMBDA_SPAM)) 
-    ham_feat = np.float32(ham_u / (ham_u + settings.LAMBDA_HAM)) 
+    spam_feat = np.float32(spam_u / (spam_u + settings.LAMBDA_SPAM))
+    ham_feat = np.float32(ham_u / (ham_u + settings.LAMBDA_HAM))
 
     momentum_vec = np.array([spam_feat, ham_feat], dtype=np.float32)
 
