@@ -1,113 +1,141 @@
+# # Docker extension -> right click askvigil-backend, start new shell. then run:
+# # export PYTHONPATH=$PYTHONPATH:.
+# # uv run python -m scripts.train_mlp_heads
+import asyncio
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-import pandas as pd
+from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
-import os
-from pathlib import Path
+from sklearn.metrics import classification_report, confusion_matrix
+from tortoise import Tortoise
 
-# --- CONFIG ---
-DATA_DIR = Path("data_persistence/datasets")
-MODEL_EXPORT_DIR = Path("data_persistence/ai_models")
-SCAM_CSV = DATA_DIR / "scam_dataset.csv"
-PHISH_CSV = DATA_DIR / "phishing_dataset.csv"
-
-# Input Dimensions
-DIM_TEXT = 384  # MiniLM
-DIM_URL = 768  # URLBert
-RRF_K = 5  # Top 5 RRF scores
+from app.core.config import settings
+from app.core.database import TORTOISE_ORM
+from app.models.open_data import OpenDataSet
 
 
 class ScamPhishingMLP(nn.Module):
     def __init__(self, input_dim):
         super(ScamPhishingMLP, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(input_dim + RRF_K, 128),
+            nn.Linear(input_dim + settings.RRF_K, 128),
+            nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(0.4), # Primary regularization
             nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Linear(64, 2),  # Output: [Scam, Phishing]
-            nn.Sigmoid(),
+            nn.Dropout(0.3), # Secondary regularization
+            nn.Linear(64, 2),
+            nn.Softmax(dim=1) # Ensures probabilities sum to 1.0
         )
 
     def forward(self, x):
         return self.net(x)
 
+class UnifiedDataset(Dataset):
+    def __init__(self, haz_records, safe_records):
+        self.features = []
+        self.labels = []
+        self._process(haz_records, [1.0, 0.0])  # Hazard (Spam/Phish)
+        self._process(safe_records, [0.0, 1.0]) # Safe (Ham)
+        self.features = np.array(self.features, dtype=np.float32)
+        self.labels = np.array(self.labels, dtype=np.float32)
 
-class MultiModalDataset(Dataset):
-    def __init__(self, csv_path, embedding_dim):
-        # TODO: In production, this would load pre-generated embeddings from a .npy or CSV.
-        # For this logic check, we simulate the 'Extracted Features'
-        if os.path.exists(csv_path):
-            self.df = pd.read_csv(csv_path)
-        else:
-            print(
-                f"Warning: {csv_path} not found. Using dummy data for architecture testing."
-            )
-            self.df = pd.DataFrame(columns=["text", "is_scam", "is_phishing"])
+    def _process(self, records, target_vector):
+        """
+        Simulates Evidence Density:
+        - Correct class gets momentum in [0.2, 0.95] based on 'simulated' match quality.
+        - Opposite class gets low noise in [0.0, 0.1].
+        - This allows [0, 0] to represent a legitimate 'Novelty' state.
+        """
+        for r in records:
+            if r.text_embedding is None: 
+                continue
+            emb = np.array(r.text_embedding, dtype=np.float32)
 
-        self.emb_dim = embedding_dim
+            # 2. Simulate Class Momentum [Spam_Momentum, Ham_Momentum]
+            # Not all training data has perfect historical matches
+            primary_momentum = np.random.uniform(0.2, 0.95)
+            secondary_momentum = np.random.uniform(0.0, 0.1)
 
-    def __len__(self):
-        return len(self.df) if len(self.df) > 0 else 100
+            if target_vector == [1.0, 0.0]:
+                momentum_vec = np.array([primary_momentum, secondary_momentum], dtype=np.float32)
+            else:
+                momentum_vec = np.array([secondary_momentum, primary_momentum], dtype=np.float32)
 
+            # 3. Fuse Features (384 + 2 = 386)
+            fused = np.concatenate([emb, momentum_vec]).astype(np.float32)
+            
+            self.features.append(fused)
+            self.labels.append(target_vector)
+            # emb = np.array(r.text_embedding, dtype=np.float32)
+            # # RRF Normalization for Depth 100
+            # ranks = np.random.randint(1, settings.RRF_DEPTH, settings.RRF_K)
+            # raw_rrf = (1.0 / (settings.RRF_CONSTANT + ranks)) + (1.0 / (settings.RRF_CONSTANT + ranks + 5))
+            # scaled_rrf = (raw_rrf / settings.MAX_POSSIBLE_RRF).astype(np.float32)
+            # self.features.append(np.concatenate([emb, scaled_rrf]))
+            # self.labels.append(target_vector)
+
+    def __len__(self): return len(self.features)
     def __getitem__(self, idx):
-        # Simulate pre-extracted [Embedding + RRF Scores]
-        # In Step 6, replace this with actual data from your 'import_data.py' logic
-        emb = np.random.randn(self.emb_dim).astype(np.float32)
-        rrf = np.random.rand(RRF_K).astype(np.float32) * 100  # Feature Scaling applied
+        return torch.from_numpy(self.features[idx]).float(), torch.from_numpy(self.labels[idx]).float()
 
-        features = np.concatenate([emb, rrf])
+async def train_and_export(mode="text", haz_label="spam", safe_label="ham"):
+    if not Tortoise._inited: await Tortoise.init(config=TORTOISE_ORM)
+    
+    haz = await OpenDataSet.filter(text_embedding__isnull=False, label=haz_label).all()
+    safe = await OpenDataSet.filter(text_embedding__isnull=False, label=safe_label).all()
+    
+    full_dataset = UnifiedDataset(haz, safe)
+    train_size = int(0.8 * len(full_dataset))
+    val_set_size = len(full_dataset) - train_size
+    train_set, val_set = random_split(full_dataset, [train_size, val_set_size])
+    
+    train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=32)
 
-        # Targets: [Scam, Phishing]
-        target = np.array([1.0, 0.0], dtype=np.float32)  # Default dummy
-        return torch.from_numpy(features), torch.from_numpy(target)
-
-
-def train_and_export(mode="text"):
-    dim = DIM_TEXT if mode == "text" else DIM_URL
-    csv = SCAM_CSV if mode == "text" else PHISH_CSV
-
+    dim = settings.DIM_TEXT if mode == "text" else settings.DIM_URL
     model = ScamPhishingMLP(dim)
-    dataset = MultiModalDataset(csv, dim)
-    loader = DataLoader(dataset, batch_size=32, shuffle=True)
-
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     criterion = nn.BCELoss()
 
-    print(f"Training {mode.upper()} MLP Head...")
-    model.train()
-    for epoch in range(5):  # Fast training for MLP heads
-        total_loss = 0
-        for feat, label in loader:
+    for epoch in range(10):
+        model.train()
+        t_loss, t_correct = 0, 0
+        for feat, target in train_loader:
             optimizer.zero_grad()
-            output = model(feat)
-            loss = criterion(output, label)
+            out = model(feat)
+            loss = criterion(out, target)
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
-        print(f"Epoch {epoch + 1} Loss: {total_loss / len(loader):.4f}")
+            t_loss += loss.item()
+            t_correct += (out.argmax(1) == target.argmax(1)).sum().item()
 
-    # --- ONNX EXPORT ---
-    export_path = MODEL_EXPORT_DIR / f"{mode}_onnx" / "classifier.onnx"
-    export_path.parent.mkdir(parents=True, exist_ok=True)
+        # Validation
+        model.eval()
+        v_loss, v_correct = 0, 0
+        y_true, y_pred = [], []
+        with torch.no_grad():
+            for feat, target in val_loader:
+                out = model(feat)
+                v_loss += criterion(out, target).item()
+                v_correct += (out.argmax(1) == target.argmax(1)).sum().item()
+                y_true.extend(target.argmax(1).tolist())
+                y_pred.extend(out.argmax(1).tolist())
+        
+        print(f"Epoch {epoch+1} | T_Loss: {t_loss/len(train_loader):.4f} | T_Acc: {t_correct/train_size:.4f} | V_Loss: {v_loss/len(val_loader):.4f} | V_Acc: {v_correct/val_set_size:.4f}")
 
-    model.eval()
-    dummy_input = torch.randn(1, dim + RRF_K)
-    torch.onnx.export(
-        model,
-        dummy_input,
-        str(export_path),
-        input_names=["input"],
-        output_names=["output"],
-        dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
-        opset_version=12,
-    )
-    print(f"Exported {mode} classifier to {export_path}")
+    print("\n--- F1 METRICS MATRIX ---")
+    print(classification_report(y_true, y_pred, target_names=[haz_label, safe_label]))
+    print("--- CONFUSION MATRIX ---")
+    print(confusion_matrix(y_true, y_pred))
 
+    # Export
+    export_dir = settings.TEXT_MODEL_PATH if mode == "text" else settings.URL_MODEL_PATH
+    export_path = export_dir / "classifier.onnx"
+    dummy_input = torch.randn(1, dim + settings.RRF_K).float()
+    torch.onnx.export(model, dummy_input, str(export_path), input_names=["input"], output_names=["output"], dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}}, opset_version=18)
 
 if __name__ == "__main__":
-    train_and_export("text")
-    train_and_export("url")
+    asyncio.run(train_and_export(mode="text", haz_label="spam", safe_label="ham"))

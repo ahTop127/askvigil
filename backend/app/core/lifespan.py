@@ -10,28 +10,18 @@ from pathlib import Path
 from app.core.seeding import run_seeding
 from tortoise import Tortoise
 from app.core.registry import MODEL_REGISTRY
+from app.core.config import settings
 from app.scripts.generate_embeddings import generate_and_update_embeddings
 import asyncio
-
-# # Global Registry
-# MODEL_REGISTRY = {}
-# Define the Root of the data storage
-CLOUD_STORAGE_URL = os.getenv("OCI_PAR_URL")  # From environment
-PERSISTENCE_ROOT = Path("/app/data_persistence").resolve()
-# AI models subdirectory
-BASE_MODEL_DIR = Path(PERSISTENCE_ROOT / "ai_models").resolve()
-# Specific sub-paths
-TEXT_MODEL_PATH = BASE_MODEL_DIR / "text_onnx"
-URL_MODEL_PATH = BASE_MODEL_DIR / "url_onnx"
-
+import onnxruntime as ort
 
 async def sync_assets():
-    if not CLOUD_STORAGE_URL:
+    if not settings.OCI_PAR_URL:
         raise RuntimeError("OCI_PAR_URL is missing!")
 
     async with httpx.AsyncClient(timeout=600.0) as client:  # 10 min timeout for 237MB
-        print(f"[Sync] Querying Oracle Bucket: {CLOUD_STORAGE_URL}", flush=True)
-        list_resp = await client.get(CLOUD_STORAGE_URL)
+        print(f"[Sync] Querying Oracle Bucket: {settings.OCI_PAR_URL}", flush=True)
+        list_resp = await client.get(settings.OCI_PAR_URL)
         remote_files = list_resp.json().get("objects", [])
         print(f"[Sync] Found {len(remote_files)} objects in cloud.", flush=True)
 
@@ -41,7 +31,7 @@ async def sync_assets():
             if name.endswith("/"):
                 continue
 
-            local_path = PERSISTENCE_ROOT / name
+            local_path = settings.PERSISTENCE_PATH / name
             size_bytes = obj.get("size", -1)  # default to -1 if not found
 
             # 2. Logic: Only sync if missing or size mismatch
@@ -56,7 +46,7 @@ async def sync_assets():
                 temp_path = local_path.with_suffix(".tmp")
                 # Stream the download to the temporary file to save RAM
                 async with client.stream(
-                    "GET", f"{CLOUD_STORAGE_URL}{name}"
+                    "GET", f"{settings.OCI_PAR_URL}{name}"
                 ) as response:
                     if response.status_code == 200:
                         with open(temp_path, "wb") as f:
@@ -90,17 +80,21 @@ async def lifespan(app: FastAPI):
     try:
         # Load Text Model (MiniLM)
         MODEL_REGISTRY["text"] = {
-            "session": load_onnx_session(str(TEXT_MODEL_PATH)),
+            "session": load_onnx_session(str(settings.TEXT_MODEL_PATH)),
             "tokenizer": AutoTokenizer.from_pretrained(
-                str(TEXT_MODEL_PATH), local_files_only=True
+                str(settings.TEXT_MODEL_PATH), local_files_only=True
             ),
+        }
+
+        MODEL_REGISTRY["text_classifier"] = {
+            "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
         }
 
         # Load URL Model (URLBert)
         MODEL_REGISTRY["url"] = {
-            "session": load_onnx_session(str(URL_MODEL_PATH)),
+            "session": load_onnx_session(str(settings.URL_MODEL_PATH)),
             "tokenizer": AutoTokenizer.from_pretrained(
-                str(URL_MODEL_PATH), local_files_only=True
+                str(settings.URL_MODEL_PATH), local_files_only=True
             ),
         }
 
@@ -141,9 +135,21 @@ def load_onnx_session(model_path: str):
         "CPUExecutionProvider",
     ]
 
-    model_file = f"{model_path}/model_quantized.onnx"
+    p = Path(model_path)
+    
+    if p.is_dir():
+        # It's a directory (MiniLM/URLBert) -> look for internal file
+        target_file = p / "model_quantized.onnx"
+    else:
+        # It's a direct file (MLP Classifier) -> use it as is
+        target_file = p
+
+    if not target_file.exists():
+        raise FileNotFoundError(f"ONNX binary not found at: {target_file}")
+
+    # model_file = f"{model_path}/model_quantized.onnx"
     session = ort.InferenceSession(
-        model_file, sess_options=options, providers=providers
+        target_file, sess_options=options, providers=providers
     )
 
     # --- ACL CHECK ---
@@ -196,18 +202,33 @@ async def ensure_architectural_integrity():
             ALTER TABLE open_dataset ADD COLUMN text_embedding vector(384);
         END IF;
 
-        -- Handle Generated Column and Lexical Search
+        -- 1. Detection & Purge of Stale Config
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name='open_dataset' AND column_name='text_search_vector'
+        ) THEN
+            IF (SELECT pg_get_expr(adbin, adrelid) 
+                FROM pg_attrdef 
+                JOIN pg_attribute ON pg_attrdef.adrelid = pg_attribute.attrelid AND pg_attrdef.adnum = pg_attribute.attnum
+                WHERE adrelid = 'open_dataset'::regclass AND attname = 'text_search_vector') LIKE '%english%' THEN
+                
+                DROP INDEX IF EXISTS idx_gin_lexical;
+                ALTER TABLE open_dataset DROP COLUMN text_search_vector;
+            END IF;
+        END IF;
+
+        -- 2. State Enforcement (Simple Config)
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='text_search_vector') THEN
             ALTER TABLE open_dataset 
             ADD COLUMN text_search_vector tsvector 
-            GENERATED ALWAYS AS (to_tsvector('english', coalesce(clean_text, ''))) STORED;
+            GENERATED ALWAYS AS (to_tsvector('simple', coalesce(clean_text, ''))) STORED;
         END IF;
 
-        -- Ensure High-Integrity Indexes
+        -- 3. Final Index Alignment
         CREATE INDEX IF NOT EXISTS idx_hnsw_embeddings 
             ON open_dataset USING hnsw (text_embedding vector_cosine_ops) 
-            WITH (m = 16, ef_construction = 64);
-            
+            WITH (m = 16, ef_construction = 128); -- Boosted for high-integrity retrieval
+
         CREATE INDEX IF NOT EXISTS idx_gin_lexical 
             ON open_dataset USING GIN (text_search_vector);
 

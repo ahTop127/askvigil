@@ -10,13 +10,9 @@ CREATE TABLE IF NOT EXISTS open_dataset (
     clean_text TEXT UNIQUE NOT NULL,
     text_embedding vector(384),
     -- Automated Lexical Index
-    text_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('english', clean_text)) STORED
+    text_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple', clean_text)) STORED
 );
 
--- Ensure the generated column exists if generated before this
-ALTER TABLE open_dataset 
-ADD COLUMN IF NOT EXISTS text_search_vector tsvector 
-GENERATED ALWAYS AS (to_tsvector('english', clean_text)) STORED;
 
 -- HNSW for Semantic Search
 CREATE INDEX IF NOT EXISTS idx_hnsw_embeddings 

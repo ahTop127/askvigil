@@ -3,8 +3,8 @@ import asyncio
 import torch
 from urlextract import URLExtract
 
-# from app.core.lifespan import MODEL_REGISTRY
 from app.core.registry import MODEL_REGISTRY
+from app.core.config import settings
 from app.services.retrieval_services import hybrid_search_rrf
 
 extractor = URLExtract()
@@ -79,45 +79,65 @@ async def scan_url(raw_url: str):
 
     cls_embedding = outputs.last_hidden_state[:, 0, :].squeeze().numpy()
 
-    # TODO: Pass cls_embedding to the Risk Head / Database similarity search
+    # TODO: Copy scan_text format for how to do inference.
     return {
         "original_url": raw_url,
         "resolved_url": resolved_url,
-        # "embedding_sample": cls_embedding[:5].tolist(),
         "embedding": cls_embedding.tolist(),
         "risk_score": 0.0,
     }
 
 
 async def scan_text(text: str):
-    # 1. Get Embedding (ONNX INT8)
+    # Get Embedding (ONNX INT8)
     vector = await get_onnx_embedding(text, mode="text")
 
-    # 2. Hybrid Retrieval (RRF)
+    # Hybrid Retrieval (RRF)
     # This fetches the "Institutional Memory"
-    top_matches = await hybrid_search_rrf(text, vector, limit=5)
+    top_matches = await hybrid_search_rrf(text, vector, limit=settings.SEARCH_WINDOW)
 
-    # 3. Preparation for MLP Training
-    # We extract the RRF scores of the top 5 matches to feed into the MLP
-    rrf_features = [m["rrf_score"] for m in top_matches]
+    # Keep result in a [0, 1] range relative to the window capacity
+    normalization_factor = settings.MAX_RRF * settings.SEARCH_WINDOW
 
-    # Pad if fewer than 5 matches found
-    while len(rrf_features) < 5:
-        rrf_features.append(0.0)
+    spam_mass = sum(m["rrf_score"] for m in top_matches if m["label"] == "spam")
+    ham_mass = sum(m["rrf_score"] for m in top_matches if m["label"] == "ham")
+
+    spam_feat = np.float32(spam_mass / normalization_factor)
+    ham_feat = np.float32(ham_mass / normalization_factor)
+    
+    momentum_vec = np.array([spam_feat, ham_feat], dtype=np.float32)
+
+    # Input is now: [Embedding (384) + Spam_RRF (1) + Ham_RRF (1)] = 386
+    fused_input = np.concatenate([vector, momentum_vec]).astype(np.float32).reshape(1, -1)
+    
+    session = MODEL_REGISTRY["text_classifier"]["session"]
+    output = await asyncio.to_thread(session.run, None, {"input": fused_input})
+    
+    # Since the MLP output is Softmax, hazard_prob + safe_prob = 1.0
+    risk_score = float(output[0][0][0]) 
 
     return {
-        "embedding": vector,
-        "rrf_features": rrf_features,  # These go to the MLP classifier
-        "top_matches": top_matches,
+        "risk_score": round(risk_score, 4), # 0.0 to 1.0
+        "evidence_density": {
+            "spam_momentum": round(float(spam_feat), 4),
+            "ham_momentum": round(float(ham_feat), 4),
+            "total_hits": len(top_matches)
+        },
+        "top_matches": top_matches
     }
 
 
 async def scan_unified_text(raw_text: str):
     """Extracts URLs, cleans text, and runs both through respective models."""
+    # TODO: Text classifier currently trained with urls in
+    # This is just because the urls need to be replaced in training data
+    # Iteration 2: Replace urls in generate-embeddings and retrain, then 
+    # also replace urls in scanning pipeline.
+
     urls = extractor.find_urls(raw_text)
     clean_text = raw_text
-    for u in urls:
-        clean_text = clean_text.replace(u, "[URL]")
+    # for u in urls:
+    #     clean_text = clean_text.replace(u, "[URL]")
 
     results = {"text_data": None, "url_data": []}
 

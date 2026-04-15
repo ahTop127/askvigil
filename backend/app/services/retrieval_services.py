@@ -16,20 +16,20 @@ async def hybrid_search_rrf(
         SELECT id, ROW_NUMBER() OVER (ORDER BY text_embedding <=> $1::vector) as rank
         FROM open_dataset
         ORDER BY text_embedding <=> $1::vector
-        LIMIT 50
+        LIMIT 100
     ),
     lexical_rank AS (
         SELECT id, ROW_NUMBER() OVER (ORDER BY ts_rank_cd(text_search_vector, plainto_tsquery('english', $2)) DESC) as rank
         FROM open_dataset
-        WHERE text_search_vector @@ plainto_tsquery('english', $2)
+        WHERE text_search_vector @@ plainto_tsquery('simple', $2)
         ORDER BY rank
-        LIMIT 50
+        LIMIT 100
     )
     SELECT 
         COALESCE(s.id, l.id) as id,
         (COALESCE(1.0 / ({k} + s.rank), 0.0) + COALESCE(1.0 / ({k} + l.rank), 0.0)) as rrf_score,
         o.clean_text,
-        o.category
+        o.label
     FROM semantic_rank s
     FULL OUTER JOIN lexical_rank l ON s.id = l.id
     JOIN open_dataset o ON o.id = COALESCE(s.id, l.id)

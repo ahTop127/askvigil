@@ -55,13 +55,12 @@ services:
       PYTHONUNBUFFERED: 1
       # We use the 'db' service name as the hostname
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql
-      MODEL_PATH: /app/models/huggingface
+      MODEL_PATH: /app/data_persistence/ai_models
       OCI_PAR_URL: ${OCI_PAR_URL} 
       PERSISTENCE_PATH: /app/data_persistence
-    # Nginx makes this unnecessary on oracle server, but it's helpful on local
-    # We just block port 8000 on oracle.
-    ports:
-      - "8000:8000"
+    # Expose 8000 because it's an internal API service.
+    expose:
+      - "8000"
     deploy:
       resources:
         limits:
@@ -74,9 +73,9 @@ services:
   frontend:
     build: ./frontend
     restart: always
-    # Uncomment only to test without Nginx
-    ports:
-      - "3000:80" # Maps React (Nginx port 80) to server port 3000
+    # Expose 80 because NPM needs to talk to this Nginx instance.
+    expose:
+      - "80" 
     depends_on:
       - backend
     volumes:
@@ -96,6 +95,7 @@ services:
       frontend:
         condition: service_started # Wait for frontend before running
     restart: always
+    # Ports needed as the front door to our server.
     ports:
       - "80:80" # Public HTTP
       - "81:81" # Management UI (Used to set up DuckDNS)
