@@ -104,26 +104,28 @@ async def scan_text(text: str):
 
     spam_feat = np.float32(spam_mass / normalization_factor)
     ham_feat = np.float32(ham_mass / normalization_factor)
-    
+
     momentum_vec = np.array([spam_feat, ham_feat], dtype=np.float32)
 
     # Input is now: [Embedding (384) + Spam_RRF (1) + Ham_RRF (1)] = 386
-    fused_input = np.concatenate([vector, momentum_vec]).astype(np.float32).reshape(1, -1)
-    
+    fused_input = (
+        np.concatenate([vector, momentum_vec]).astype(np.float32).reshape(1, -1)
+    )
+
     session = MODEL_REGISTRY["text_classifier"]["session"]
     output = await asyncio.to_thread(session.run, None, {"input": fused_input})
-    
+
     # Since the MLP output is Softmax, hazard_prob + safe_prob = 1.0
-    risk_score = float(output[0][0][0]) 
+    risk_score = float(output[0][0][0])
 
     return {
-        "risk_score": round(risk_score, 4), # 0.0 to 1.0
+        "risk_score": round(risk_score, 4),  # 0.0 to 1.0
         "evidence_density": {
             "spam_momentum": round(float(spam_feat), 4),
             "ham_momentum": round(float(ham_feat), 4),
-            "total_hits": len(top_matches)
+            "total_hits": len(top_matches),
         },
-        "top_matches": top_matches
+        "top_matches": top_matches,
     }
 
 
@@ -131,7 +133,7 @@ async def scan_unified_text(raw_text: str):
     """Extracts URLs, cleans text, and runs both through respective models."""
     # TODO: Text classifier currently trained with urls in
     # This is just because the urls need to be replaced in training data
-    # Iteration 2: Replace urls in generate-embeddings and retrain, then 
+    # Iteration 2: Replace urls in generate-embeddings and retrain, then
     # also replace urls in scanning pipeline.
 
     urls = extractor.find_urls(raw_text)

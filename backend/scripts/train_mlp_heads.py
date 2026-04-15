@@ -22,23 +22,24 @@ class ScamPhishingMLP(nn.Module):
             nn.Linear(input_dim + settings.RRF_K, 128),
             nn.BatchNorm1d(128),
             nn.ReLU(),
-            nn.Dropout(0.4), # Primary regularization
+            nn.Dropout(0.4),  # Primary regularization
             nn.Linear(128, 64),
             nn.ReLU(),
-            nn.Dropout(0.3), # Secondary regularization
+            nn.Dropout(0.3),  # Secondary regularization
             nn.Linear(64, 2),
-            nn.Softmax(dim=1) # Ensures probabilities sum to 1.0
+            nn.Softmax(dim=1),  # Ensures probabilities sum to 1.0
         )
 
     def forward(self, x):
         return self.net(x)
+
 
 class UnifiedDataset(Dataset):
     def __init__(self, haz_records, safe_records):
         self.features = []
         self.labels = []
         self._process(haz_records, [1.0, 0.0])  # Hazard (Spam/Phish)
-        self._process(safe_records, [0.0, 1.0]) # Safe (Ham)
+        self._process(safe_records, [0.0, 1.0])  # Safe (Ham)
         self.features = np.array(self.features, dtype=np.float32)
         self.labels = np.array(self.labels, dtype=np.float32)
 
@@ -50,7 +51,7 @@ class UnifiedDataset(Dataset):
         - This allows [0, 0] to represent a legitimate 'Novelty' state.
         """
         for r in records:
-            if r.text_embedding is None: 
+            if r.text_embedding is None:
                 continue
             emb = np.array(r.text_embedding, dtype=np.float32)
 
@@ -60,13 +61,17 @@ class UnifiedDataset(Dataset):
             secondary_momentum = np.random.uniform(0.0, 0.1)
 
             if target_vector == [1.0, 0.0]:
-                momentum_vec = np.array([primary_momentum, secondary_momentum], dtype=np.float32)
+                momentum_vec = np.array(
+                    [primary_momentum, secondary_momentum], dtype=np.float32
+                )
             else:
-                momentum_vec = np.array([secondary_momentum, primary_momentum], dtype=np.float32)
+                momentum_vec = np.array(
+                    [secondary_momentum, primary_momentum], dtype=np.float32
+                )
 
             # 3. Fuse Features (384 + 2 = 386)
             fused = np.concatenate([emb, momentum_vec]).astype(np.float32)
-            
+
             self.features.append(fused)
             self.labels.append(target_vector)
             # emb = np.array(r.text_embedding, dtype=np.float32)
@@ -77,21 +82,29 @@ class UnifiedDataset(Dataset):
             # self.features.append(np.concatenate([emb, scaled_rrf]))
             # self.labels.append(target_vector)
 
-    def __len__(self): return len(self.features)
+    def __len__(self):
+        return len(self.features)
+
     def __getitem__(self, idx):
-        return torch.from_numpy(self.features[idx]).float(), torch.from_numpy(self.labels[idx]).float()
+        return torch.from_numpy(self.features[idx]).float(), torch.from_numpy(
+            self.labels[idx]
+        ).float()
+
 
 async def train_and_export(mode="text", haz_label="spam", safe_label="ham"):
-    if not Tortoise._inited: await Tortoise.init(config=TORTOISE_ORM)
-    
+    if not Tortoise._inited:
+        await Tortoise.init(config=TORTOISE_ORM)
+
     haz = await OpenDataSet.filter(text_embedding__isnull=False, label=haz_label).all()
-    safe = await OpenDataSet.filter(text_embedding__isnull=False, label=safe_label).all()
-    
+    safe = await OpenDataSet.filter(
+        text_embedding__isnull=False, label=safe_label
+    ).all()
+
     full_dataset = UnifiedDataset(haz, safe)
     train_size = int(0.8 * len(full_dataset))
     val_set_size = len(full_dataset) - train_size
     train_set, val_set = random_split(full_dataset, [train_size, val_set_size])
-    
+
     train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=32)
 
@@ -123,8 +136,10 @@ async def train_and_export(mode="text", haz_label="spam", safe_label="ham"):
                 v_correct += (out.argmax(1) == target.argmax(1)).sum().item()
                 y_true.extend(target.argmax(1).tolist())
                 y_pred.extend(out.argmax(1).tolist())
-        
-        print(f"Epoch {epoch+1} | T_Loss: {t_loss/len(train_loader):.4f} | T_Acc: {t_correct/train_size:.4f} | V_Loss: {v_loss/len(val_loader):.4f} | V_Acc: {v_correct/val_set_size:.4f}")
+
+        print(
+            f"Epoch {epoch + 1} | T_Loss: {t_loss / len(train_loader):.4f} | T_Acc: {t_correct / train_size:.4f} | V_Loss: {v_loss / len(val_loader):.4f} | V_Acc: {v_correct / val_set_size:.4f}"
+        )
 
     print("\n--- F1 METRICS MATRIX ---")
     print(classification_report(y_true, y_pred, target_names=[haz_label, safe_label]))
@@ -135,7 +150,16 @@ async def train_and_export(mode="text", haz_label="spam", safe_label="ham"):
     export_dir = settings.TEXT_MODEL_PATH if mode == "text" else settings.URL_MODEL_PATH
     export_path = export_dir / "classifier.onnx"
     dummy_input = torch.randn(1, dim + settings.RRF_K).float()
-    torch.onnx.export(model, dummy_input, str(export_path), input_names=["input"], output_names=["output"], dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}}, opset_version=18)
+    torch.onnx.export(
+        model,
+        dummy_input,
+        str(export_path),
+        input_names=["input"],
+        output_names=["output"],
+        dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
+        opset_version=18,
+    )
+
 
 if __name__ == "__main__":
     asyncio.run(train_and_export(mode="text", haz_label="spam", safe_label="ham"))

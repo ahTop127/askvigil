@@ -9,12 +9,13 @@ env_state = os.getenv("ENVIRONMENT", "dev")
 # 2. Concatenate the file name to be read, such as ".env.dev" or ".env.prod"
 env_file_name = f".env.{env_state}"
 
+
 class Settings(BaseSettings):
     # --- ENVIRONMENT VARIABLES (Mapped from .env) ---
     DATABASE_URL: str
     PERSISTENCE_PATH: Path = Path("/app/data_persistence")
     OCI_PAR_URL: str | None = None
-    
+
     # --- ARCHITECTURAL CONSTANTS ---
     RRF_CONSTANT: int = 60
     RRF_DEPTH: int = 100
@@ -43,7 +44,7 @@ class Settings(BaseSettings):
     @property
     def TEXT_MODEL_PATH(self) -> Path:
         return self.MODEL_DIR / "text_onnx"
-    
+
     @property
     def TEXT_CLASSIFIER_PATH(self) -> Path:
         return self.TEXT_MODEL_PATH / "classifier.onnx"
@@ -58,6 +59,7 @@ class Settings(BaseSettings):
 
     # Pydantic Config. Dynamically specify the env file to be loaded
     model_config = SettingsConfigDict(env_file=env_file_name, extra="ignore")
+
 
 # Instantiate for use
 settings = Settings()

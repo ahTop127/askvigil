@@ -13,7 +13,7 @@ from app.core.registry import MODEL_REGISTRY
 from app.core.config import settings
 from app.scripts.generate_embeddings import generate_and_update_embeddings
 import asyncio
-import onnxruntime as ort
+
 
 async def sync_assets():
     if not settings.OCI_PAR_URL:
@@ -136,7 +136,7 @@ def load_onnx_session(model_path: str):
     ]
 
     p = Path(model_path)
-    
+
     if p.is_dir():
         # It's a directory (MiniLM/URLBert) -> look for internal file
         target_file = p / "model_quantized.onnx"
