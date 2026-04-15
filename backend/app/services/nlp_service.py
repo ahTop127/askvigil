@@ -97,10 +97,16 @@ async def scan_text(text: str):
     top_matches = await hybrid_search_rrf(text, vector, limit=settings.SEARCH_WINDOW)
 
     # Keep result in a [0, 1] range relative to the window capacity
-    normalization_factor = np.float32(settings.MAX_POSSIBLE_RRF * settings.SEARCH_WINDOW)
+    normalization_factor = np.float32(
+        settings.MAX_POSSIBLE_RRF * settings.SEARCH_WINDOW
+    )
 
-    spam_mass = np.float32(sum(m["rrf_score"] for m in top_matches if m["label"] == "spam"))
-    ham_mass = np.float32(sum(m["rrf_score"] for m in top_matches if m["label"] == "ham"))
+    spam_mass = np.float32(
+        sum(m["rrf_score"] for m in top_matches if m["label"] == "spam")
+    )
+    ham_mass = np.float32(
+        sum(m["rrf_score"] for m in top_matches if m["label"] == "ham")
+    )
 
     spam_feat = np.float32(spam_mass / normalization_factor)
     ham_feat = np.float32(ham_mass / normalization_factor)
