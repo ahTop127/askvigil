@@ -60,7 +60,7 @@ class UnifiedDataset(Dataset):
             primary_momentum = np.random.uniform(0.2, 1.00)
             secondary_momentum = np.random.uniform(0.0, 0.2)
 
-            if target_vector == [1.0, 0.0]: # Spam
+            if target_vector == [1.0, 0.0]:  # Spam
                 momentum_vec = np.array(
                     [primary_momentum, secondary_momentum], dtype=np.float32
                 )
