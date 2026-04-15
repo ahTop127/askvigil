@@ -96,16 +96,16 @@ async def scan_text(text: str):
     # This fetches the "Institutional Memory"
     top_matches = await hybrid_search_rrf(text, vector, limit=settings.SEARCH_WINDOW)
 
-    spam_mass = np.float32(
-        sum(m["rrf_score"] for m in top_matches if m["label"] == "spam")
-    )
-    ham_mass = np.float32(
-        sum(m["rrf_score"] for m in top_matches if m["label"] == "ham")
-    )
+    # 1. Calculate Relative Evidence Units (u)
+    # (Match_RRF / MAX_RRF)^2 ensures a Rank-1 match = 1.0 unit
+    # Squaring it here makes Rank-50 matches (~0.25 units) significantly quieter (0.06 units)
+    spam_u = sum((np.float32(m["rrf_score"]) / settings.MAX_POSSIBLE_RRF)**2 for m in top_matches if m["label"] == "spam")
+    ham_u = sum((np.float32(m["rrf_score"]) / settings.MAX_POSSIBLE_RRF)**2 for m in top_matches if m["label"] == "ham")
 
-    # Keep result in a [0, 1] range relative to the window capacity
-    spam_feat = np.float32(spam_mass / np.float32(settings.MAX_POSSIBLE_RRF))
-    ham_feat = np.float32(ham_mass / np.float32(settings.MAX_POSSIBLE_RRF))
+    # 2. Apply Asymmetric Bias (The "Security Guard" Logic)
+    # We multiply spam_u by 1.5 to give it a "Veto" power over ham noise
+    spam_feat = np.float32(spam_u / (spam_u + settings.LAMBDA_SPAM)) 
+    ham_feat = np.float32(ham_u / (ham_u + settings.LAMBDA_HAM)) 
 
     momentum_vec = np.array([spam_feat, ham_feat], dtype=np.float32)
 
@@ -117,7 +117,7 @@ async def scan_text(text: str):
     session = MODEL_REGISTRY["text_classifier"]["session"]
     output = await asyncio.to_thread(session.run, None, {"input": fused_input})
 
-    # Since the MLP output is Softmax, hazard_prob + safe_prob = 1.0
+    # Softmax check: Index 0 = Spam (Hazard), Index 1 = Ham (Safe)
     risk_score = float(output[0][0][0])
 
     return {

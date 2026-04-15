@@ -45,39 +45,38 @@ class UnifiedDataset(Dataset):
 
     def _process(self, records, target_vector):
         """
-        Simulates Evidence Density:
-        - Correct class gets momentum in [0.2, 1.00] based on 'simulated' match quality.
-        - Opposite class gets low noise in [0.0, 0.2].
-        - This allows [0, 0] to represent a legitimate 'Novelty' state.
+        Simulates Relative Evidence Units:
+        - Target class gets high u (0.5 to 10.0)
+        - Distractor class gets low u (0.0 to 1.0)
         """
+        is_spam_target = (target_vector == [1.0, 0.0])
+        
         for r in records:
-            if r.text_embedding is None:
-                continue
+            if r.text_embedding is None: continue
             emb = np.array(r.text_embedding, dtype=np.float32)
 
-            # 2. Simulate Class Momentum [Spam_Momentum, Ham_Momentum]
-            # Not all training data has perfect historical matches
-            primary_momentum = np.random.uniform(0.2, 1.00)
-            secondary_momentum = np.random.uniform(0.0, 0.2)
-
-            if target_vector == [1.0, 0.0]:  # Spam
-                momentum_vec = np.array(
-                    [primary_momentum, secondary_momentum], dtype=np.float32
-                )
+            if is_spam_target:
+                u_spam = np.random.uniform(0.8, 10.0)
+                u_ham = np.random.uniform(0.0, 1.5)
             else:
-                momentum_vec = np.array(
-                    [secondary_momentum, primary_momentum], dtype=np.float32
-                )
+                u_spam = np.random.uniform(0.0, 1.5)
+                u_ham = np.random.uniform(0.8, 10.0)
 
-            # 2. Feature blurring/dropout
-            if np.random.rand() < 0.4:
+            # Apply the SAME saturation function as nlp_service
+            spam_feat = u_spam / (u_spam + settings.LAMBDA_SPAM)
+            ham_feat = u_ham / (u_ham + settings.LAMBDA_HAM)
+            
+            # 30% Noise/Novelty injection (Forces model to use text embeddings)
+            if np.random.rand() < 0.3:
                 momentum_vec = np.array([0.0, 0.0], dtype=np.float32)
+            else:
+                momentum_vec = np.array([spam_feat, ham_feat], dtype=np.float32)
 
-            # 3. Fuse Features (384 + 2 = 386)
-            fused = np.concatenate([emb, momentum_vec]).astype(np.float32)
-
-            self.features.append(fused)
+            self.features.append(np.concatenate([emb, momentum_vec]))
             self.labels.append(target_vector)
+            # # LABEL SMOOTHING: Use [0.9, 0.1] instead of [1, 0] to prevent overconfidence
+            # smoothed_label = np.array(target_vector) * 0.9 + 0.05
+            # self.labels.append(smoothed_label)
 
     def __len__(self):
         return len(self.features)
