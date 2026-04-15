@@ -107,8 +107,7 @@ async def scan_text(text: str):
     spam_feat = np.float32(spam_mass / np.float32(settings.MAX_POSSIBLE_RRF))
     ham_feat = np.float32(ham_mass / np.float32(settings.MAX_POSSIBLE_RRF))
 
-    # Clip to 1.0 to prevent overflow if multiple high-rank matches exist
-    momentum_vec = np.clip(np.array([spam_feat, ham_feat], dtype=np.float32), 0.0, 1.0)
+    momentum_vec = np.array([spam_feat, ham_feat], dtype=np.float32)
 
     # Input is now: [Embedding (384) + Spam_RRF (1) + Ham_RRF (1)] = 386
     fused_input = (
