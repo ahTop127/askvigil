@@ -46,8 +46,8 @@ class UnifiedDataset(Dataset):
     def _process(self, records, target_vector):
         """
         Simulates Evidence Density:
-        - Correct class gets momentum in [0.2, 0.95] based on 'simulated' match quality.
-        - Opposite class gets low noise in [0.0, 0.1].
+        - Correct class gets momentum in [0.2, 1.00] based on 'simulated' match quality.
+        - Opposite class gets low noise in [0.0, 0.2].
         - This allows [0, 0] to represent a legitimate 'Novelty' state.
         """
         for r in records:
@@ -57,10 +57,10 @@ class UnifiedDataset(Dataset):
 
             # 2. Simulate Class Momentum [Spam_Momentum, Ham_Momentum]
             # Not all training data has perfect historical matches
-            primary_momentum = np.random.uniform(0.2, 0.95)
-            secondary_momentum = np.random.uniform(0.0, 0.1)
+            primary_momentum = np.random.uniform(0.2, 1.00)
+            secondary_momentum = np.random.uniform(0.0, 0.2)
 
-            if target_vector == [1.0, 0.0]:
+            if target_vector == [1.0, 0.0]: # Spam
                 momentum_vec = np.array(
                     [primary_momentum, secondary_momentum], dtype=np.float32
                 )
@@ -69,18 +69,15 @@ class UnifiedDataset(Dataset):
                     [secondary_momentum, primary_momentum], dtype=np.float32
                 )
 
+            # 2. Feature blurring/dropout
+            if np.random.rand() < 0.4:
+                momentum_vec = np.array([0.0, 0.0], dtype=np.float32)
+
             # 3. Fuse Features (384 + 2 = 386)
             fused = np.concatenate([emb, momentum_vec]).astype(np.float32)
 
             self.features.append(fused)
             self.labels.append(target_vector)
-            # emb = np.array(r.text_embedding, dtype=np.float32)
-            # # RRF Normalization for Depth 100
-            # ranks = np.random.randint(1, settings.RRF_DEPTH, settings.RRF_K)
-            # raw_rrf = (1.0 / (settings.RRF_CONSTANT + ranks)) + (1.0 / (settings.RRF_CONSTANT + ranks + 5))
-            # scaled_rrf = (raw_rrf / settings.MAX_POSSIBLE_RRF).astype(np.float32)
-            # self.features.append(np.concatenate([emb, scaled_rrf]))
-            # self.labels.append(target_vector)
 
     def __len__(self):
         return len(self.features)
@@ -110,7 +107,7 @@ async def train_and_export(mode="text", haz_label="spam", safe_label="ham"):
 
     dim = settings.DIM_TEXT if mode == "text" else settings.DIM_URL
     model = ScamPhishingMLP(dim)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-2)
     criterion = nn.BCELoss()
 
     for epoch in range(10):
