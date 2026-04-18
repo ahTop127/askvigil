@@ -431,11 +431,7 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
       <div className="relative bg-white rounded-3xl shadow-sm border border-gray-200 p-8 md:p-10">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#EAA866] rounded-full" />
 
-        <Tabs
-          value={tabValue}
-          onValueChange={onTabChange}
-          className="w-full"
-        >
+        <Tabs value={tabValue} onValueChange={onTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 border border-gray-200 h-auto p-1 gap-1 rounded-full">
             <TabsTrigger
               value="text"

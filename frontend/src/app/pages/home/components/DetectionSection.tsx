@@ -89,7 +89,6 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
           )
         )}
       </div>
-
     </section>
   );
 }
