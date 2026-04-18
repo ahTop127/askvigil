@@ -1,14 +1,4 @@
 import { useCallback } from "react";
-import { Shield } from "lucide-react";
-import { Button } from "@components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@components/ui/dialog";
 import { UI_TEXT } from "@lib/constants/text";
 import type { UseScamDetectionReturn } from "../hooks/useScamDetection";
 import { DetectionForm } from "./DetectionForm";
@@ -19,7 +9,7 @@ export interface DetectionSectionProps {
 }
 
 /**
- * Hub header, detection form vs result, and privacy confirmation dialog.
+ * Hub header and detection form/result states.
  */
 export function DetectionSection({ detection }: DetectionSectionProps) {
   const {
@@ -36,13 +26,9 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
     error,
     isChecking,
     showResult,
-    showPrivacyDialog,
     result,
     handleCheck,
-    confirmCheck,
-    cancelPrivacy,
     resetDetection,
-    setShowPrivacyDialog,
     clearError,
   } = detection;
 
@@ -61,10 +47,6 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
     >
       <div className="max-w-4xl mx-auto px-4 relative z-10">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-[#EAA866] text-white px-4 py-2 rounded-full text-sm font-medium mb-4">
-            <Shield className="w-4 h-4" aria-hidden />
-            {UI_TEXT.detection.startHere}
-          </div>
           <h2 className="text-4xl font-bold text-[#EAA866] mb-4">
             {UI_TEXT.detection.hubTitle}
           </h2>
@@ -108,26 +90,6 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
         )}
       </div>
 
-      <Dialog open={showPrivacyDialog} onOpenChange={setShowPrivacyDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">
-              {UI_TEXT.privacy.title}
-            </DialogTitle>
-            <DialogDescription className="text-base leading-relaxed text-gray-600">
-              {UI_TEXT.privacy.description}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={cancelPrivacy}>
-              {UI_TEXT.privacy.cancel}
-            </Button>
-            <Button onClick={() => void confirmCheck()}>
-              {UI_TEXT.privacy.continue}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </section>
   );
 }

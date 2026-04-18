@@ -18,18 +18,14 @@ export interface UseScamDetectionReturn {
   error: string;
   isChecking: boolean;
   showResult: boolean;
-  showPrivacyDialog: boolean;
   result: ScamDetectionResult | null;
   setActiveTab: (tab: string) => void;
   setTextInput: (value: string) => void;
   setUrlInput: (value: string) => void;
   setImageFile: (file: File | null) => void;
   setQrFile: (file: File | null) => void;
-  handleCheck: () => void;
-  confirmCheck: () => Promise<void>;
-  cancelPrivacy: () => void;
+  handleCheck: () => Promise<void>;
   resetDetection: () => void;
-  setShowPrivacyDialog: (open: boolean) => void;
   clearError: () => void;
 }
 
@@ -42,7 +38,6 @@ export function useScamDetection(): UseScamDetectionReturn {
   const [error, setError] = useState("");
   const [isChecking, setIsChecking] = useState(false);
   const [showResult, setShowResult] = useState(false);
-  const [showPrivacyDialog, setShowPrivacyDialog] = useState(false);
   const [result, setResult] = useState<ScamDetectionResult | null>(null);
 
   const setActiveTab = useCallback((tab: string) => {
@@ -67,7 +62,7 @@ export function useScamDetection(): UseScamDetectionReturn {
     }
   }, [activeTab, textInput, urlInput, imageFile, qrFile]);
 
-  const handleCheck = useCallback(() => {
+  const handleCheck = useCallback(async () => {
     setError("");
     const payload = getPayload();
     if (!payload) {
@@ -81,13 +76,6 @@ export function useScamDetection(): UseScamDetectionReturn {
       setError(v.error ?? ERROR_MESSAGES.textInput);
       return;
     }
-    setShowPrivacyDialog(true);
-  }, [activeTab, getPayload]);
-
-  const confirmCheck = useCallback(async () => {
-    const payload = getPayload();
-    if (!payload) return;
-    setShowPrivacyDialog(false);
     setIsChecking(true);
     setShowResult(false);
     try {
@@ -103,11 +91,7 @@ export function useScamDetection(): UseScamDetectionReturn {
     } finally {
       setIsChecking(false);
     }
-  }, [getPayload]);
-
-  const cancelPrivacy = useCallback(() => {
-    setShowPrivacyDialog(false);
-  }, []);
+  }, [activeTab, getPayload]);
 
   const resetDetection = useCallback(() => {
     setShowResult(false);
@@ -131,7 +115,6 @@ export function useScamDetection(): UseScamDetectionReturn {
     error,
     isChecking,
     showResult,
-    showPrivacyDialog,
     result,
     setActiveTab,
     setTextInput,
@@ -139,10 +122,7 @@ export function useScamDetection(): UseScamDetectionReturn {
     setImageFile,
     setQrFile,
     handleCheck,
-    confirmCheck,
-    cancelPrivacy,
     resetDetection,
-    setShowPrivacyDialog,
     clearError,
   };
 }

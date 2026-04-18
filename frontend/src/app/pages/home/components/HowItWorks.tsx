@@ -1,18 +1,12 @@
 import { memo, useCallback } from "react";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router";
-import { FileSearch, Shield } from "lucide-react";
-
-export interface HowItWorksProps {
-  onScrollToCheck: () => void;
-}
+import { Shield } from "lucide-react";
 
 /**
  * Three-column narrative with CTAs into product areas.
  */
-export const HowItWorks = memo(function HowItWorks({
-  onScrollToCheck,
-}: HowItWorksProps) {
+export const HowItWorks = memo(function HowItWorks() {
   const navigate = useNavigate();
 
   const goLearning = useCallback(() => {
@@ -56,14 +50,6 @@ export const HowItWorks = memo(function HowItWorks({
                 provides immediate risk assessments to help you make safer
                 decisions.
               </p>
-              <button
-                type="button"
-                onClick={onScrollToCheck}
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#54A388] to-[#3D8A6F] hover:from-[#3D8A6F] hover:to-[#2D6A56] text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl hover:scale-105"
-              >
-                <FileSearch className="w-5 h-5" aria-hidden />
-                Check now
-              </button>
             </motion.div>
             <motion.div
               initial={{ opacity: 0, scale: 0.9, x: 60 }}

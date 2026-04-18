@@ -87,7 +87,7 @@ export const StatisticsSection = memo(function StatisticsSection() {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-shadow"
             >
-              <div className="text-sm text-gray-500 mb-3">Success Rate</div>
+              <div className="text-sm text-gray-500 mb-3">Scams Detected</div>
               <div className="text-4xl font-bold text-[#213034] mb-1">98%</div>
             </motion.div>
           </div>

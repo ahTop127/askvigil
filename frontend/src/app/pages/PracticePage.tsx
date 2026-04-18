@@ -422,7 +422,7 @@ export default function PracticePage() {
   return (
     <div className="min-h-screen bg-[#FFFDF2]">
       <Navigation />
-      <BackButton />
+      <BackButton fallbackTo="/quiz" />
       <main className="max-w-4xl mx-auto px-4 py-12">
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -461,17 +461,41 @@ export default function PracticePage() {
               type="button"
               onClick={() => handleAnswer(scamId)}
               disabled={!canAnswer}
-              className="h-14 border-3 border-red-500 bg-red-50 hover:bg-red-500 text-red-700 hover:text-white rounded-xl text-lg font-semibold transition-all shadow-md hover:shadow-xl hover:scale-105"
+              className="h-14 flex items-center justify-center gap-2 border-2 border-red-500 bg-red-50 hover:bg-red-500 text-red-600 hover:text-white rounded-xl text-lg font-semibold transition-all shadow-md hover:shadow-xl hover:scale-105"
             >
-              ⚠️ Yes, it&apos;s a scam
+              <svg
+                viewBox="0 0 24 24"
+                className="w-5 h-5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+              Yes, it&apos;s a scam
             </button>
             <button
               type="button"
               onClick={() => handleAnswer(safeId)}
               disabled={!canAnswer}
-              className="h-14 border-3 border-green-500 bg-green-50 hover:bg-green-500 text-green-700 hover:text-white rounded-xl text-lg font-semibold transition-all shadow-md hover:shadow-xl hover:scale-105"
+              className="h-14 flex items-center justify-center gap-2 border-2 border-green-500 bg-green-50 hover:bg-green-500 text-green-600 hover:text-white rounded-xl text-lg font-semibold transition-all shadow-md hover:shadow-xl hover:scale-105"
             >
-              ✅ No, it&apos;s safe
+              <svg
+                viewBox="0 0 24 24"
+                className="w-5 h-5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              No, it&apos;s safe
             </button>
           </div>
           {loadError && (

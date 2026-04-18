@@ -64,23 +64,30 @@ function TextDetectionInput({
 }) {
   return (
     <div>
-      <Textarea
-        placeholder={UI_TEXT.detection.textPlaceholder}
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-        }}
-        maxLength={1000}
-        className="min-h-[140px] resize-none text-base bg-gray-50 border-2 border-gray-200 focus:border-[#EAA866] text-gray-900 placeholder:text-gray-400 rounded-xl"
-        disabled={disabled}
-      />
-      <div
-        className={`text-right text-sm mt-2 ${
-          value.length > 900 ? "text-red-500" : "text-gray-500"
-        }`}
-      >
-        {value.length} / 1000 characters
+      <div className="relative">
+        <Textarea
+          placeholder={UI_TEXT.detection.textPlaceholder}
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+          }}
+          maxLength={1000}
+          className="min-h-[140px] resize-none text-base bg-[#F9FAFB] border-2 border-gray-200 focus:border-[#EAA866] text-gray-900 placeholder:text-gray-400 rounded-xl pb-8"
+          disabled={disabled}
+        />
+        <div
+          className={`absolute right-3 bottom-2 text-sm ${
+            value.length > 900 ? "text-red-500" : "text-gray-500"
+          }`}
+        >
+          {value.length} / 1000 characters
+        </div>
       </div>
+
+      <p className="mt-2 text-sm text-amber-700 text-center whitespace-nowrap">
+        Privacy notice: For scam detection only. Do not enter sensitive personal
+        information.
+      </p>
     </div>
   );
 }
@@ -421,21 +428,25 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
     const tabValue = useMemo(() => activeTab, [activeTab]);
 
     return (
-      <div className="relative bg-white rounded-3xl shadow-sm border-2 border-[#EAA866]/10 p-8 md:p-10">
+      <div className="relative bg-white rounded-3xl shadow-sm border border-gray-200 p-8 md:p-10">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#EAA866] rounded-full" />
 
-        <Tabs value={tabValue} onValueChange={onTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 border border-gray-200 h-auto p-1 gap-1">
+        <Tabs
+          value={tabValue}
+          onValueChange={onTabChange}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 border border-gray-200 h-auto p-1 gap-1 rounded-full">
             <TabsTrigger
               value="text"
-              className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
+              className="rounded-full py-2 data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-semibold"
             >
               <FileSearch className="w-4 h-4 mr-1 shrink-0" />
               {UI_TEXT.detection.tabText}
             </TabsTrigger>
             <TabsTrigger
               value="image"
-              className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
+              className="rounded-full py-2 data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-semibold"
             >
               <Upload className="w-4 h-4 mr-1 shrink-0" />
               {UI_TEXT.detection.tabImage}
@@ -456,7 +467,7 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
               </TabsTrigger> */}
           </TabsList>
 
-          <TabsContent value="text" className="space-y-4">
+          <TabsContent value="text" className="space-y-4 mt-0">
             <TextDetectionInput
               value={textInput}
               onChange={onTextChange}
@@ -464,7 +475,7 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
             />
           </TabsContent>
 
-          <TabsContent value="image" className="space-y-4">
+          <TabsContent value="image" className="space-y-4 mt-0">
             <ImageDetectionInput
               file={imageFile}
               disabled={isChecking}
@@ -510,7 +521,7 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
           type="button"
           onClick={onRequestCheck}
           disabled={isChecking}
-          className="w-full h-14 text-base font-semibold bg-[#EAA866] hover:bg-[#D89654] text-white border-0 transition-all mt-6"
+          className="w-full h-14 text-base font-semibold bg-[#EAA866] hover:bg-[#D89654] text-white border-0 transition-all mt-6 rounded-xl shadow-md"
         >
           {isChecking ? (
             <>

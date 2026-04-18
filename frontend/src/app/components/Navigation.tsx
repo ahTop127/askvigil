@@ -1,5 +1,4 @@
 import { useNavigate, useLocation } from "react-router";
-import { Shield } from "lucide-react";
 import Logo from "@assets/AskVigilLogo.png";
 
 export function Navigation() {
@@ -19,11 +18,11 @@ export function Navigation() {
   return (
     <header className="backdrop-blur-md bg-transparent border-b border-white/10 sticky top-0 z-50">
       <div className="w-full px-4 py-5">
-        <div className="flex items-center gap-30">
+        <div className="flex items-center gap-8">
           {/* Logo - Clickable to home */}
           <button
             onClick={() => navigate("/")}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity shrink-0"
           >
             <div className="w-10 h-10 flex items-center justify-center mt-4">
               <img
@@ -35,12 +34,12 @@ export function Navigation() {
           </button>
 
           {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden md:flex items-center gap-8 ml-14">
             <button
               onClick={() => navigate("/")}
-              className={`transition-colors ${
+              className={`transition-colors px-3 py-1 rounded-md ${
                 isActive("/")
-                  ? "text-slate-900 font-semibold"
+                  ? "text-[#8A5A2B] font-semibold bg-[#EAA866]/25"
                   : "text-slate-700 hover:text-slate-900"
               }`}
             >
@@ -48,9 +47,9 @@ export function Navigation() {
             </button>
             <button
               onClick={() => navigate("/guidance")}
-              className={`transition-colors ${
+              className={`transition-colors px-3 py-1 rounded-md ${
                 isActive("/guidance")
-                  ? "text-slate-900 font-semibold"
+                  ? "text-[#8A5A2B] font-semibold bg-[#EAA866]/25"
                   : "text-slate-700 hover:text-slate-900"
               }`}
             >
@@ -58,9 +57,9 @@ export function Navigation() {
             </button>
             <button
               onClick={() => navigate("/learning")}
-              className={`transition-colors ${
+              className={`transition-colors px-3 py-1 rounded-md ${
                 isActive("/learning")
-                  ? "text-slate-900 font-semibold"
+                  ? "text-[#8A5A2B] font-semibold bg-[#EAA866]/25"
                   : "text-slate-700 hover:text-slate-900"
               }`}
             >
@@ -68,9 +67,9 @@ export function Navigation() {
             </button>
             <button
               onClick={() => navigate("/quiz")}
-              className={`transition-colors ${
+              className={`transition-colors px-3 py-1 rounded-md ${
                 isActive("/quiz")
-                  ? "text-slate-900 font-semibold"
+                  ? "text-[#8A5A2B] font-semibold bg-[#EAA866]/25"
                   : "text-slate-700 hover:text-slate-900"
               }`}
             >
