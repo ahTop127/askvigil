@@ -171,12 +171,19 @@ async def _run_import_open_data() -> None:
         cwd=PROJECT_ROOT,
     )
 
-
-async def _run_generate_embeddings() -> None:
+# phishing dataset batch import into database
+async def _run_import_phishing_urls() -> None:
     await _run_subprocess(
-        [sys.executable, str(PROJECT_ROOT / "app/scripts/generate_embeddings.py")],
+        [sys.executable, str(PROJECT_ROOT / "app/scripts/import_phishing_urls.py")],
         cwd=PROJECT_ROOT,
     )
+
+
+# async def _run_generate_embeddings() -> None:
+#     await _run_subprocess(
+#         [sys.executable, str(PROJECT_ROOT / "app/scripts/generate_embeddings.py")],
+#         cwd=PROJECT_ROOT,
+#     )
 
 
 async def _run_quiz_sql(conn: asyncpg.Connection) -> None:
@@ -270,23 +277,45 @@ async def run_seeding() -> None:
                 f"[Seeding] open_dataset has {open_count} rows. Skip clean-data import."
             )
 
-        # 5) embeddings (only missing rows)
+        # 5) phishing_url
+        phishing_count = await _table_count(conn, "phishing_url")
+        if phishing_count == 0:
+            print("[Seeding] phishing_url is empty. Importing clean URL data...")
+            await conn.close()
+            await _run_import_phishing_urls()
+            conn = await _connect(params)
+            await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
+        else:
+            print(
+                f"[Seeding] phishing_url has {phishing_count} rows. Skip clean-url import."
+            )
+
+        # 6) embeddings (only missing rows)
         missing_embeddings = int(
             await conn.fetchval(
                 "SELECT COUNT(*) FROM open_dataset WHERE text_embedding IS NULL"
             )
             or 0
         )
-        if missing_embeddings > 0:
+        missing_url_embeddings = int(
+            await conn.fetchval(
+                "SELECT COUNT(*) FROM phishing_url WHERE url_embedding IS NULL"
+            ) or 0
+        )
+
+        if missing_embeddings > 0 or missing_url_embeddings > 0:
+            # change: for start backend container quickly,
+            # seeding.py never calculates the vectors himself,
+            # but leaves this hard labor to lifespan.py to run in the background.
+            # await conn.close()
+            # conn = await _connect(params)
+            # await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
             print(
-                f"[Seeding] {missing_embeddings} rows missing embeddings. Generating..."
+                f"[Seeding] Found missing embeddings: {missing_embeddings} text rows, {missing_url_embeddings} URL rows."
             )
-            await conn.close()
-            # Doesn't actually work here, subprocesses cannot see model registry.'
-            # Run this manually in lifespan.py as a asyncio for server to survive.
-            # await _run_generate_embeddings()
-            conn = await _connect(params)
-            await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
+            print(
+                "[Seeding] Leaving embedding generation to background tasks in lifespan.py..."
+            )
         else:
             print("[Seeding] All open_dataset rows already have embeddings. Skip.")
 

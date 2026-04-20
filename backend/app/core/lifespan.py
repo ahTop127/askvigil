@@ -12,6 +12,7 @@ from tortoise import Tortoise
 from app.core.registry import MODEL_REGISTRY
 from app.core.config import settings
 from app.scripts.generate_embeddings import generate_and_update_embeddings
+from app.scripts.generate_url_embeddings import generate_and_update_url_embeddings
 import asyncio
 
 
@@ -109,7 +110,11 @@ async def lifespan(app: FastAPI):
     await run_seeding()
     # Note: We do NOT 'await' this. We fire and forget.
     os.environ["RUNNING_IN_APP"] = "1"
+
+    # text contend embedding
     asyncio.create_task(generate_and_update_embeddings())
+    # url phishing embedding
+    asyncio.create_task(generate_and_update_url_embeddings())
 
     print("--- Server is LIVE. Background ingestion is running. ---")
 

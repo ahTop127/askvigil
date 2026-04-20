@@ -55,16 +55,22 @@ async def generate_and_update_embeddings():
     # 防止 generate_embeddings 进入 lifespan 后再次触发 run_seeding，导致递归子进程
     prev = os.environ.get("DISABLE_AUTO_SEEDING")
     os.environ["DISABLE_AUTO_SEEDING"] = "1"
-    db_inited = False
+    # db_inited = False
 
     try:
         # Manually enter the lifespan context, which will load the model and store it in the MODEL_REGISTRY
         # async with lifespan(dummy_app):
 
         print("Connect to the database...")
-        await Tortoise.init(config=TORTOISE_ORM)
+
+        # This piece of code is now running in the background of FastAPI
+        # through asyncio.create_task() in lifespan.py.
+        # It can no longer initialize or shut down the database by itself!
+        # await Tortoise.init(config=TORTOISE_ORM)
+        # conn = Tortoise.get_connection("default")
+        # db_inited = True
+
         conn = Tortoise.get_connection("default")
-        db_inited = True
 
         # PRE-INGESTION: Drop index to prevent CPU/Memory contention
         await manage_index(conn, "drop")
@@ -130,13 +136,13 @@ async def generate_and_update_embeddings():
             "All vectors have been generated! Your database now has the ability of AI search!"
         )
     finally:
-        # 先关闭 DB（如果已初始化）
-        if db_inited:
-            # POST-INGESTION: Build the graph in one go
-            await manage_index(conn, "create")
-            await Tortoise.close_connections()
+        # if db_inited:
+        #     # POST-INGESTION: Build the graph in one go
+        #     await manage_index(conn, "create")
+        #     await Tortoise.close_connections()
 
-        # 再恢复环境变量
+        await manage_index(conn, "create")
+
         if prev is None:
             os.environ.pop("DISABLE_AUTO_SEEDING", None)
         else:
@@ -147,4 +153,16 @@ async def generate_and_update_embeddings():
 
 
 if __name__ == "__main__":
-    asyncio.run(generate_and_update_embeddings())
+    # Exclusive independent running wrapper (only goes here when the terminal is manually executed)
+    async def run_standalone():
+        print("[Standalone Mode] Initializing Database explicitly...")
+        await Tortoise.init(config=TORTOISE_ORM)
+
+        try:
+            await generate_and_update_embeddings()
+        finally:
+            print("[Standalone Mode] Closing database connections...")
+            await Tortoise.close_connections()
+
+
+    asyncio.run(run_standalone())
