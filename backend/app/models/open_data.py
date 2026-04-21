@@ -10,6 +10,9 @@ class OpenDataSet(Model):
     original_text = fields.TextField()
     clean_text = fields.TextField()
 
+    has_url = fields.IntField(default=0, description="1 if contains URL, 0 otherwise")
+    length = fields.IntField(default=0, description="Character length of original text")
+
     # Define a 384-dimensional vector field (null=True indicates that it is allowed to be empty)
     text_embedding = VectorField(vector_size=384, null=True)
 
