@@ -164,5 +164,4 @@ if __name__ == "__main__":
             print("[Standalone Mode] Closing database connections...")
             await Tortoise.close_connections()
 
-
     asyncio.run(run_standalone())

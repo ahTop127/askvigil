@@ -16,12 +16,17 @@ env_filename = f".env.{app_env}"
 env_path = os.path.join(project_root, env_filename)
 
 if os.path.exists(env_path):
-    print(f"[import phishing url] current runtime environment: {app_env.upper()}; configuration being loaded: {env_filename}")
+    print(
+        f"[import phishing url] current runtime environment: {app_env.upper()}; configuration being loaded: {env_filename}"
+    )
     load_dotenv(env_path)
 else:
-    print(f"[import phishing url] Warning: The environment variable file {env_path} cannot be found.")
+    print(
+        f"[import phishing url] Warning: The environment variable file {env_path} cannot be found."
+    )
 
 from app.core.database import TORTOISE_ORM
+
 # 替换为你的新 Model
 from app.models.open_data import PhishingURL
 
@@ -31,7 +36,9 @@ async def import_csv_to_db():
     await Tortoise.init(config=TORTOISE_ORM)
 
     # 假设你把清洗好的 CSV 也放在 resources 文件夹下
-    csv_path = os.path.join(project_root, "resources", "askvigil_master_url_dataset.csv")
+    csv_path = os.path.join(
+        project_root, "resources", "askvigil_master_url_dataset.csv"
+    )
 
     if not os.path.exists(csv_path):
         print(f"[import phishing url] Error: Data file not found {csv_path}")
@@ -43,13 +50,15 @@ async def import_csv_to_db():
 
     # Convert the DataFrame to a list of dictionaries
     records = df.to_dict("records")
-    print(f"[import phishing url] Prepare to parse and write {len(records)} URLs into PostgreSQL...")
+    print(
+        f"[import phishing url] Prepare to parse and write {len(records)} URLs into PostgreSQL..."
+    )
 
     # --- 2. Add URL resolution logic ---
     instances = []
     for row in records:
-        raw_url = str(row.get('url', ''))
-        is_mal = bool(row.get('is_malicious', True))
+        raw_url = str(row.get("url", ""))
+        is_mal = bool(row.get("is_malicious", True))
 
         try:
             # Eliminate the parameters and extract the core domain name
@@ -66,7 +75,7 @@ async def import_csv_to_db():
                 is_malicious=is_mal,
                 domain=clean_domain,
                 path=clean_path,
-                source="open_dataset" # Mark the source
+                source="open_dataset",  # Mark the source
             )
         )
 
@@ -74,10 +83,13 @@ async def import_csv_to_db():
     print(f"[import phishing url] Batch creating {len(instances)} instances...")
     await PhishingURL.bulk_create(instances, batch_size=2000)
 
-    print("[import phishing url] The import has been completely completed! The URL basic data is ready.")
+    print(
+        "[import phishing url] The import has been completely completed! The URL basic data is ready."
+    )
 
     # Close the connection
     await Tortoise.close_connections()
+
 
 if __name__ == "__main__":
     asyncio.run(import_csv_to_db())

@@ -69,18 +69,24 @@ async def generate_and_update_url_embeddings():
         attempts = 0
         while "url" not in MODEL_REGISTRY:
             if attempts > 10:
-                print("[embedding phishing url] CRITICAL: URL Model timed out. Aborting background task.")
+                print(
+                    "[embedding phishing url] CRITICAL: URL Model timed out. Aborting background task."
+                )
                 return
             await asyncio.sleep(2)
             attempts += 1
-            print(f"[embedding phishing url] Waiting for URL model... (Attempt {attempts})")
+            print(
+                f"[embedding phishing url] Waiting for URL model... (Attempt {attempts})"
+            )
 
         # 4. Search for URL data where no vector has been generated
         batch_size = 200
         offset = 0
 
         total_count = await PhishingURL.filter(url_embedding__isnull=True).count()
-        print(f"[embedding phishing url] Found {total_count} URL data entries needing embeddings.")
+        print(
+            f"[embedding phishing url] Found {total_count} URL data entries needing embeddings."
+        )
 
         if total_count == 0:
             print("[embedding phishing url] All URL vectors are already up-to-date.")
@@ -97,7 +103,9 @@ async def generate_and_update_url_embeddings():
             if not records:
                 break
 
-            print(f"[embedding phishing url] Processing next batch of {len(records)} URLs...")
+            print(
+                f"[embedding phishing url] Processing next batch of {len(records)} URLs..."
+            )
 
             # 5. Extract the urls that truly require Embedding
             # If there is a real long link after parsing, use the long link; otherwise, use the original link
@@ -107,9 +115,7 @@ async def generate_and_update_url_embeddings():
             ]
 
             # Call the underlying ONNX service (note that mode="url")
-            embeddings = await get_onnx_embedding(
-                target_urls, mode="url"
-            )
+            embeddings = await get_onnx_embedding(target_urls, mode="url")
 
             for idx, record in enumerate(records):
                 record.url_embedding = embeddings[idx].tolist()
@@ -128,7 +134,9 @@ async def generate_and_update_url_embeddings():
             gc.collect()
             await asyncio.sleep(0.01)
 
-        print("[embedding phishing url] All URL vectors have been generated successfully!")
+        print(
+            "[embedding phishing url] All URL vectors have been generated successfully!"
+        )
 
     finally:
         # if db_inited:
@@ -146,7 +154,6 @@ async def generate_and_update_url_embeddings():
     print("[embedding phishing url] URL Embedding task memory cleared.")
 
 
-
 if __name__ == "__main__":
     # Exclusive independent operation wrapper
     async def run_standalone():
@@ -158,7 +165,6 @@ if __name__ == "__main__":
         finally:
             print("[Standalone Mode] Closing database connections...")
             await Tortoise.close_connections()
-
 
     # You will only go here when you manually execute the python script in the terminal
     asyncio.run(run_standalone())

@@ -171,6 +171,7 @@ async def _run_import_open_data() -> None:
         cwd=PROJECT_ROOT,
     )
 
+
 # phishing dataset batch import into database
 async def _run_import_phishing_urls() -> None:
     await _run_subprocess(
@@ -300,7 +301,8 @@ async def run_seeding() -> None:
         missing_url_embeddings = int(
             await conn.fetchval(
                 "SELECT COUNT(*) FROM phishing_url WHERE url_embedding IS NULL"
-            ) or 0
+            )
+            or 0
         )
 
         if missing_embeddings > 0 or missing_url_embeddings > 0:
