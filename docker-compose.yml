@@ -11,7 +11,8 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_SHARED_BUFFERS: 2GB # Tell Postgres to use the RAM you gave it
     volumes:
-      - ./data_persistence/postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data # Named volume (Fast)
+      # Keep this as a bind mount because init scripts are "Code" (Infrastructure-as-Code)
       - ./infrastructure/postgres:/docker-entrypoint-initdb.d:ro
     # Cap db resource usage to avoid hanging
     blkio_config:
@@ -38,26 +39,30 @@ services:
 
   # 2. The FastAPI Backend
   backend:
-    build:
-      context: ./backend # Tells Docker the 'root' for this build is the backend folder
-      dockerfile: Dockerfile
+    build: ./backend
+      # context: ./backend # Tells Docker the 'root' for this build is the backend folder
+      # dockerfile: Dockerfile
     restart: always
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/app # Mount the actual backend folder
-      - ./data_persistence:/app/data_persistence #
-      - /app/.venv # PROTECT: Use the container's internal Linux venv
+      - asset_data:/app/data_persistence # Named volume (Secure)
+      # Note: No more bind mount for app. Must run docker compose up --build backend for changes
+      # Links the code/history between repo (host) and app (container) to capture new migrations
+      - ./migrations:/app/migrations
     environment:
+      ENVIRONMENT: prod
       OMP_NUM_THREADS: 1  # Force each process to use only 1 core
       MKL_NUM_THREADS: 1
-      PYTHONUNBUFFERED: 1
+      # PYTHONUNBUFFERED: 1
       # We use the 'db' service name as the hostname
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql
-      MODEL_PATH: /app/data_persistence/ai_models
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql      
       OCI_PAR_URL: ${OCI_PAR_URL} 
+      
+      MODEL_PATH: /app/data_persistence/ai_models
       PERSISTENCE_PATH: /app/data_persistence
+      PYTHONPATH: /app/app  # <--- Forces Python to see 'core' and 'scripts' as top-level
     # Expose 8000 because it's an internal API service.
     expose:
       - "8000"
@@ -79,8 +84,8 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./frontend:/app
-      - /app/node_modules # "Anonymous volume" - hides host node_modules and uses container's
+      # - ./frontend:/app
+      # - /app/node_modules # "Anonymous volume" - hides host node_modules and uses container's
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro # nginx config
     deploy:
       resources:
@@ -101,11 +106,15 @@ services:
       - "81:81" # Management UI (Used to set up DuckDNS)
       - "443:443" # Public HTTPS
     volumes:
-      - ./data_persistence/npm_data:/data
-      - ./data_persistence/npm_letsencrypt:/etc/letsencrypt
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+      # - ./data_persistence/npm_data:/data
+      # - ./data_persistence/npm_letsencrypt:/etc/letsencrypt
 
 volumes:
-  postgres_data:
-  backend_packages: # Defines the persistent "storage bin"
+  postgres_data:      # Database state
+  npm_data:           # Nginx Manager configs
+  npm_letsencrypt:    # SSL Certificates
+  asset_data:         # Your ONNX models and CSV datasets
 
 

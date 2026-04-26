@@ -4,6 +4,7 @@ import sys
 import pandas as pd
 from tortoise import Tortoise
 from dotenv import load_dotenv
+from core.config import settings
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 print(f"current_dir: {current_dir}")
@@ -39,8 +40,10 @@ async def import_csv_to_db():
 
     # Dynamically calculate the absolute path of the CSV file (assuming your CSV is placed in the project root directory)
     # csv_path = os.path.join(project_root, "resources", "ready_for_db.csv")
-    csv_path = os.path.join(project_root, "resources", "ready_for_db_small.csv")
-    # csv_path = Path("data_persistence/datasets/scam_dataset.csv").resolve()
+    # csv_path = os.path.join(project_root, "resources", "ready_for_db_small.csv")
+
+    # Use the computed property from your BaseSettings
+    csv_path = settings.SCAM_CSV
 
     if not os.path.exists(csv_path):
         print(f"Error: Data file not found {csv_path}")

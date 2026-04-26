@@ -22,9 +22,7 @@ PAR_URL goes into the .env file, it is not to be shared publicly.
 ## 🚀 Getting Started (Local Development)
 
 ### 1. Prerequisites
-* Install **Docker Desktop** and **VS Code**. 
-* NVIDIA GPU Users (Optional): If you want to fine-tune NLP models locally, install NVIDIA Container Toolkit in your WSL terminal. (https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-    * Mac users: Don't. Just let it run on CPU mode.
+* Install **Docker Desktop** and **VS Code**. No GPU needed - CPU only, since our server doesn't have GPU anyway.
 
 ### 2. Setup
 1.  Clone the repo.
@@ -50,8 +48,8 @@ PAR_URL goes into the .env file, it is not to be shared publicly.
     * **Secrets:** Production secrets are managed on the server's .env. Do not push your local .env to Git.
 
 6.  **Verification:**
-    * **Local Frontend:** [http://localhost:3000](http://localhost:3000)
-    * **Local API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs) (FastAPI generates this automatically!)
+    * **Local Frontend:** [http://localhost](http://localhost)
+    * **Local API Docs:** [http://localhost/docs](http://localhost/docs) (FastAPI generates this automatically!)
     * **Production:** [https://askvigil.duckdns.org]
     * **Docs:** Go to [https://askvigil.duckdns.org] and append /api, /docs, /redoc, or /openapi.json for for whichever ones you want.
 
@@ -72,5 +70,5 @@ We are using **GitHub Actions** for "Hands-Off" deployment.
 
 ## Developer Debugging Checklist:
 Environment giving import errors after an update?  
-Run `docker-compose down -v` followed by `docker-compose up --build`.  
+Run `docker-compose down` followed by `docker-compose up --build`.  
 If uv.lock died, you can delete it and run uv sync again to regenerate it.  

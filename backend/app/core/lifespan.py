@@ -111,10 +111,13 @@ async def lifespan(app: FastAPI):
     # Note: We do NOT 'await' this. We fire and forget.
     os.environ["RUNNING_IN_APP"] = "1"
 
-    # text contend embedding
-    asyncio.create_task(generate_and_update_embeddings())
-    # url phishing embedding
-    asyncio.create_task(generate_and_update_url_embeddings())
+    # # text contend embedding
+    # asyncio.create_task(generate_and_update_embeddings())
+    # # url phishing embedding
+    # asyncio.create_task(generate_and_update_url_embeddings())
+    
+    # Create text and url embeddings sequentially (avoid OOM)
+    asyncio.create_task(generate_embeddings_sequentially())
 
     print("--- Server is LIVE. Background ingestion is running. ---")
 
@@ -207,7 +210,30 @@ async def ensure_architectural_integrity():
             ALTER TABLE open_dataset ADD COLUMN text_embedding vector(384);
         END IF;
 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='url_embedding') THEN
+            ALTER TABLE open_dataset ADD COLUMN url_embedding vector(768);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='has_url') THEN
+            ALTER TABLE open_dataset ADD COLUMN has_url SMALLINT DEFAULT 0;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='raw_length') THEN
+            ALTER TABLE open_dataset ADD COLUMN raw_length INTEGER;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='clean_length') THEN
+            ALTER TABLE open_dataset ADD COLUMN clean_length INTEGER;
+        END IF;
+
         -- 1. Detection & Purge of Stale Config
+        IF EXISTS (
+            SELECT 1 FROM pg_constraint 
+            WHERE conname = 'open_dataset_clean_text_key'
+        ) THEN
+            ALTER TABLE open_dataset DROP CONSTRAINT open_dataset_clean_text_key;
+        END IF;
+
         IF EXISTS (
             SELECT 1 FROM information_schema.columns 
             WHERE table_name='open_dataset' AND column_name='text_search_vector'
@@ -232,10 +258,98 @@ async def ensure_architectural_integrity():
         -- 3. Final Index Alignment
         CREATE INDEX IF NOT EXISTS idx_hnsw_embeddings 
             ON open_dataset USING hnsw (text_embedding vector_cosine_ops) 
-            WITH (m = 16, ef_construction = 128); -- Boosted for high-integrity retrieval
+            WITH (m = 16, ef_construction = 64);
 
         CREATE INDEX IF NOT EXISTS idx_gin_lexical 
             ON open_dataset USING GIN (text_search_vector);
+
+        CREATE INDEX IF NOT EXISTS idx_open_dataset_metadata 
+            ON open_dataset (source, has_url, raw_length, clean_length);
+
+        -- Ensure phishing_url table exists (if not created by init.sql)
+        CREATE TABLE IF NOT EXISTS phishing_url (id SERIAL PRIMARY KEY, original_url TEXT NOT NULL);        
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+               WHERE table_name='phishing_url' AND column_name='resolved_url') THEN
+            ALTER TABLE phishing_url ADD COLUMN resolved_url TEXT;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='source') THEN
+            ALTER TABLE phishing_url ADD COLUMN source VARCHAR(50);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='is_malicious') THEN
+            ALTER TABLE phishing_url ADD COLUMN is_malicious BOOLEAN DEFAULT TRUE;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='domain') THEN
+            ALTER TABLE phishing_url ADD COLUMN domain VARCHAR(255);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='path') THEN
+            ALTER TABLE phishing_url ADD COLUMN path TEXT;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='preview_title') THEN
+            ALTER TABLE phishing_url ADD COLUMN preview_title VARCHAR(500);
+        END IF;
+
+        -- Audit timestamps
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='created_at') THEN
+            ALTER TABLE phishing_url ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='updated_at') THEN
+            ALTER TABLE phishing_url ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+        END IF;
+
+        -- Ensure no unique constraint crashing db
+        IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'phishing_url_original_url_key') THEN
+            ALTER TABLE phishing_url DROP CONSTRAINT phishing_url_original_url_key;
+        END IF;
+
+        -- Ensure columns for phishing_url
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='url_embedding') THEN
+            ALTER TABLE phishing_url ADD COLUMN url_embedding vector(768);
+        END IF;
+
+        -- 1. Check if the column exists AND if it's missing the fallback logic
+        -- We check the column definition in the system catalogs
+        IF EXISTS (
+            SELECT 1 FROM pg_attribute 
+            WHERE attrelid = 'phishing_url'::regclass 
+            AND attname = 'url_search_vector'
+        ) THEN
+            -- If the formula doesn't mention 'original_url', it's the old version. Drop it.
+            IF (SELECT pg_get_expr(adbin, adrelid) 
+                FROM pg_attrdef 
+                WHERE adrelid = 'phishing_url'::regclass 
+                AND adnum = (SELECT attnum FROM pg_attribute WHERE attrelid = 'phishing_url'::regclass AND attname = 'url_search_vector')
+            ) NOT LIKE '%original_url%' THEN
+                
+                ALTER TABLE phishing_url DROP COLUMN url_search_vector;
+            END IF;
+        END IF;
+
+        -- 2. Create (or Re-create) with the robust fallback logic
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='url_search_vector') THEN
+            ALTER TABLE phishing_url 
+            ADD COLUMN url_search_vector tsvector 
+            GENERATED ALWAYS AS (to_tsvector('simple', coalesce(preview_title, '')) || to_tsvector('simple', coalesce(resolved_url, original_url, ''))) STORED;
+            
+            CREATE INDEX IF NOT EXISTS idx_gin_url_lexical ON phishing_url USING GIN (url_search_vector);
+        END IF;
+
+        -- Final Index Alignment for phishing_url
+        CREATE INDEX IF NOT EXISTS idx_hnsw_url_embeddings 
+            ON phishing_url USING hnsw (url_embedding vector_cosine_ops) 
+            WITH (m = 16, ef_construction = 64);
+
+        CREATE INDEX IF NOT EXISTS idx_gin_url_lexical 
+            ON phishing_url USING GIN (url_search_vector);
+
+        CREATE INDEX IF NOT EXISTS idx_phishing_url_metadata 
+            ON phishing_url (source, domain, is_malicious);
 
         RAISE NOTICE 'Architectural integrity check complete.';
     END $$;
@@ -246,3 +360,13 @@ async def ensure_architectural_integrity():
         print("Schema synchronization successful.")
     except Exception as e:
         print(f"Schema sync failed: {str(e)}")
+
+async def generate_embeddings_sequentially():
+    try:
+        # Wait for the first to finish
+        await generate_and_update_embeddings()
+        # Only then start the second
+        await generate_and_update_url_embeddings()
+    except Exception as e:
+        print(f"Embedding task failed: {e}")
+

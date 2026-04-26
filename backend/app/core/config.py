@@ -21,12 +21,8 @@ class Settings(BaseSettings):
     RRF_DEPTH: int = 100
     RRF_K: int = 2
     SEARCH_WINDOW: int = 10
-    K_SATURATION: float = 0.66  # Maps 1.0 mass to 0.6 momentum
     DIM_TEXT: int = 384
     DIM_URL: int = 768
-    # Asymmetric Saturation Constants
-    LAMBDA_SPAM: float = 0.8  # More sensitive
-    LAMBDA_HAM: float = 1.2  # Harder to satisfy
 
     # --- COMPUTED PROPERTIES (Paths & Derived Logic) ---
     @property

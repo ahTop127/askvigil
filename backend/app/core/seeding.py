@@ -137,18 +137,21 @@ async def _table_count(conn: asyncpg.Connection, table_name: str) -> int:
 
 
 async def _has_any_business_tables(conn: asyncpg.Connection) -> bool:
-    return bool(
-        await conn.fetchval(
-            """
-            SELECT EXISTS (
-                SELECT 1
-                FROM information_schema.tables
-                WHERE table_schema = 'public'
-                  AND table_name NOT IN ('aerich')
-            )
-            """
-        )
-    )
+    # Check for a specific table that defines a successful migration
+    # 'scam_categories' is a good candidate since it's the first one you seed
+    return await _table_exists(conn, "scam_categories")
+    # return bool(
+    #     await conn.fetchval(
+    #         """
+    #         SELECT EXISTS (
+    #             SELECT 1
+    #             FROM information_schema.tables
+    #             WHERE table_schema = 'public'
+    #               AND table_name NOT IN ('aerich')
+    #         )
+    #         """
+    #     )
+    # )
 
 
 async def _run_aerich_upgrade() -> None:
@@ -160,24 +163,34 @@ async def _run_aerich_upgrade() -> None:
 
 async def _run_seed_scam_categories() -> None:
     await _run_subprocess(
-        [sys.executable, str(PROJECT_ROOT / "app/scripts/seed_scam_categories.py")],
+        [sys.executable, "-m", "scripts.seed_scam_categories"],
+        # [sys.executable, str(PROJECT_ROOT / "app/scripts/seed_scam_categories.py")],
         cwd=PROJECT_ROOT,
     )
 
 
 async def _run_import_open_data() -> None:
+    # Use -m and the dot-notation path relative to /app/app
     await _run_subprocess(
-        [sys.executable, str(PROJECT_ROOT / "app/scripts/import_open_data.py")],
-        cwd=PROJECT_ROOT,
+        [sys.executable, "-m", "scripts.import_open_data"],
+        cwd=PROJECT_ROOT / "app", # Run from the directory where 'scripts' is a package
     )
+    # await _run_subprocess(
+    #     [sys.executable, str(PROJECT_ROOT / "app/scripts/import_open_data.py")],
+    #     cwd=PROJECT_ROOT,
+    # )
 
 
 # phishing dataset batch import into database
 async def _run_import_phishing_urls() -> None:
     await _run_subprocess(
-        [sys.executable, str(PROJECT_ROOT / "app/scripts/import_phishing_urls.py")],
-        cwd=PROJECT_ROOT,
+        [sys.executable, "-m", "scripts.import_phishing_urls"],
+        cwd=PROJECT_ROOT / "app",
     )
+    # await _run_subprocess(
+    #     [sys.executable, str(PROJECT_ROOT / "app/scripts/import_phishing_urls.py")],
+    #     cwd=PROJECT_ROOT,
+    # )
 
 
 # async def _run_generate_embeddings() -> None:

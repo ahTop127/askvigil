@@ -29,7 +29,7 @@ from app.core.database import TORTOISE_ORM
 
 # 替换为你的新 Model
 from app.models.open_data import PhishingURL
-
+from core.config import settings
 
 async def import_csv_to_db():
     print("[import phishing url] Initialize the database connection...")
@@ -39,6 +39,8 @@ async def import_csv_to_db():
     csv_path = os.path.join(
         project_root, "resources", "askvigil_master_url_dataset.csv"
     )
+    # Use the computed property from your BaseSettings
+    csv_path = settings.PHISH_CSV
 
     if not os.path.exists(csv_path):
         print(f"[import phishing url] Error: Data file not found {csv_path}")

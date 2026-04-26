@@ -1,7 +1,9 @@
 name: Deploy to Oracle Cloud
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "iteration-*"
     paths-ignore:
       - ".devcontainer/**"
       - ".gitignore"
@@ -62,6 +64,8 @@ jobs:
   # Job 2: Auto Deploy
   deploy:
     needs: lint-and-fix
+    # Only runs if the branch is 'main' or starts with 'iteration-'
+    if: github.ref_name == 'main' || startsWith(github.ref_name, 'iteration-')
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
@@ -88,8 +92,8 @@ jobs:
 
             # 3. Clean Slate: Fetch latest ver and auto-lint fixes to force the server to match GitHub exactly.
             git remote set-url origin $REPO_URL
-            git fetch origin main
-            git reset --hard origin/main
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
             git clean -fd
 
             # 4. Deploy

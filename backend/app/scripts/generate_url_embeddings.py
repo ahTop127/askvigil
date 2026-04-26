@@ -20,7 +20,21 @@ from app.core.database import TORTOISE_ORM
 from app.models.open_data import PhishingURL
 
 from app.core.registry import MODEL_REGISTRY
-from app.services.nlp_service import get_onnx_embedding
+from app.services.nlp_service import get_onnx_embedding, safe_resolve_redirect
+import signal
+
+# Add a global flag
+keep_running = True
+
+def handle_exit(sig, frame):
+    """ Enable graceful shutdown. """
+    global keep_running
+    print("Shutdown signal received. Finishing current batch...")
+    keep_running = False
+
+# In your main execution logic
+signal.signal(signal.SIGTERM, handle_exit)
+signal.signal(signal.SIGINT, handle_exit)
 
 
 async def manage_url_index(conn, action: str):
@@ -92,7 +106,7 @@ async def generate_and_update_url_embeddings():
             print("[embedding phishing url] All URL vectors are already up-to-date.")
             return
 
-        while True:
+        while keep_running: # Allow graceful shut down
             # Only take the necessary fields to reduce memory usage
             records = (
                 await PhishingURL.filter(url_embedding__isnull=True)
@@ -109,10 +123,18 @@ async def generate_and_update_url_embeddings():
 
             # 5. Extract the urls that truly require Embedding
             # If there is a real long link after parsing, use the long link; otherwise, use the original link
-            target_urls = [
-                record.resolved_url if record.resolved_url else record.original_url
-                for record in records
-            ]
+            target_urls = []
+            for record in records:
+                # If it was never resolved, resolve it now
+                if not record.resolved_url:
+                    final_url, success = await safe_resolve_redirect(record.original_url)
+                    record.resolved_url = final_url if success else ""
+                
+                target_urls.append(record.resolved_url)
+            # target_urls = [
+            #     record.resolved_url if record.resolved_url else record.original_url
+            #     for record in records
+            # ]
 
             # Call the underlying ONNX service (note that mode="url")
             embeddings = await get_onnx_embedding(target_urls, mode="url")
@@ -122,7 +144,7 @@ async def generate_and_update_url_embeddings():
 
             # Update to the database
             await PhishingURL.bulk_update(
-                records, fields=["url_embedding"], batch_size=batch_size
+                records, fields=["url_embedding", "resolved_url"], batch_size=batch_size
             )
             offset += len(records)
             print(f"[embedding phishing url] URL Progress: {offset} / {total_count}")

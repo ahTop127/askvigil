@@ -24,7 +24,20 @@ from app.models.open_data import OpenDataSet
 # from app.core.lifespan import lifespan, MODEL_REGISTRY
 from app.core.registry import MODEL_REGISTRY
 from app.services.nlp_service import get_onnx_embedding
+import signal
 
+# Add a global flag
+keep_running = True
+
+def handle_exit(sig, frame):
+    """ Enable graceful shutdown. """
+    global keep_running
+    print("Shutdown signal received. Finishing current batch...")
+    keep_running = False
+
+# In your main execution logic
+signal.signal(signal.SIGTERM, handle_exit)
+signal.signal(signal.SIGINT, handle_exit)
 
 async def manage_index(conn, action: str):
     """Lifecycle hook for HNSW indexing."""
@@ -95,7 +108,7 @@ async def generate_and_update_embeddings():
             f"It was found that a vector needs to be generated for the {total_count} data."
         )
 
-        while True:
+        while keep_running:
             records = (
                 await OpenDataSet.filter(text_embedding__isnull=True)
                 .only("id", "clean_text")
