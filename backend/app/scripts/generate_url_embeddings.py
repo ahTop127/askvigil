@@ -26,11 +26,13 @@ import signal
 # Add a global flag
 keep_running = True
 
+
 def handle_exit(sig, frame):
-    """ Enable graceful shutdown. """
+    """Enable graceful shutdown."""
     global keep_running
     print("Shutdown signal received. Finishing current batch...")
     keep_running = False
+
 
 # In your main execution logic
 signal.signal(signal.SIGTERM, handle_exit)
@@ -106,7 +108,7 @@ async def generate_and_update_url_embeddings():
             print("[embedding phishing url] All URL vectors are already up-to-date.")
             return
 
-        while keep_running: # Allow graceful shut down
+        while keep_running:  # Allow graceful shut down
             # Only take the necessary fields to reduce memory usage
             records = (
                 await PhishingURL.filter(url_embedding__isnull=True)
@@ -127,9 +129,11 @@ async def generate_and_update_url_embeddings():
             for record in records:
                 # If it was never resolved, resolve it now
                 if not record.resolved_url:
-                    final_url, success = await safe_resolve_redirect(record.original_url)
+                    final_url, success = await safe_resolve_redirect(
+                        record.original_url
+                    )
                     record.resolved_url = final_url if success else ""
-                
+
                 target_urls.append(record.resolved_url)
             # target_urls = [
             #     record.resolved_url if record.resolved_url else record.original_url

@@ -31,6 +31,7 @@ from app.core.database import TORTOISE_ORM
 from app.models.open_data import PhishingURL
 from core.config import settings
 
+
 async def import_csv_to_db():
     print("[import phishing url] Initialize the database connection...")
     await Tortoise.init(config=TORTOISE_ORM)
