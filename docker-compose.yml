@@ -114,7 +114,9 @@ services:
 volumes:
   postgres_data:      # Database state
   npm_data:           # Nginx Manager configs
+    external: true
   npm_letsencrypt:    # SSL Certificates
+    external: true
   asset_data:         # Your ONNX models and CSV datasets
 
 
