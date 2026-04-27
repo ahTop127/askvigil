@@ -1,8 +1,26 @@
-node_modules
-build
-.git
-.env
-__pycache__
-venv
-.venv
-*.db
+# --- DEEP IGNORE ---
+# Ignore everything in these folders, no matter where they are
+**/data_persistence/
+**/postgres_data/
+**/.venv/
+**/venv/
+**/node_modules/
+**/.git/
+.venv/
+**/resources/
+
+# --- FILE TYPES ---
+**/*.db
+**/*.csv
+**/*.onnx
+**/*.tar.gz
+**/*.zip
+
+# --- CACHES ---
+**/__pycache__/
+**/.pytest_cache/
+**/.ipynb_checkpoints/
+
+# --- LOCAL CONFIGS ---
+.env*
+docker-compose.override.yml

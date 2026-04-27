@@ -29,7 +29,7 @@ from app.core.database import TORTOISE_ORM
 
 # 替换为你的新 Model
 from app.models.open_data import PhishingURL
-from core.config import settings
+from app.core.config import settings
 
 
 async def import_csv_to_db():

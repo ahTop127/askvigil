@@ -48,3 +48,5 @@ def upload_directory(local_path, remote_prefix):
 if __name__ == "__main__":
     # Example usage:
     upload_directory("data_persistence/datasets", "datasets")
+    upload_directory("data_persistence/ai_models/text_onnx", "ai_models/text_onnx")
+    upload_directory("data_persistence/ai_models/url_onnx", "ai_models/url_onnx")

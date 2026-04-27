@@ -234,6 +234,16 @@ async def ensure_architectural_integrity():
             ALTER TABLE open_dataset DROP CONSTRAINT open_dataset_clean_text_key;
         END IF;
 
+        -- Ensure embeddings are stored as vector
+        IF (SELECT data_type FROM information_schema.columns 
+            WHERE table_name='open_dataset' AND column_name='text_embedding') != 'USER-DEFINED' THEN
+            
+            -- This forces the column to become a vector(384)
+            ALTER TABLE open_dataset 
+            ALTER COLUMN text_embedding TYPE vector(384) 
+            USING text_embedding::vector(384);
+        END IF;
+
         IF EXISTS (
             SELECT 1 FROM information_schema.columns 
             WHERE table_name='open_dataset' AND column_name='text_search_vector'

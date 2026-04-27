@@ -1,6 +1,9 @@
 # # Docker extension -> right click askvigil-backend, start new shell. then run:
 # # export PYTHONPATH=$PYTHONPATH:.
 # # uv run python -m scripts.train_mlp_heads
+
+# docker cp ./scripts/train_mlp_heads.py askvigil-backend-1:/app/scripts/train_mlp_heads.py
+# docker exec -it -e PYTHONPATH="/app" askvigil-backend-1 python /app/scripts/train_mlp_heads.py
 import random
 import asyncio
 import torch
@@ -13,7 +16,7 @@ from tortoise import Tortoise
 
 from app.core.config import settings
 from app.core.database import TORTOISE_ORM
-from app.models.open_data import OpenDataSet
+from app.models.open_data import OpenDataSet, PhishingURL
 
 
 class ScamPhishingMLP(nn.Module):
@@ -37,7 +40,8 @@ class ScamPhishingMLP(nn.Module):
 
 class StratifiedDataset(Dataset):
     def __init__(
-        self, haz_records, safe_records, attr_name, text_attr_name="clean_text"
+        self, haz_records, safe_records, attr_name, text_attr_name="clean_text", 
+        short_max=500, med_max=2000
     ):
         """
         Args:
@@ -46,19 +50,52 @@ class StratifiedDataset(Dataset):
             attr_name: The embedding attribute (e.g., 'text_embedding')
             text_attr_name: Attribute for length fallback (e.g., 'clean_text')
         """
-
         def get_bin(record):
-            # Fallback Logic: Try database column first, then calculate on the fly
-            c_len = getattr(record, "clean_length", None)
-            if c_len is None:
-                text_val = getattr(record, text_attr_name, "")
-                c_len = len(text_val) if text_val else 0
+            # # --- ONE-TIME INSPECTION BLOCK ---
+            # if not hasattr(get_bin, "inspected"):
+            #     print("\n" + "="*50)
+            #     print("🔍 DEEP INSPECTION: FIRST RECORD DETECTED")
+            #     print(f"Model Class: {record.__class__.__name__}")
+                
+            #     # List all attributes currently loaded in memory
+            #     attrs = {k: type(v).__name__ for k, v in record.__dict__.items() if not k.startswith('_')}
+            #     print(f"Available Fields & Types: {attrs}")
+                
+            #     # Check specific targets
+            #     target_field = text_attr_name # passed from __init__
+            #     val = getattr(record, target_field, "MISSING")
+            #     print(f"Target Field Name: '{target_field}'")
+            #     print(f"Target Value: {repr(val)}") # repr shows if it's None vs ""
+                
+            #     if val != "MISSING" and val is not None:
+            #         print(f"Calculated Length: {len(str(val))}")
+                
+            #     print("="*50 + "\n")
+            #     get_bin.inspected = True
+            # # --- END INSPECTION BLOCK ---
 
-            if c_len <= 500:
-                return "short"  # Short-form
-            if c_len <= 2000:
-                return "medium"  # Medium-form
-            return "long"  # Long-form/Windowed
+
+            # 1. Try to get the pre-calculated length column
+            c_len = getattr(record, "clean_length", None)
+            
+            # 2. If column is None (or doesn't exist), manually calculate
+            if c_len is None or c_len == 0:
+                # Get the text field (original_url or clean_text)
+                raw_val = getattr(record, text_attr_name, None)
+                
+                if raw_val:
+                    c_len = len(str(raw_val))
+                else:
+                    c_len = 0
+                    # THIS will tell us if the field name itself is the problem
+                    print(f"CRITICAL: Field '{text_attr_name}' returned None for ID {record.id}")
+
+            # 3. Categorize
+            if c_len <= short_max:
+                return "short"
+            if c_len <= med_max:
+                return "medium"
+            return "long"
 
         def bucketize(records, is_hazard: bool):
             buckets = {"short": [], "medium": [], "long": []}
@@ -97,10 +134,13 @@ class StratifiedDataset(Dataset):
         for record, label in final_pairs:
             emb = getattr(record, attr_name)
             if emb is not None:
-                self.features.append(emb)
+                # Convert the list to a numpy array on the fly here
+                # np.array() or np.float32() handles Python lists perfectly
+                self.features.append(np.array(emb, dtype=np.float32))
                 self.labels.append(label)
 
-        self.features = np.array(self.features, dtype=np.float32)
+        # Use np.stack for better performance with lists of arrays
+        self.features = np.stack(self.features)
         self.labels = np.array(self.labels, dtype=np.float32)
 
     def __len__(self):
@@ -121,12 +161,26 @@ async def train_and_export(
     if not Tortoise._inited:
         await Tortoise.init(config=TORTOISE_ORM)
 
-    # 1. Dynamic Data Fetching
-    # We use dictionary unpacking to pass the dynamic column name to the filter
-    haz = await OpenDataSet.filter(
+    # 1. Dynamic Model Selection
+    # Select the table based on the training mode
+    ModelClass = OpenDataSet if mode == "text" else PhishingURL
+    
+    # Define text attribute for length fallback in StratifiedDataset
+    # Define thresholds based on mode
+    if mode == "text":
+        s_max, m_max = 200, 1000
+        text_attr = "clean_text"
+    else:  # URL mode
+        s_max, m_max = 50, 150
+        text_attr = "original_url"
+
+    # 2. Dynamic Data Fetching
+    # Use the selected ModelClass instead of hardcoded OpenDataSet
+    haz = await ModelClass.filter(
         **{f"{attr_name}__isnull": False, label_col: haz_val}
     ).all()
-    safe = await OpenDataSet.filter(
+    
+    safe = await ModelClass.filter(
         **{f"{attr_name}__isnull": False, label_col: safe_val}
     ).all()
 
@@ -136,8 +190,16 @@ async def train_and_export(
         )
         return
 
-    # 2. Dataset Preparation (70/15/15 Sacred Split)
-    full_dataset = StratifiedDataset(haz, safe, attr_name)
+    # 3. Dataset Preparation
+    # Pass the text_attr so the length-bucketing knows which column to measure
+    full_dataset = StratifiedDataset(
+        haz, 
+        safe, 
+        attr_name, 
+        text_attr_name=text_attr,
+        short_max=s_max,
+        med_max=m_max
+    )
     total = len(full_dataset)
     train_size = int(0.70 * total)
     val_size = int(0.15 * total)
@@ -220,80 +282,6 @@ async def train_and_export(
     print(f"SUCCESS: {mode.upper()} classifier locked at {export_path}")
 
 
-# async def train_and_export(mode="text", haz_label="spam", safe_label="ham"):
-#     if not Tortoise._inited:
-#         await Tortoise.init(config=TORTOISE_ORM)
-
-#     haz = await OpenDataSet.filter(text_embedding__isnull=False, label=haz_label).all()
-#     safe = await OpenDataSet.filter(
-#         text_embedding__isnull=False, label=safe_label
-#     ).all()
-
-#     full_dataset = StratifiedDataset(haz, safe)
-#     train_size = int(0.8 * len(full_dataset))
-#     val_set_size = len(full_dataset) - train_size
-#     train_set, val_set = random_split(full_dataset, [train_size, val_set_size])
-
-#     train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
-#     val_loader = DataLoader(val_set, batch_size=32)
-
-#     dim = settings.DIM_TEXT if mode == "text" else settings.DIM_URL
-#     model = ScamPhishingMLP(dim)
-#     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-2)
-#     criterion = nn.BCELoss()
-
-#     for epoch in range(10):
-#         model.train()
-#         t_loss, t_correct = 0, 0
-#         for feat, target in train_loader:
-#             optimizer.zero_grad()
-#             out = model(feat)
-#             loss = criterion(out, target)
-#             loss.backward()
-#             optimizer.step()
-#             t_loss += loss.item()
-#             t_correct += (out.argmax(1) == target.argmax(1)).sum().item()
-
-#         # Validation
-#         model.eval()
-#         v_loss, v_correct = 0, 0
-#         y_true, y_pred = [], []
-#         with torch.no_grad():
-#             for feat, target in val_loader:
-#                 out = model(feat)
-#                 v_loss += criterion(out, target).item()
-#                 v_correct += (out.argmax(1) == target.argmax(1)).sum().item()
-#                 y_true.extend(target.argmax(1).tolist())
-#                 y_pred.extend(out.argmax(1).tolist())
-
-#         print(
-#             f"Epoch {epoch + 1} | T_Loss: {t_loss / len(train_loader):.4f} | T_Acc: {t_correct / train_size:.4f} | V_Loss: {v_loss / len(val_loader):.4f} | V_Acc: {v_correct / val_set_size:.4f}"
-#         )
-
-#     print("\n--- F1 METRICS MATRIX ---")
-#     print(classification_report(y_true, y_pred, target_names=[haz_label, safe_label]))
-#     print("--- CONFUSION MATRIX ---")
-#     print(confusion_matrix(y_true, y_pred))
-
-#     # Export
-#     export_dir = settings.TEXT_MODEL_PATH if mode == "text" else settings.URL_MODEL_PATH
-#     export_path = export_dir / "classifier.onnx"
-#     dummy_input = torch.randn(1, dim).float()
-#     torch.onnx.export(
-#         model,
-#         dummy_input,
-#         str(export_path),
-#         input_names=["input"],
-#         output_names=["output"],
-#         dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}},
-#         opset_version=18,
-#     )
-
-
-# if __name__ == "__main__":
-#     asyncio.run(train_and_export(mode="text", haz_label="spam", safe_label="ham"))
-
-
 async def main():
     # RUN TEXT CLASSIFIER (MiniLM-L12)
     await train_and_export(
@@ -304,15 +292,15 @@ async def main():
         attr_name="text_embedding",
     )
 
-    # RUN URL CLASSIFIER (URLBert-Tiny)
-    # Ensure your 'ensure_architectural_integrity' has added the 'url_embedding' column!
-    await train_and_export(
-        mode="url",
-        label_col="is_malicious",
-        haz_val=True,
-        safe_val=False,
-        attr_name="url_embedding",
-    )
+    # # RUN URL CLASSIFIER (URLBert-Tiny)
+    # # Ensure your 'ensure_architectural_integrity' has added the 'url_embedding' column!
+    # await train_and_export(
+    #     mode="url",
+    #     label_col="is_malicious",
+    #     haz_val=True,
+    #     safe_val=False,
+    #     attr_name="url_embedding",
+    # )
 
 
 if __name__ == "__main__":

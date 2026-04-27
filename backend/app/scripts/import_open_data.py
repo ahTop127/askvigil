@@ -4,7 +4,7 @@ import sys
 import pandas as pd
 from tortoise import Tortoise
 from dotenv import load_dotenv
-from core.config import settings
+from app.core.config import settings
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 print(f"current_dir: {current_dir}")
