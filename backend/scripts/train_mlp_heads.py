@@ -40,8 +40,13 @@ class ScamPhishingMLP(nn.Module):
 
 class StratifiedDataset(Dataset):
     def __init__(
-        self, haz_records, safe_records, attr_name, text_attr_name="clean_text", 
-        short_max=500, med_max=2000
+        self,
+        haz_records,
+        safe_records,
+        attr_name,
+        text_attr_name="clean_text",
+        short_max=500,
+        med_max=2000,
     ):
         """
         Args:
@@ -50,45 +55,47 @@ class StratifiedDataset(Dataset):
             attr_name: The embedding attribute (e.g., 'text_embedding')
             text_attr_name: Attribute for length fallback (e.g., 'clean_text')
         """
+
         def get_bin(record):
             # # --- ONE-TIME INSPECTION BLOCK ---
             # if not hasattr(get_bin, "inspected"):
             #     print("\n" + "="*50)
             #     print("🔍 DEEP INSPECTION: FIRST RECORD DETECTED")
             #     print(f"Model Class: {record.__class__.__name__}")
-                
+
             #     # List all attributes currently loaded in memory
             #     attrs = {k: type(v).__name__ for k, v in record.__dict__.items() if not k.startswith('_')}
             #     print(f"Available Fields & Types: {attrs}")
-                
+
             #     # Check specific targets
             #     target_field = text_attr_name # passed from __init__
             #     val = getattr(record, target_field, "MISSING")
             #     print(f"Target Field Name: '{target_field}'")
             #     print(f"Target Value: {repr(val)}") # repr shows if it's None vs ""
-                
+
             #     if val != "MISSING" and val is not None:
             #         print(f"Calculated Length: {len(str(val))}")
-                
+
             #     print("="*50 + "\n")
             #     get_bin.inspected = True
             # # --- END INSPECTION BLOCK ---
 
-
             # 1. Try to get the pre-calculated length column
             c_len = getattr(record, "clean_length", None)
-            
+
             # 2. If column is None (or doesn't exist), manually calculate
             if c_len is None or c_len == 0:
                 # Get the text field (original_url or clean_text)
                 raw_val = getattr(record, text_attr_name, None)
-                
+
                 if raw_val:
                     c_len = len(str(raw_val))
                 else:
                     c_len = 0
                     # THIS will tell us if the field name itself is the problem
-                    print(f"CRITICAL: Field '{text_attr_name}' returned None for ID {record.id}")
+                    print(
+                        f"CRITICAL: Field '{text_attr_name}' returned None for ID {record.id}"
+                    )
 
             # 3. Categorize
             if c_len <= short_max:
@@ -164,7 +171,7 @@ async def train_and_export(
     # 1. Dynamic Model Selection
     # Select the table based on the training mode
     ModelClass = OpenDataSet if mode == "text" else PhishingURL
-    
+
     # Define text attribute for length fallback in StratifiedDataset
     # Define thresholds based on mode
     if mode == "text":
@@ -179,7 +186,7 @@ async def train_and_export(
     haz = await ModelClass.filter(
         **{f"{attr_name}__isnull": False, label_col: haz_val}
     ).all()
-    
+
     safe = await ModelClass.filter(
         **{f"{attr_name}__isnull": False, label_col: safe_val}
     ).all()
@@ -193,12 +200,7 @@ async def train_and_export(
     # 3. Dataset Preparation
     # Pass the text_attr so the length-bucketing knows which column to measure
     full_dataset = StratifiedDataset(
-        haz, 
-        safe, 
-        attr_name, 
-        text_attr_name=text_attr,
-        short_max=s_max,
-        med_max=m_max
+        haz, safe, attr_name, text_attr_name=text_attr, short_max=s_max, med_max=m_max
     )
     total = len(full_dataset)
     train_size = int(0.70 * total)
