@@ -20,7 +20,7 @@ from app.core.database import TORTOISE_ORM
 from app.models.open_data import PhishingURL
 
 from app.core.registry import MODEL_REGISTRY
-from app.services.nlp_service import get_onnx_embedding, safe_resolve_redirect
+from app.services.nlp_service import get_onnx_embedding
 import signal
 
 # Add a global flag
@@ -122,13 +122,14 @@ async def generate_and_update_url_embeddings():
             print(
                 f"[embedding phishing url] Processing next batch of {len(records)} URLs..."
             )
-            
+
             # 5. Extract the urls that truly require Embedding
-            # We use the resolved_url if we have it (from real-time scans), 
+            # We use the resolved_url if we have it (from real-time scans),
             # otherwise we use the original_url (the raw bit.ly or scam link).
             target_urls = [
-                record.resolved_url if (record.resolved_url and record.resolved_url.strip()) 
-                else record.original_url 
+                record.resolved_url
+                if (record.resolved_url and record.resolved_url.strip())
+                else record.original_url
                 for record in records
             ]
 
