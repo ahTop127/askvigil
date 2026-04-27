@@ -173,7 +173,7 @@ async def _run_import_open_data() -> None:
     # Use -m and the dot-notation path relative to /app/app
     await _run_subprocess(
         [sys.executable, "-m", "scripts.import_open_data"],
-        cwd=PROJECT_ROOT / "app", # Run from the directory where 'scripts' is a package
+        cwd=PROJECT_ROOT / "app",  # Run from the directory where 'scripts' is a package
     )
     # await _run_subprocess(
     #     [sys.executable, str(PROJECT_ROOT / "app/scripts/import_open_data.py")],

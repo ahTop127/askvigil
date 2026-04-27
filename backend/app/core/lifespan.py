@@ -115,7 +115,7 @@ async def lifespan(app: FastAPI):
     # asyncio.create_task(generate_and_update_embeddings())
     # # url phishing embedding
     # asyncio.create_task(generate_and_update_url_embeddings())
-    
+
     # Create text and url embeddings sequentially (avoid OOM)
     asyncio.create_task(generate_embeddings_sequentially())
 
@@ -361,6 +361,7 @@ async def ensure_architectural_integrity():
     except Exception as e:
         print(f"Schema sync failed: {str(e)}")
 
+
 async def generate_embeddings_sequentially():
     try:
         # Wait for the first to finish
@@ -369,4 +370,3 @@ async def generate_embeddings_sequentially():
         await generate_and_update_url_embeddings()
     except Exception as e:
         print(f"Embedding task failed: {e}")
-

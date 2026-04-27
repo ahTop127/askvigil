@@ -26,11 +26,13 @@ import signal
 # Add a global flag
 keep_running = True
 
+
 def handle_exit(sig, frame):
-    """ Enable graceful shutdown. """
+    """Enable graceful shutdown."""
     global keep_running
     print("Shutdown signal received. Finishing current batch...")
     keep_running = False
+
 
 # In your main execution logic
 signal.signal(signal.SIGTERM, handle_exit)
@@ -106,7 +108,7 @@ async def generate_and_update_url_embeddings():
             print("[embedding phishing url] All URL vectors are already up-to-date.")
             return
 
-        while keep_running: # Allow graceful shut down
+        while keep_running:  # Allow graceful shut down
             # Only take the necessary fields to reduce memory usage
             records = (
                 await PhishingURL.filter(url_embedding__isnull=True)

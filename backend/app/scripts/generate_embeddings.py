@@ -29,15 +29,18 @@ import signal
 # Add a global flag
 keep_running = True
 
+
 def handle_exit(sig, frame):
-    """ Enable graceful shutdown. """
+    """Enable graceful shutdown."""
     global keep_running
     print("Shutdown signal received. Finishing current batch...")
     keep_running = False
 
+
 # In your main execution logic
 signal.signal(signal.SIGTERM, handle_exit)
 signal.signal(signal.SIGINT, handle_exit)
+
 
 async def manage_index(conn, action: str):
     """Lifecycle hook for HNSW indexing."""
