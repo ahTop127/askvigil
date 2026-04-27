@@ -120,21 +120,15 @@ async def generate_and_update_url_embeddings():
             print(
                 f"[embedding phishing url] Processing next batch of {len(records)} URLs..."
             )
-
+            
             # 5. Extract the urls that truly require Embedding
-            # If there is a real long link after parsing, use the long link; otherwise, use the original link
-            target_urls = []
-            for record in records:
-                # If it was never resolved, resolve it now
-                if not record.resolved_url:
-                    final_url, success = await safe_resolve_redirect(record.original_url)
-                    record.resolved_url = final_url if success else ""
-                
-                target_urls.append(record.resolved_url)
-            # target_urls = [
-            #     record.resolved_url if record.resolved_url else record.original_url
-            #     for record in records
-            # ]
+            # We use the resolved_url if we have it (from real-time scans), 
+            # otherwise we use the original_url (the raw bit.ly or scam link).
+            target_urls = [
+                record.resolved_url if (record.resolved_url and record.resolved_url.strip()) 
+                else record.original_url 
+                for record in records
+            ]
 
             # Call the underlying ONNX service (note that mode="url")
             embeddings = await get_onnx_embedding(target_urls, mode="url")
@@ -144,7 +138,7 @@ async def generate_and_update_url_embeddings():
 
             # Update to the database
             await PhishingURL.bulk_update(
-                records, fields=["url_embedding", "resolved_url"], batch_size=batch_size
+                records, fields=["url_embedding"], batch_size=batch_size
             )
             offset += len(records)
             print(f"[embedding phishing url] URL Progress: {offset} / {total_count}")
