@@ -114,7 +114,6 @@ async def lifespan(app: FastAPI):
         }
     except:
         print("[MISSING MODEL] Url classifier model not loaded")
-        
 
     # except Exception as e:
     #     print(f"CRITICAL: Failed to load models: {e}")
