@@ -13,7 +13,6 @@ from app.core.registry import MODEL_REGISTRY
 from app.core.config import settings
 from app.scripts.generate_embeddings import generate_and_update_embeddings
 from app.scripts.generate_url_embeddings import generate_and_update_url_embeddings
-import asyncio
 
 
 async def sync_assets():
