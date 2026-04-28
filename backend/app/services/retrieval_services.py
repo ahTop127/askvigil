@@ -107,5 +107,6 @@ async def hybrid_search_rrf(
     LIMIT $3;
     """
 
-    results = await conn.execute_query_dict(sql, [str(query_vector), query_text, limit])
+    clean_vector = list(query_vector) if not isinstance(query_vector, list) else query_vector
+    results = await conn.execute_query_dict(sql, [clean_vector, query_text, limit])
     return results
