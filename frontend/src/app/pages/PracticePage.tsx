@@ -292,15 +292,15 @@ export default function PracticePage() {
                 Quiz Complete!
               </h1>
               <div className="mb-6">
-                <div className="text-7xl font-bold text-[#669E84] mb-2">
+                <div className="text-7xl font-bold text-secondary mb-2">
                   {score}/{questions.length}
                 </div>
                 <p className="text-2xl text-gray-700">{getMessage()}</p>
               </div>
-              <div className="bg-[#669E84]/10 border border-[#669E84]/30 rounded-2xl p-6 mb-8 max-w-md mx-auto">
+              <div className="bg-secondary/10 border border-secondary/30 rounded-2xl p-6 mb-8 max-w-md mx-auto">
                 <p className="text-gray-700 text-lg">
                   You correctly identified{" "}
-                  <span className="font-bold text-[#669E84]">{score}</span> out
+                  <span className="font-bold text-secondary">{score}</span> out
                   of <span className="font-bold">{questions.length}</span> scam
                   scenarios.
                 </p>
@@ -394,13 +394,13 @@ export default function PracticePage() {
             <div className="grid md:grid-cols-2 gap-4 max-w-md mx-auto">
               <button
                 onClick={handleRestart}
-                className="h-14 border-2 border-[#669E84] text-[#669E84] hover:bg-[#669E84] hover:text-white rounded-full font-semibold transition-all"
+                className="h-14 border-2 border-secondary text-secondary hover:bg-secondary hover:text-primary-foreground rounded-full font-semibold transition-all"
               >
                 Try Again
               </button>
               <button
                 onClick={() => navigate("/learning")}
-                className="h-14 bg-[#669E84] hover:bg-[#54A388] text-white rounded-full font-semibold transition-all shadow-lg"
+                className="h-14 bg-secondary hover:bg-primary text-primary-foreground rounded-full font-semibold transition-all shadow-lg"
               >
                 Learn More
               </button>
@@ -431,7 +431,7 @@ export default function PracticePage() {
             </span>
             <span className="text-sm text-gray-600">
               Answered:{" "}
-              <span className="font-semibold text-[#669E84]">
+              <span className="font-semibold text-secondary">
                 {userAnswers.length}
               </span>{" "}
               / {questions.length}
@@ -439,7 +439,7 @@ export default function PracticePage() {
           </div>
           <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#669E84] transition-all duration-500"
+              className="h-full bg-secondary transition-all duration-500"
               style={{
                 width: `${(userAnswers.length / questions.length) * 100}%`,
               }}

@@ -4,10 +4,17 @@ export const ERROR_MESSAGES = {
   imageUpload: "Please upload an image to check.",
   urlInput: "Please enter a URL to check.",
   qrUpload: "Please upload a QR code image to check.",
-  invalidUrl: "Please enter a valid URL.",
+  invalidUrl:
+    "This is not a valid URL. Please enter a valid link to check.",
   fileTooLarge: "File is too large. Please choose a smaller image.",
   unsupportedImage: "Unsupported image format.",
   textTooLong: "Text exceeds the maximum length allowed.",
+  analysisFailed: "Unable to complete analysis. Please try again.",
+  urlAnalyzeFailed: "Unable to analyze this URL. Please try again later.",
+  unreachableUrl:
+    "This URL could not be reached. Please check the link and try again.",
+  qrDecodeFailed:
+    "This is not a valid QR code. Please upload a valid QR code to check.",
 } as const;
 
 export const SUCCESS_MESSAGES = {
@@ -37,7 +44,7 @@ export const UI_TEXT = {
     textPlaceholder: "Paste suspicious message text here...",
     imageDropTitle: "Upload a screenshot or image",
     imageDropHint: "Drag and drop or click to browse",
-    urlPlaceholder: "https://example.com/suspicious-link",
+    urlPlaceholder: "e.g. https://example.com",
     qrDropTitle: "Upload a QR code image",
     qrDropHint: "Drag and drop or click to browse",
     buttonCheck: "Check for Scams Now",
@@ -46,7 +53,7 @@ export const UI_TEXT = {
   privacy: {
     title: "Privacy Notice",
     description:
-      "Your content will be analyzed solely for scam detection. Please do not upload any sensitive or personal information (such as passwords, banking details, or identification numbers). We do not store or share your data with third parties.",
+      "The URL you submit will be analyzed solely for scam detection. We do not store or share your data with third parties.",
     cancel: "Cancel",
     continue: "Continue",
   },

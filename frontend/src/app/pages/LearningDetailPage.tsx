@@ -363,7 +363,7 @@ export default function LearningDetailPage() {
       <BackButton />
 
       {/* Hero Section */}
-      <section className="bg-[#669E84]/15 py-16 px-4">
+      <section className="bg-secondary/15 py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             {/* Left: Icon/Image */}
@@ -379,7 +379,7 @@ export default function LearningDetailPage() {
 
             {/* Right: Title and Description */}
             <div>
-              <h1 className="text-5xl md:text-6xl font-bold text-[#669E84] mb-6 leading-tight">
+              <h1 className="text-5xl md:text-6xl font-bold text-secondary mb-6 leading-tight">
                 {data.title}
               </h1>
               <p className="text-xl text-gray-700 leading-relaxed">
@@ -395,7 +395,7 @@ export default function LearningDetailPage() {
         <div className="max-w-6xl mx-auto">
           {/* Section Title */}
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-[#669E84] mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold text-secondary mb-4">
               How Does It Happen?
             </h2>
             <p className="text-lg text-gray-600">
@@ -406,9 +406,9 @@ export default function LearningDetailPage() {
           {/* Content Grid */}
           <div className="grid md:grid-cols-2 gap-8">
             {/* Left: Example Card */}
-            <div className="bg-[#669E84]/10 rounded-3xl p-8 border-2 border-[#669E84]/20 shadow-lg">
+            <div className="bg-secondary/10 rounded-3xl p-8 border-2 border-secondary/20 shadow-lg">
               <div className="mb-4">
-                <p className="text-sm font-semibold text-[#669E84] mb-6">
+                <p className="text-sm font-semibold text-secondary mb-6">
                   {data.howItHappens.exampleTitle || "Example scenario:"}
                 </p>
                 <p className="text-gray-700 leading-relaxed">
@@ -417,8 +417,8 @@ export default function LearningDetailPage() {
               </div>
 
               {/* Decorative phone/device illustration placeholder */}
-              <div className="mt-8 bg-[#669E84]/20 rounded-2xl p-6 text-center">
-                <Icon className="w-16 h-16 text-[#669E84] mx-auto mb-3" />
+              <div className="mt-8 bg-secondary/20 rounded-2xl p-6 text-center">
+                <Icon className="w-16 h-16 text-secondary mx-auto mb-3" />
                 <p className="text-sm text-gray-600 italic">
                   Be vigilant and verify before taking action
                 </p>
@@ -430,10 +430,10 @@ export default function LearningDetailPage() {
               {data.howItHappens.steps.map((step, index) => (
                 <div
                   key={index}
-                  className="bg-[#669E84]/10 rounded-2xl p-6 border border-[#669E84]/20 flex gap-4 shadow-sm hover:shadow-md transition-shadow"
+                  className="bg-secondary/10 rounded-2xl p-6 border border-secondary/20 flex gap-4 shadow-sm hover:shadow-md transition-shadow"
                 >
                   <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-[#669E84] text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
+                    <div className="w-10 h-10 bg-secondary text-primary-foreground rounded-full flex items-center justify-center font-bold text-lg shadow-md">
                       {index + 1}
                     </div>
                   </div>
@@ -450,7 +450,7 @@ export default function LearningDetailPage() {
         <div className="max-w-6xl mx-auto">
           {/* Section Title */}
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-[#669E84] mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold text-secondary mb-4">
               How to Defend
             </h2>
             <p className="text-lg text-gray-600">{data.howToDefend.subtitle}</p>
@@ -463,11 +463,11 @@ export default function LearningDetailPage() {
               return (
                 <div
                   key={index}
-                  className="bg-[#669E84]/10 rounded-2xl p-8 border border-[#669E84]/20 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
+                  className="bg-secondary/10 rounded-2xl p-8 border border-secondary/20 shadow-lg hover:shadow-xl transition-all hover:-translate-y-1"
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-[#669E84] rounded-full flex items-center justify-center shadow-md">
+                      <div className="w-12 h-12 bg-secondary rounded-full flex items-center justify-center shadow-md">
                         <TipIcon className="w-6 h-6 text-white" />
                       </div>
                     </div>
@@ -490,8 +490,8 @@ export default function LearningDetailPage() {
       {/* Bottom CTA Section */}
       <section className="py-16 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-[#669E84]/15 rounded-3xl p-12 text-center border-2 border-[#669E84]/30 shadow-xl">
-            <Shield className="w-16 h-16 text-[#669E84] mx-auto mb-6" />
+          <div className="bg-secondary/15 rounded-3xl p-12 text-center border-2 border-secondary/30 shadow-xl">
+            <Shield className="w-16 h-16 text-secondary mx-auto mb-6" />
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
               Stay Protected
             </h2>
@@ -502,13 +502,13 @@ export default function LearningDetailPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={() => navigate(`/practice?scamType=${scamType}`)}
-                className="bg-[#669E84] hover:bg-[#54A388] text-white border-0 h-14 px-8 text-lg font-semibold shadow-lg"
+                className="bg-secondary hover:bg-primary text-primary-foreground border-0 h-14 px-8 text-lg font-semibold shadow-lg"
               >
                 Practice Detection
               </Button>
               <Button
                 onClick={() => navigate("/guidance")}
-                className="bg-white hover:bg-gray-50 text-[#669E84] border-2 border-[#669E84] h-14 px-8 text-lg font-semibold"
+                className="bg-background hover:bg-muted/40 text-secondary border-2 border-secondary h-14 px-8 text-lg font-semibold"
               >
                 Get Guidance
               </Button>

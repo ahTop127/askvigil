@@ -32,6 +32,42 @@ export interface ScamDetectionResult {
   explanation: string;
   scamType: string;
   timestamp: string;
+  steps?: DetectionStepState[];
+  suspiciousItems?: SuspiciousItem[];
+  extractedText?: string;
+  originalText?: string;
+  submittedUrl?: string;
+  redirectUrl?: string;
+  qrDecodedContent?: string;
+  qrContentType?: "url" | "sms" | "contact" | "plain-text";
+  guidance?: string[];
+  relatedCase?: ScamCase;
+}
+
+export type DetectionStepStatus = "completed" | "current" | "pending" | "failed";
+
+export interface DetectionStepState {
+  key: string;
+  label: string;
+  status: DetectionStepStatus;
+}
+
+export interface SuspiciousItem {
+  text: string;
+  reason: string;
+}
+
+export interface ScamCase {
+  id: string;
+  title: string;
+  summary: string;
+  scamType: string;
+  platform: string;
+  date: string;
+  whatHappened: string;
+  warningSigns: string[];
+  lesson: string;
+  sourceUrl: string;
 }
 
 /**

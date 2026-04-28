@@ -2,6 +2,7 @@ import {
   forwardRef,
   memo,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -12,6 +13,8 @@ import {
 } from "react";
 import {
   FileSearch,
+  Check,
+  LoaderCircle,
   Link as LinkIcon,
   QrCode,
   Shield,
@@ -72,7 +75,7 @@ function TextDetectionInput({
             onChange(e.target.value);
           }}
           maxLength={1000}
-          className="min-h-[140px] resize-none text-base bg-[#F9FAFB] border-2 border-gray-200 focus:border-[#EAA866] text-gray-900 placeholder:text-gray-400 rounded-xl pb-8"
+          className="min-h-[140px] resize-none text-base bg-muted/40 border-2 border-border focus:border-primary text-foreground placeholder:text-muted-foreground rounded-xl pb-8"
           disabled={disabled}
         />
         <div
@@ -84,7 +87,7 @@ function TextDetectionInput({
         </div>
       </div>
 
-      <p className="mt-2 text-sm text-amber-700 text-center whitespace-nowrap">
+      <p className="mt-2 text-sm text-primary text-center whitespace-nowrap">
         Privacy notice: For scam detection only. Do not enter sensitive personal
         information.
       </p>
@@ -113,7 +116,7 @@ function ImageDetectionInput({
     <div
       onDrop={onDrop}
       onDragOver={onDragOver}
-      className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-[#EAA866] transition-colors cursor-pointer bg-gray-50 hover:bg-[#EAA866]/5"
+      className="border-2 border-dashed border-border rounded-xl p-10 text-center hover:border-primary transition-colors cursor-pointer bg-muted/35 hover:bg-primary/10"
       onClick={onPick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -126,7 +129,7 @@ function ImageDetectionInput({
     >
       {!file ? (
         <>
-          <Upload className="w-12 h-12 text-[#EAA866] mx-auto mb-3" />
+          <Upload className="w-12 h-12 text-primary mx-auto mb-3" />
           <p className="text-gray-700 mb-1 font-medium">
             {UI_TEXT.detection.imageDropTitle}
           </p>
@@ -191,8 +194,9 @@ function URLDetectionInput({
         placeholder={UI_TEXT.detection.urlPlaceholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        maxLength={2048}
         disabled={disabled}
-        className="h-12 text-base bg-gray-50 border-2 border-gray-200 focus:border-[#EAA866] rounded-xl"
+        className="h-12 text-base bg-muted/35 border-2 border-border focus:border-primary rounded-xl"
       />
     </div>
   );
@@ -217,7 +221,7 @@ function QRCodeDetectionInput({
     <div
       onDrop={onDrop}
       onDragOver={onDragOver}
-      className="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center hover:border-[#EAA866] transition-colors cursor-pointer bg-gray-50 hover:bg-[#EAA866]/5"
+      className="border-2 border-dashed border-border rounded-xl p-10 text-center hover:border-primary transition-colors cursor-pointer bg-muted/35 hover:bg-primary/10"
       onClick={onPick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -228,7 +232,7 @@ function QRCodeDetectionInput({
       role="button"
       tabIndex={0}
     >
-      <QrCode className="w-12 h-12 text-[#EAA866] mx-auto mb-3" aria-hidden />
+      <QrCode className="w-12 h-12 text-primary mx-auto mb-3" aria-hidden />
       <p className="text-gray-700 mb-1 font-medium">
         {UI_TEXT.detection.qrDropTitle}
       </p>
@@ -426,41 +430,71 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
     }, []);
 
     const tabValue = useMemo(() => activeTab, [activeTab]);
+    const analysisSteps = useMemo(() => {
+      if (activeTab === "image") {
+        return ["Upload", "Extract Text", "Check Risks", "Red Flags"];
+      }
+      if (activeTab === "qr") {
+        return ["Upload", "Decode QR", "Check Risks", "Red Flags"];
+      }
+      return ["Upload", "Check Risks", "Red Flags"];
+    }, [activeTab]);
+    const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+    useEffect(() => {
+      if (!isChecking) {
+        setCurrentStepIndex(0);
+        return;
+      }
+      setCurrentStepIndex(0);
+      const interval = window.setInterval(() => {
+        setCurrentStepIndex((prev) => {
+          const maxStep = Math.max(0, analysisSteps.length - 1);
+          if (prev >= maxStep) return maxStep;
+          return prev + 1;
+        });
+      }, 1200);
+      return () => window.clearInterval(interval);
+    }, [analysisSteps.length, isChecking]);
 
     return (
-      <div className="relative bg-white rounded-3xl shadow-sm border border-gray-200 p-8 md:p-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-[#EAA866] rounded-full" />
+      <div className="relative bg-card rounded-3xl shadow-sm border border-border p-8 md:p-10">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-primary rounded-full" />
 
-        <Tabs value={tabValue} onValueChange={onTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 border border-gray-200 h-auto p-1 gap-1 rounded-full">
+        <Tabs
+          value={tabValue}
+          onValueChange={onTabChange}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50 border border-border h-auto p-1 gap-1 rounded-full">
             <TabsTrigger
               value="text"
-              className="rounded-full py-2 data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-semibold"
+              className="rounded-full py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground font-semibold"
             >
               <FileSearch className="w-4 h-4 mr-1 shrink-0" />
               {UI_TEXT.detection.tabText}
             </TabsTrigger>
             <TabsTrigger
               value="image"
-              className="rounded-full py-2 data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-semibold"
+              className="rounded-full py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground font-semibold"
             >
               <Upload className="w-4 h-4 mr-1 shrink-0" />
               {UI_TEXT.detection.tabImage}
             </TabsTrigger>
-            {/* <TabsTrigger
-                value="url"
-                className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
-              >
-                <LinkIcon className="w-4 h-4 mr-1 shrink-0" />
-                {UI_TEXT.detection.tabUrl}
-              </TabsTrigger> */}
-            {/* <TabsTrigger
-                value="qr"
-                className="data-[state=active]:bg-[#EAA866] data-[state=active]:text-white text-gray-600 font-medium"
-              >
-                <QrCode className="w-4 h-4 mr-1 shrink-0" />
-                {UI_TEXT.detection.tabQR}
-              </TabsTrigger> */}
+            <TabsTrigger
+              value="url"
+              className="rounded-full py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground font-semibold"
+            >
+              <LinkIcon className="w-4 h-4 mr-1 shrink-0" />
+              {UI_TEXT.detection.tabUrl}
+            </TabsTrigger>
+            <TabsTrigger
+              value="qr"
+              className="rounded-full py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-muted-foreground font-semibold"
+            >
+              <QrCode className="w-4 h-4 mr-1 shrink-0" />
+              {UI_TEXT.detection.tabQR}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="text" className="space-y-4 mt-0">
@@ -483,24 +517,24 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
             />
           </TabsContent>
 
-          {/* <TabsContent value="url" className="space-y-4">
-              <URLDetectionInput
-                value={urlInput}
-                onChange={onUrlChange}
-                disabled={isChecking}
-              />
-            </TabsContent>
+          <TabsContent value="url" className="space-y-4 mt-0">
+            <URLDetectionInput
+              value={urlInput}
+              onChange={onUrlChange}
+              disabled={isChecking}
+            />
+          </TabsContent>
 
-            <TabsContent value="qr" className="space-y-4">
-              <QRCodeDetectionInput
-                file={qrFile}
-                disabled={isChecking}
-                onDrop={(e) => handleDrop(e, "qr")}
-                onDragOver={handleDragOver}
-                onPick={() => document.getElementById("qr-upload")?.click()}
-                onFileChange={(e) => handleFileChange(e, "qr")}
-              />
-            </TabsContent> */}
+          <TabsContent value="qr" className="space-y-4 mt-0">
+            <QRCodeDetectionInput
+              file={qrFile}
+              disabled={isChecking}
+              onDrop={(e) => handleDrop(e, "qr")}
+              onDragOver={handleDragOver}
+              onPick={() => document.getElementById("qr-upload")?.click()}
+              onFileChange={(e) => handleFileChange(e, "qr")}
+            />
+          </TabsContent>
         </Tabs>
 
         {error && (
@@ -513,27 +547,56 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
           </div>
         )}
 
-        <Button
-          type="button"
-          onClick={onRequestCheck}
-          disabled={isChecking}
-          className="w-full h-14 text-base font-semibold bg-[#EAA866] hover:bg-[#D89654] text-white border-0 transition-all mt-6 rounded-xl shadow-md"
-        >
-          {isChecking ? (
-            <>
+        {isChecking ? (
+          <div className="mt-6 rounded-2xl border border-primary/35 bg-primary/10 p-4 md:p-5 animate-fade-in">
+            <div className="relative transition-all duration-500 ease-out">
+              <div className="absolute top-4 left-0 right-0 h-1 bg-primary/25 rounded-full" />
               <div
-                className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"
-                aria-hidden
+                className="absolute top-4 left-0 h-1 bg-primary rounded-full transition-all duration-700"
+                style={{
+                  width: `${(currentStepIndex / Math.max(analysisSteps.length - 1, 1)) * 100}%`,
+                }}
               />
-              {UI_TEXT.detection.analyzing}
-            </>
-          ) : (
-            <>
-              <Shield className="w-5 h-5 mr-2" aria-hidden />
-              {UI_TEXT.detection.buttonCheck}
-            </>
-          )}
-        </Button>
+              <div
+                className="relative grid gap-2"
+                style={{
+                  gridTemplateColumns: `repeat(${analysisSteps.length}, minmax(0, 1fr))`,
+                }}
+              >
+                {analysisSteps.map((step, index) => (
+                  <div
+                    key={step}
+                    className="flex flex-col items-center text-center transition-transform duration-500"
+                  >
+                    {index < currentStepIndex ? (
+                      <span className="w-8 h-8 rounded-full bg-primary text-primary-foreground inline-flex items-center justify-center border-2 border-primary/50">
+                        <Check className="w-4 h-4" />
+                      </span>
+                    ) : index === currentStepIndex ? (
+                      <span className="w-8 h-8 rounded-full border-2 border-primary bg-background inline-flex items-center justify-center">
+                        <LoaderCircle className="w-4 h-4 animate-spin text-primary" />
+                      </span>
+                    ) : (
+                      <span className="w-8 h-8 rounded-full border-2 border-primary/50 bg-background" />
+                    )}
+                    <p className="mt-3 text-xs md:text-sm font-semibold text-primary">
+                      {step}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            onClick={onRequestCheck}
+            className="w-full h-14 text-base font-semibold bg-primary hover:bg-secondary text-primary-foreground border-0 transition-all mt-6 rounded-xl shadow-md"
+          >
+            <Shield className="w-5 h-5 mr-2" aria-hidden />
+            {UI_TEXT.detection.buttonCheck}
+          </Button>
+        )}
 
         {showCropModal && tempImageUrl && (
           <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">

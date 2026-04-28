@@ -1,5 +1,6 @@
 import type { ScamDetectionInput, ScamDetectionResult } from "@lib/types";
 import { APP_CONFIG } from "@lib/config/app";
+import { mockCases } from "@lib/constants/cases";
 import { logger } from "@lib/utils/logger";
 
 /**
@@ -70,7 +71,42 @@ function mapScanResponse(
     explanation,
     scamType: category,
     timestamp: new Date().toISOString(),
+    submittedUrl: input.type === "url" ? String(input.content) : undefined,
+    qrDecodedContent:
+      input.type === "qr" ? "https://secure-payment-check.example" : undefined,
+    qrContentType: input.type === "qr" ? "url" : undefined,
+    suspiciousItems: getSuspiciousItems(clean),
+    guidance: getGuidance(category),
+    relatedCase: mockCases.find((c) => c.scamType === category),
   };
+}
+
+function getSuspiciousItems(clean: string | null): ScamDetectionResult["suspiciousItems"] {
+  if (!clean) return [];
+  const seeds = [
+    { text: "urgent", reason: "Creates pressure to act without verification." },
+    { text: "otp", reason: "Requests one-time password or verification code." },
+    { text: "bank", reason: "Asks for sensitive banking information." },
+    { text: "click", reason: "Pushes user to open unknown links immediately." },
+    { text: "verify", reason: "Impersonates account verification workflow." },
+  ];
+  const lowered = clean.toLowerCase();
+  return seeds.filter((s) => lowered.includes(s.text)).slice(0, 5);
+}
+
+function getGuidance(category: string): string[] {
+  if (category.includes("job")) {
+    return [
+      "Do not pay any fees or make any transfers.",
+      "Do not share your bank details or OTP codes.",
+      "Verify the offer through the company official website.",
+    ];
+  }
+  return [
+    "Do not click unknown links or open unexpected files.",
+    "Verify requests through official channels before responding.",
+    "Report suspicious content and block the sender immediately.",
+  ];
 }
 
 function getTextData(raw: unknown): Record<string, unknown> | null {

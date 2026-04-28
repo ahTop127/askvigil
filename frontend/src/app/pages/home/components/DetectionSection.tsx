@@ -47,7 +47,7 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
     >
       <div className="max-w-4xl mx-auto px-4 relative z-10">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-[#EAA866] mb-4">
+          <h2 className="text-4xl font-bold text-primary mb-4">
             {UI_TEXT.detection.hubTitle}
           </h2>
           <p className="text-lg text-gray-600">
@@ -55,7 +55,11 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
           </p>
         </div>
 
-        {!showResult ? (
+        {showResult ? (
+          result && (
+            <ResultDisplay result={result} onNewAnalysis={resetDetection} />
+          )
+        ) : (
           <DetectionForm
             activeTab={activeTab}
             onTabChange={onTabChange}
@@ -83,10 +87,6 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
             isChecking={isChecking}
             onRequestCheck={handleCheck}
           />
-        ) : (
-          result && (
-            <ResultDisplay result={result} onNewAnalysis={resetDetection} />
-          )
         )}
       </div>
     </section>

@@ -94,7 +94,17 @@ export default function LearningPage() {
                       <p className="text-gray-700 leading-relaxed mb-4">
                         {v.description}
                       </p>
-                      <div className="flex items-center justify-end">
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          className="text-sm text-[#255832] hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/cases?scamType=${encodeURIComponent(scam.id)}`);
+                          }}
+                        >
+                          View related cases
+                        </button>
                         <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-[#255832] group-hover:translate-x-1 transition-all" />
                       </div>
                     </div>
@@ -107,10 +117,10 @@ export default function LearningPage() {
 
         {/* Practice CTA */}
         <div className="max-w-7xl mx-auto px-4 mt-20">
-          <div className="bg-[#669E84]/20 backdrop-blur-xl border border-[#669E84]/30 rounded-3xl p-8 md:p-12 text-center relative overflow-hidden shadow-lg animate-pulse-slow">
+          <div className="bg-secondary/15 backdrop-blur-xl border border-secondary/30 rounded-3xl p-8 md:p-12 text-center relative overflow-hidden shadow-lg animate-pulse-slow">
             {/* Decorative elements */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-[#669E84]/10 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-56 h-56 bg-[#54A388]/10 rounded-full blur-3xl" />
+            <div className="absolute top-0 right-0 w-48 h-48 bg-secondary/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-56 h-56 bg-primary/10 rounded-full blur-3xl" />
 
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-semibold text-[#255832] mb-4">
@@ -122,7 +132,7 @@ export default function LearningPage() {
               </p>
               <button
                 onClick={() => navigate("/practice")}
-                className="inline-flex items-center gap-2 bg-[#669E84] hover:bg-[#54A388] text-white px-8 py-4 rounded-full font-semibold transition-all shadow-lg hover:shadow-xl hover:scale-105"
+                className="inline-flex items-center gap-2 bg-secondary hover:bg-primary text-primary-foreground px-8 py-4 rounded-full font-semibold transition-all shadow-lg hover:shadow-xl hover:scale-105"
               >
                 Start practice
                 <ArrowRight className="w-5 h-5" />

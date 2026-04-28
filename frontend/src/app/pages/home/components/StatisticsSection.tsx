@@ -28,15 +28,15 @@ export const StatisticsSection = memo(function StatisticsSection() {
 
             <div className="flex flex-wrap gap-4 mb-8">
               <div className="flex items-center gap-2 text-gray-700">
-                <CheckCircle className="w-5 h-5 text-[#54A388]" aria-hidden />
+                <CheckCircle className="w-5 h-5 text-secondary" aria-hidden />
                 <span>Instant Detection</span>
               </div>
               <div className="flex items-center gap-2 text-gray-700">
-                <CheckCircle className="w-5 h-5 text-[#54A388]" aria-hidden />
+                <CheckCircle className="w-5 h-5 text-secondary" aria-hidden />
                 <span>Expert Guidance</span>
               </div>
               <div className="flex items-center gap-2 text-gray-700">
-                <CheckCircle className="w-5 h-5 text-[#54A388]" aria-hidden />
+                <CheckCircle className="w-5 h-5 text-secondary" aria-hidden />
                 <span>Free to Use</span>
               </div>
             </div>

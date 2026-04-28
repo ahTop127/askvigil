@@ -449,7 +449,7 @@ export default function GuidanceDetailPage() {
           <Button
             onClick={() => navigate("/learning")}
             variant="outline"
-            className="h-12 border-2 border-[#54A388] text-[#54A388] hover:bg-[#54A388] hover:text-white"
+            className="h-12 border-2 border-secondary text-secondary hover:bg-secondary hover:text-primary-foreground"
           >
             Learn More About Scams
           </Button>

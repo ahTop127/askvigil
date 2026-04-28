@@ -30,14 +30,14 @@ export const PersonalizationCard = memo(function PersonalizationCard({
     <>
       {p.showCard && !p.showDialog && (
         <div
-          className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-6 md:max-w-md rounded-2xl border border-[#EAA866]/40 bg-white/95 backdrop-blur-md shadow-xl p-4 flex flex-col gap-3"
+          className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-6 md:max-w-md rounded-2xl border border-primary/40 bg-card/95 backdrop-blur-md shadow-xl p-4 flex flex-col gap-3"
           role="dialog"
           aria-label="Personalize your experience"
         >
           <div className="flex justify-between items-start gap-2">
             <div>
               <p className="font-semibold text-[#213034] flex items-center gap-2">
-                <Bell className="w-4 h-4 text-[#EAA866]" aria-hidden />
+                <Bell className="w-4 h-4 text-primary" aria-hidden />
                 Personalize AskVigil
               </p>
               <p className="text-sm text-gray-600 mt-1">
@@ -57,7 +57,7 @@ export const PersonalizationCard = memo(function PersonalizationCard({
           <div className="flex gap-2">
             <Button
               type="button"
-              className="flex-1 bg-[#EAA866] hover:bg-[#D89654]"
+              className="flex-1 bg-primary hover:bg-secondary text-primary-foreground"
               onClick={p.openDialog}
             >
               Set preferences
@@ -135,7 +135,7 @@ export const PersonalizationCard = memo(function PersonalizationCard({
               Cancel
             </Button>
             <Button
-              className="bg-[#EAA866] hover:bg-[#D89654]"
+              className="bg-primary hover:bg-secondary text-primary-foreground"
               onClick={() => void p.savePreferences()}
             >
               Save
