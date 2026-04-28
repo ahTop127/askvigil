@@ -83,9 +83,9 @@ async def hybrid_search_rrf(
 
     sql = f"""
     WITH semantic_rank AS (
-        SELECT id, ROW_NUMBER() OVER (ORDER BY {conf["vector_col"]} <=> $1) as rank
+        SELECT id, ROW_NUMBER() OVER (ORDER BY {conf["vector_col"]} <=> $1::float8[]::vector) as rank
         FROM {conf["table"]}
-        ORDER BY {conf["vector_col"]} <=> $1
+        ORDER BY {conf["vector_col"]} <=> $1::float8[]::vector
         LIMIT 100
     ),
     lexical_rank AS (
@@ -107,6 +107,6 @@ async def hybrid_search_rrf(
     LIMIT $3;
     """
 
-    clean_vector = [float(x) for x in query_vector]
+    clean_vector = query_vector.flatten().tolist() if hasattr(query_vector, "tolist") else list(query_vector)
     results = await conn.execute_query_dict(sql, [clean_vector, query_text, limit])
     return results
