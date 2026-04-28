@@ -1,5 +1,9 @@
 from app.core.config import settings
 
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 # The core configuration dictionary of Tortoise ORM
 TORTOISE_ORM = {
     "connections": {"default": settings.DATABASE_URL},
@@ -11,9 +15,11 @@ TORTOISE_ORM = {
                 "app.models.scam",
                 "app.models.quiz",
                 "app.models.open_data",
+                "app.models.scam_case",
                 "aerich.models",
             ],
             "default_connection": "default",
         },
     },
+    "log_queries": True,  # print sql log in the control
 }

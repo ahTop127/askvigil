@@ -65,6 +65,7 @@ Execute the external script:
 It will execute external commands, such as:
     aerich upgrade
     seed_scam_categories.py
+    seed_scam_case.py
     import_open_data.py
     generate_embeddings.py
 """
@@ -172,6 +173,13 @@ async def _run_seed_scam_categories() -> None:
     )
 
 
+async def _run_seed_scam_case() -> None:
+    await _run_subprocess(
+        [sys.executable, str(PROJECT_ROOT / "app/scripts/seed_scam_case.py")],
+        cwd=PROJECT_ROOT,
+    )
+
+
 async def _run_import_open_data() -> None:
     # Use -m and the dot-notation path relative to /app/app
     await _run_subprocess(
@@ -220,8 +228,9 @@ async def run_seeding() -> None:
     2) ensure schema exists (migrations)
     3) seed scam_categories
     4) seed quiz data
-    5) import open_dataset clean data
-    6) generate missing embeddings
+    5) seed scam_case
+    6) import open_dataset clean data
+    7) generate missing embeddings
     """
     if os.getenv("DISABLE_AUTO_SEEDING", "").lower() in {"1", "true", "yes"}:
         print("[Seeding] Disabled by DISABLE_AUTO_SEEDING.")
@@ -263,6 +272,17 @@ async def run_seeding() -> None:
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
             print(f"[Seeding] scam_categories has {scam_count} rows. Skip.")
+
+        # scam_case
+        scam_case_count = await _table_count(conn, "scam_cases")
+        if scam_case_count == 0:
+            print("[Seeding] scam_cases is empty. Seeding...")
+            await conn.close()
+            await _run_seed_scam_case()
+            conn = await _connect(params)
+            await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
+        else:
+            print(f"[Seeding] scam_case has {scam_count} rows. Skip.")
 
         # 3) quiz_questions + quiz_options
         qq_count = await _table_count(conn, "quiz_questions")

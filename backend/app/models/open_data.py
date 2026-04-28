@@ -15,7 +15,7 @@ class OpenDataSet(Model):
         default=0, description="Character length of original text"
     )
     clean_length = fields.IntField(
-        default=0, description="Character length of cleaned text"
+        default=0, description="Standardize the length of the text after cleaning"
     )
 
     # Define a 384-dimensional vector field (null=True indicates that it is allowed to be empty)
@@ -52,6 +52,13 @@ class PhishingURL(Model):
         max_length=500,
         null=True,
         description="The title of the captured web page (used for Link Preview)",
+    )
+
+    raw_length = fields.IntField(
+        default=0, description="Character length of original url"
+    )
+    clean_length = fields.IntField(
+        default=0, description="Standardize the length of the url after cleaning"
     )
 
     url_embedding = VectorField(

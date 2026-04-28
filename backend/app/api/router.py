@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import detection, learning, session_api
+from app.api.endpoints import detection, learning, session_api, scam_cases
 
 api_router = APIRouter()
 
@@ -9,3 +9,5 @@ api_router.include_router(
     session_api.router, prefix="/session", tags=["Session Tracking"]
 )
 api_router.include_router(learning.router, prefix="/learning", tags=["Learning & Quiz"])
+# Epic 6
+api_router.include_router(scam_cases.router, prefix="/scam", tags=["Scam Cases"])
