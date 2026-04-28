@@ -272,7 +272,7 @@ async def run_seeding() -> None:
         # scam_case
         scam_case_count = await _table_count(conn, "scam_cases")
         if scam_case_count == 0:
-            print("[Seeding] scam_case is empty. Seeding...")
+            print("[Seeding] scam_cases is empty. Seeding...")
             await conn.close()
             await _run_seed_scam_case()
             conn = await _connect(params)
