@@ -1,6 +1,7 @@
 from app.core.config import settings
 
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 
 # The core configuration dictionary of Tortoise ORM
@@ -20,5 +21,5 @@ TORTOISE_ORM = {
             "default_connection": "default",
         },
     },
-    "log_queries": True, # print sql log in the control
+    "log_queries": True,  # print sql log in the control
 }

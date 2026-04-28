@@ -6,10 +6,11 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 router = APIRouter(prefix="/qr", tags=["Epic 4: QR Risk Analysis"])
 
 # The regular expression matching the URL
-URL_PATTERN = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+[^\s]*')
+URL_PATTERN = re.compile(r"https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+[^\s]*")
 
 # Initialize the QR code detector of OpenCV (global multiplexing to improve performance)
 qr_detector = cv2.QRCodeDetector()
+
 
 @router.post("/analyze")
 async def analyze_qr_code(file: UploadFile = File(...)):
@@ -19,7 +20,7 @@ async def analyze_qr_code(file: UploadFile = File(...)):
     # 1. verify the file type
     # When a user uploads a file,
     # the browser will automatically attach a Content-Type header
-    if not file.content_type.startswith('image/'):
+    if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Please upload a valid image file.")
 
     try:
@@ -36,19 +37,23 @@ async def analyze_qr_code(file: UploadFile = File(...)):
         data, bbox, straight_qrcode = qr_detector.detectAndDecode(img)
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Image processing failed: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Image processing failed: {str(e)}"
+        )
 
     # AC 4.2.2: Prevent analysis when no valid QR Code content is provided
     if not data:
-        raise HTTPException(status_code=400,
-                            detail="This is not a valid QR code. Please upload a valid QR code to check.")
+        raise HTTPException(
+            status_code=400,
+            detail="This is not a valid QR code. Please upload a valid QR code to check.",
+        )
 
     # extract URLs from the content
     urls = URL_PATTERN.findall(data)
     if not urls:
         raise HTTPException(
             status_code=400,
-            detail="Valid QR code found, but it does not contain any URL to analyze."
+            detail="Valid QR code found, but it does not contain any URL to analyze.",
         )
 
     target_url = urls[0]
@@ -57,13 +62,15 @@ async def analyze_qr_code(file: UploadFile = File(...)):
     risk_result = {
         "risk_score": 85,
         "risk_level": "High Risk",
-        "suspicious_indicators": ["Domain age is less than 30 days", "Phishing patterns detected"]
+        "suspicious_indicators": [
+            "Domain age is less than 30 days",
+            "Phishing patterns detected",
+        ],
     }
 
     # 6. Return result (AC 4.2.3)
     return {
         "decoded_content": data,
         "extracted_url": target_url,
-        "risk_analysis": risk_result
+        "risk_analysis": risk_result,
     }
-    

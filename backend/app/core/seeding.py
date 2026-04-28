@@ -169,6 +169,7 @@ async def _run_seed_scam_categories() -> None:
         cwd=PROJECT_ROOT,
     )
 
+
 async def _run_seed_scam_case() -> None:
     await _run_subprocess(
         [sys.executable, str(PROJECT_ROOT / "app/scripts/seed_scam_case.py")],

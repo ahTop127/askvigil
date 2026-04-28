@@ -1,20 +1,22 @@
-from fastapi import APIRouter, Query, HTTPException
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException
+from typing import List
 
 from app.schemas.scam_case import ScamCaseResponse, ScamCaseFilterRequest
 from app.services import cases_svc
 
 router = APIRouter()
 
+
 @router.post("/filter", response_model=List[ScamCaseResponse])
 async def read_scam_cases(
-        filter: ScamCaseFilterRequest,
+    filter: ScamCaseFilterRequest,
 ):
     return await cases_svc.get_filtered_cases(
         scam_type=filter.scam_type,
         platform=filter.platform,
         year=filter.year,
     )
+
 
 @router.get("/{case_id}", response_model=ScamCaseResponse)
 async def get_scam_case(case_id: int):
