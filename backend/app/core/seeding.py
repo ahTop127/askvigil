@@ -282,7 +282,7 @@ async def run_seeding() -> None:
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
-            print(f"[Seeding] scam_case has {scam_count} rows. Skip.")
+            print(f"[Seeding] scam_case has {scam_case_count} rows. Skip.")
 
         # 3) quiz_questions + quiz_options
         qq_count = await _table_count(conn, "quiz_questions")

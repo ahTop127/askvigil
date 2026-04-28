@@ -14,7 +14,7 @@ async def read_scam_cases(
     return await cases_svc.get_filtered_cases(
         scam_type=filter.scam_type,
         platform=filter.platform,
-        year=filter.year,
+        time_range=filter.time_range,
     )
 
 

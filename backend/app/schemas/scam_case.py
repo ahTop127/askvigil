@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import date
-from typing import Optional
+from typing import Optional, Literal
 from app.models.scam_case import ScamTypeEnum, PlatformEnum
 
 
@@ -45,7 +45,26 @@ class ScamCaseResponse(BaseModel):
 
 class ScamCaseFilterRequest(BaseModel):
     scam_type: Optional[ScamTypeEnum] = Field(
-        default=None, description="Types of fraud"
+        default=None,
+        description="Types of fraud",
+        json_schema_extra={
+            "enum": [e.value for e in ScamTypeEnum] + [None]
+        }
     )
-    platform: Optional[PlatformEnum] = Field(default=None, description="platform")
-    year: Optional[int] = Field(default=None, description="year")
+    platform: Optional[PlatformEnum] = Field(
+        default=None,
+        description="platform",
+        # swagger show the enum values
+        json_schema_extra={
+            "enum": [e.value for e in PlatformEnum] + [None]
+        }
+    )
+    # year: Optional[int] = Field(default=None, description="year")
+    # 0=All Time, 1=Last 3 Months, 2=Last 6 Months, 3=Last Year
+    time_range: Literal[0, 1, 2, 3] = Field(
+        default=0,
+        description="Time range option",
+        json_schema_extra={
+            "enum": [0, 1, 2, 3]
+        }
+    )
