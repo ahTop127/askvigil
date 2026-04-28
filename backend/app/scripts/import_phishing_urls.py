@@ -37,9 +37,7 @@ async def import_csv_to_db():
     await Tortoise.init(config=TORTOISE_ORM)
 
     # 假设你把清洗好的 CSV 也放在 resources 文件夹下
-    csv_path = os.path.join(
-        project_root, "resources", "askvigil_50k_stratified.csv"
-    )
+    csv_path = os.path.join(project_root, "resources", "askvigil_50k_stratified.csv")
     # Use the computed property from your BaseSettings
     csv_path = settings.PHISH_CSV
 

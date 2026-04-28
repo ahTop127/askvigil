@@ -2,7 +2,7 @@ from app.core.config import settings
 
 import logging
 
-logging.basicConfig(level=logging.INFO) # debug too noisy
+logging.basicConfig(level=logging.INFO)  # debug too noisy
 
 # The core configuration dictionary of Tortoise ORM
 TORTOISE_ORM = {
