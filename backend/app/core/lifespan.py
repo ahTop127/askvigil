@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
     # asyncio.create_task(generate_and_update_url_embeddings())
 
     # Create text and url embeddings sequentially (avoid OOM)
-    asyncio.create_task(generate_embeddings_sequentially())
+    # asyncio.create_task(generate_embeddings_sequentially())
 
     print("--- Server is LIVE. Background ingestion is running. ---")
 

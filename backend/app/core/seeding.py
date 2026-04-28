@@ -72,9 +72,12 @@ It will execute external commands, such as:
 
 async def _run_subprocess(cmd: list[str], cwd: Path) -> None:
     print(f"[Seeding] Running command: {' '.join(cmd)}")
+    env = os.environ.copy()
+    env["PYTHONPATH"] = "/app"
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         cwd=str(cwd),
+        env=env,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -163,7 +166,7 @@ async def _run_aerich_upgrade() -> None:
 
 async def _run_seed_scam_categories() -> None:
     await _run_subprocess(
-        [sys.executable, "-m", "scripts.seed_scam_categories"],
+        [sys.executable, "-m", "app.scripts.seed_scam_categories"],
         # [sys.executable, str(PROJECT_ROOT / "app/scripts/seed_scam_categories.py")],
         cwd=PROJECT_ROOT,
     )
@@ -172,7 +175,7 @@ async def _run_seed_scam_categories() -> None:
 async def _run_import_open_data() -> None:
     # Use -m and the dot-notation path relative to /app/app
     await _run_subprocess(
-        [sys.executable, "-m", "scripts.import_open_data"],
+        [sys.executable, "-m", "app.scripts.import_open_data"],
         cwd=PROJECT_ROOT / "app",  # Run from the directory where 'scripts' is a package
     )
     # await _run_subprocess(
@@ -184,7 +187,7 @@ async def _run_import_open_data() -> None:
 # phishing dataset batch import into database
 async def _run_import_phishing_urls() -> None:
     await _run_subprocess(
-        [sys.executable, "-m", "scripts.import_phishing_urls"],
+        [sys.executable, "-m", "app.scripts.import_phishing_urls"],
         cwd=PROJECT_ROOT / "app",
     )
     # await _run_subprocess(
