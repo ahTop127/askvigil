@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS phishing_url (
     domain VARCHAR(255),
     path TEXT,
     preview_title VARCHAR(500),
+    raw_length INTEGER,
+    clean_length INTEGER,
     url_embedding vector(768),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -62,3 +64,21 @@ CREATE INDEX IF NOT EXISTS idx_gin_url_lexical ON phishing_url USING GIN (url_se
 --     anchor_type VARCHAR(50),
 --     vector_data vector(384)
 -- );
+
+
+-- Scam Cases Table
+CREATE TABLE IF NOT EXISTS scam_cases (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    source VARCHAR(512),
+    url_link VARCHAR(512),
+    scam_type VARCHAR(50) NOT NULL,
+    platform VARCHAR(50) NOT NULL,
+    news_date DATE NOT NULL
+);
+
+-- Indexes for filtering and classification dimensions
+CREATE INDEX IF NOT EXISTS idx_scam_cases_scam_type ON scam_cases(scam_type);
+CREATE INDEX IF NOT EXISTS idx_scam_cases_platform ON scam_cases(platform);
+CREATE INDEX IF NOT EXISTS idx_scam_cases_news_date ON scam_cases(news_date);
