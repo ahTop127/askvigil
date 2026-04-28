@@ -2,7 +2,7 @@ from app.core.config import settings
 
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO) # debug too noisy
 
 # The core configuration dictionary of Tortoise ORM
 TORTOISE_ORM = {
@@ -21,5 +21,5 @@ TORTOISE_ORM = {
             "default_connection": "default",
         },
     },
-    "log_queries": True,  # print sql log in the control
+    "log_queries": False,  # enable to print sql log in the control
 }

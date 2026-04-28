@@ -2,6 +2,7 @@ import onnxruntime as ort
 from transformers import AutoTokenizer
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+import asyncio
 
 import os
 import httpx
@@ -77,6 +78,7 @@ async def lifespan(app: FastAPI):
     # Use 'ACLExecutionProvider' for ARM Neoverse N1
 
     print("[Lifespan] Loading Quantized ONNX Models...")
+    # try:
     try:
         # Load Text Model (MiniLM)
         MODEL_REGISTRY["text"] = {
@@ -85,24 +87,38 @@ async def lifespan(app: FastAPI):
                 str(settings.TEXT_MODEL_PATH), local_files_only=True
             ),
         }
+    except:
+        print("[MISSING MODEL] Text model not loaded")
 
+    try:
         MODEL_REGISTRY["text_classifier"] = {
             "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
         }
+    except:
+        print("[MISSING MODEL] Text classifier model not loaded")
 
-        # Load URL Model (URLBert)
+    # Load URL Model (URLBert)
+    try:
         MODEL_REGISTRY["url"] = {
             "session": load_onnx_session(str(settings.URL_MODEL_PATH)),
             "tokenizer": AutoTokenizer.from_pretrained(
                 str(settings.URL_MODEL_PATH), local_files_only=True
             ),
         }
+    except:
+        print("[MISSING MODEL] Url model not loaded")
 
-        print("Models loaded successfully with SessionOptions(threads=1).")
+    try:
+        MODEL_REGISTRY["url_classifier"] = {
+            "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
+        }
+    except:
+        print("[MISSING MODEL] Url classifier model not loaded")
+        
 
-    except Exception as e:
-        print(f"CRITICAL: Failed to load models: {e}")
-        raise e
+    # except Exception as e:
+    #     print(f"CRITICAL: Failed to load models: {e}")
+    #     raise e
 
     # Run seeding only after loading models
     # wangsi New addition: Perform database idempotent initialization before startup
@@ -116,7 +132,7 @@ async def lifespan(app: FastAPI):
     # asyncio.create_task(generate_and_update_url_embeddings())
 
     # Create text and url embeddings sequentially (avoid OOM)
-    # asyncio.create_task(generate_embeddings_sequentially())
+    asyncio.create_task(generate_embeddings_sequentially())
 
     print("--- Server is LIVE. Background ingestion is running. ---")
 
@@ -301,6 +317,14 @@ async def ensure_architectural_integrity():
 
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='preview_title') THEN
             ALTER TABLE phishing_url ADD COLUMN preview_title VARCHAR(500);
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='raw_length') THEN
+            ALTER TABLE phishing_url ADD COLUMN raw_length INTEGER;
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='clean_length') THEN
+            ALTER TABLE phishing_url ADD COLUMN clean_length INTEGER;
         END IF;
 
         -- Audit timestamps
