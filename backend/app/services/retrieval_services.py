@@ -107,6 +107,10 @@ async def hybrid_search_rrf(
     LIMIT $3;
     """
 
-    clean_vector = query_vector.flatten().tolist() if hasattr(query_vector, "tolist") else list(query_vector)
+    clean_vector = (
+        query_vector.flatten().tolist()
+        if hasattr(query_vector, "tolist")
+        else list(query_vector)
+    )
     results = await conn.execute_query_dict(sql, [clean_vector, query_text, limit])
     return results
