@@ -326,8 +326,8 @@ export const ResultDisplay = memo(
                   </div>
                 )}
                 <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                    Safer Actions
+                  <p className="text-xs font-semibold tracking-wide text-emerald-700">
+                    What you should do now:
                   </p>
                   <ul className="mt-2 space-y-2 text-base text-emerald-900">
                     {saferActionItems.map((line) => (
