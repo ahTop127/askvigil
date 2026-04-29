@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI):
 
     try:
         MODEL_REGISTRY["url_classifier"] = {
-            "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
+            "session": load_onnx_session(str(settings.URL_CLASSIFIER_PATH))
         }
     except:
         print("[MISSING MODEL] Url classifier model not loaded")
