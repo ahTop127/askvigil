@@ -438,9 +438,9 @@ async def scan_text(text: str):
     # risk_score = float(output[0][0][0])
 
     # spam
-    model_score = float(output[0][0][1]) # match training script update
+    model_score = float(output[0][0][1])  # match training script update
     # harmless
-    ham_score = float(output[0][0][0]) # match training script update
+    ham_score = float(output[0][0][0])  # match training script update
 
     # explainable AI branch#
     explanation_result = explain_text_risk(text)
@@ -963,13 +963,15 @@ async def scan_unified_text(raw_text: str):
 
     return results
 
+
 def standardize_url_protocol(url: str) -> str:
     """Ensures URL has a protocol for consistent embedding."""
     url = url.strip().lower()
-    if not url.startswith(('http://', 'https://')):
+    if not url.startswith(("http://", "https://")):
         # Default to http to match the training stratification logic
         return f"http://{url}"
     return url
+
 
 def standardize_text(text: str, label: str = None) -> str:
     """
@@ -978,7 +980,7 @@ def standardize_text(text: str, label: str = None) -> str:
     """
     if not isinstance(text, str) or not text.strip():
         return "", []
-    
+
     # 1. Normalize Protocol (Crucial for URLBert)
     # If the input is just a URL, we fix it first.
     if "." in text and " " not in text:

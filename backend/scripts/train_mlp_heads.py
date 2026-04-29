@@ -224,7 +224,7 @@ async def train_and_export(
     criterion = nn.BCELoss()
 
     # 4. Training Loop
-    best_v_loss = float('inf')
+    best_v_loss = float("inf")
     best_model_state = None
 
     for epoch in range(50):  # Increased epochs for complex URL patterns
@@ -249,7 +249,7 @@ async def train_and_export(
                 v_correct += (out.argmax(1) == target.argmax(1)).sum().item()
 
         avg_v_loss = v_loss / len(val_loader)
-        
+
         print(
             f"Epoch {epoch + 1:02d} | T_Loss: {t_loss / len(train_loader):.4f} | T_Acc: {t_correct / train_size:.3f} | V_Loss: {v_loss / len(val_loader):.4f} | V_Acc: {v_correct / val_size:.3f}"
         )
@@ -257,8 +257,10 @@ async def train_and_export(
         if avg_v_loss < best_v_loss:
             best_v_loss = avg_v_loss
             # deepcopy or state_dict to save the weights in memory
-            best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
-            print(f"New best model found at Epoch {epoch+1}")
+            best_model_state = {
+                k: v.cpu().clone() for k, v in model.state_dict().items()
+            }
+            print(f"New best model found at Epoch {epoch + 1}")
 
         # --- Early Stopping ---
         patience = 7
@@ -270,8 +272,6 @@ async def train_and_export(
                 break
         else:
             trigger_times = 0
-
-        
 
     # --- Load Best Weights before Export ---
     if best_model_state:
