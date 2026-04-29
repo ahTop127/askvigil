@@ -48,7 +48,11 @@ export interface ScamDetectionResult {
   relatedCase?: ScamCase;
 }
 
-export type DetectionStepStatus = "completed" | "current" | "pending" | "failed";
+export type DetectionStepStatus =
+  | "completed"
+  | "current"
+  | "pending"
+  | "failed";
 
 export interface DetectionStepState {
   key: string;

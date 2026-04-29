@@ -4,8 +4,7 @@ export const ERROR_MESSAGES = {
   imageUpload: "Please upload an image to check.",
   urlInput: "Please enter a URL to check.",
   qrUpload: "Please upload a QR code image to check.",
-  invalidUrl:
-    "This is not a valid URL. Please enter a valid link to check.",
+  invalidUrl: "This is not a valid URL. Please enter a valid link to check.",
   fileTooLarge: "File is too large. Please choose a smaller image.",
   unsupportedImage: "Unsupported image format.",
   textTooLong: "Text exceeds the maximum length allowed.",

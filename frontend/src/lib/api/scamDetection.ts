@@ -54,7 +54,9 @@ function mapScanResponse(
     legacyTextData?.risk_score ??
     getLegacyRrfTopScore(raw);
   const riskRaw =
-    input.type === "url" ? getOverallRiskScore(raw) ?? baseRiskRaw : baseRiskRaw;
+    input.type === "url"
+      ? (getOverallRiskScore(raw) ?? baseRiskRaw)
+      : baseRiskRaw;
   const score = toScorePercent(riskRaw);
 
   const category = normalizeScamType(
@@ -65,15 +67,15 @@ function mapScanResponse(
 
   const clean = asNonEmptyString(legacyTextData?.clean_text);
   const summary = asNonEmptyString(textAnalysis?.immediate_guidance?.summary);
-  const indicatorReasons = getIndicatorReasons(textAnalysis?.explainability?.matched_indicators);
+  const indicatorReasons = getIndicatorReasons(
+    textAnalysis?.explainability?.matched_indicators,
+  );
   const explanation =
     summary ??
     (indicatorReasons && indicatorReasons.length > 200
       ? `${indicatorReasons.slice(0, 200)}...`
       : indicatorReasons) ??
-    (clean && clean.length > 200
-      ? `${clean.slice(0, 200)}…`
-      : clean) ??
+    (clean && clean.length > 200 ? `${clean.slice(0, 200)}…` : clean) ??
     `Scam check completed for ${input.type}.`;
 
   return {
@@ -94,7 +96,9 @@ function mapScanResponse(
     immediateGuidanceTitle:
       asNonEmptyString(textAnalysis?.immediate_guidance?.title) ?? undefined,
     immediateGuidanceSummary: summary ?? undefined,
-    immediateGuidanceDontDo: toStringList(textAnalysis?.immediate_guidance?.dont_do),
+    immediateGuidanceDontDo: toStringList(
+      textAnalysis?.immediate_guidance?.dont_do,
+    ),
     immediateGuidanceSaferAction: toStringList(
       textAnalysis?.immediate_guidance?.safer_action,
     ),
@@ -109,12 +113,17 @@ function getSuspiciousItems(
     return indicators
       .map((item) => {
         const terms = Array.isArray(item.matched_terms)
-          ? item.matched_terms.filter((t): t is string => typeof t === "string" && t.trim())
+          ? item.matched_terms.filter(
+              (t): t is string => typeof t === "string" && t.trim(),
+            )
           : [];
         const reason = asNonEmptyString(item.reason);
         if (!reason) return null;
         return {
-          text: terms.length > 0 ? terms.join(", ") : item.category ?? "indicator",
+          text:
+            terms.length > 0
+              ? terms.join(", ")
+              : (item.category ?? "indicator"),
           reason,
         };
       })
@@ -139,10 +148,14 @@ function getGuidance(
   category: string,
 ): string[] {
   const dontDo = Array.isArray(immediate?.dont_do)
-    ? immediate.dont_do.filter((x): x is string => typeof x === "string" && x.trim())
+    ? immediate.dont_do.filter(
+        (x): x is string => typeof x === "string" && x.trim(),
+      )
     : [];
   const saferAction = Array.isArray(immediate?.safer_action)
-    ? immediate.safer_action.filter((x): x is string => typeof x === "string" && x.trim())
+    ? immediate.safer_action.filter(
+        (x): x is string => typeof x === "string" && x.trim(),
+      )
     : [];
   const merged = [...dontDo, ...saferAction];
   if (merged.length > 0) return merged;
@@ -247,7 +260,9 @@ function asNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function getIndicatorReasons(indicators: IndicatorLike[] | undefined): string | null {
+function getIndicatorReasons(
+  indicators: IndicatorLike[] | undefined,
+): string | null {
   if (!Array.isArray(indicators) || indicators.length === 0) return null;
   const reasons = indicators
     .map((item) => asNonEmptyString(item.reason))
@@ -261,7 +276,8 @@ function normalizeScamType(value: string): string {
   if (normalized === "not recognized by known type") return "unknown";
   if (normalized === "job_scam" || normalized === "job-scam") return "job-scam";
   if (normalized === "phishing") return "phishing";
-  if (normalized === "qr_code_scam" || normalized === "qr-scam") return "qr-scam";
+  if (normalized === "qr_code_scam" || normalized === "qr-scam")
+    return "qr-scam";
   if (normalized === "otp_scam" || normalized === "otp-scam") return "otp-scam";
   if (normalized === "suspicious_link" || normalized === "suspicious-link") {
     return "suspicious-link";

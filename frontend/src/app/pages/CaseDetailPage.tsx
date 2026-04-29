@@ -30,7 +30,9 @@ export default function CaseDetailPage() {
       .catch((err: unknown) => {
         if (!cancelled) {
           setItem(null);
-          setLoadError(err instanceof Error ? err.message : "Failed to load case.");
+          setLoadError(
+            err instanceof Error ? err.message : "Failed to load case.",
+          );
         }
       })
       .finally(() => {
@@ -121,10 +123,16 @@ export default function CaseDetailPage() {
           </section>
         </article>
         <div className="mt-6 flex gap-3">
-          <Button variant="outline" onClick={() => navigate(`/cases?${params.toString()}`)}>
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/cases?${params.toString()}`)}
+          >
             Back to Cases
           </Button>
-          <Button className="bg-primary hover:bg-secondary text-primary-foreground" onClick={() => navigate("/")}>
+          <Button
+            className="bg-primary hover:bg-secondary text-primary-foreground"
+            onClick={() => navigate("/")}
+          >
             Check Another Message
           </Button>
         </div>

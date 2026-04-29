@@ -11,7 +11,10 @@ function isDetectionTab(v: string): v is DetectionType {
 
 const STEP_DEMO_TRIGGER = "__STEP_DEMO__";
 
-function isStepDemoPayload(type: DetectionType, content: string | File): boolean {
+function isStepDemoPayload(
+  type: DetectionType,
+  content: string | File,
+): boolean {
   return (
     type === "text" &&
     typeof content === "string" &&
@@ -19,9 +22,10 @@ function isStepDemoPayload(type: DetectionType, content: string | File): boolean
   );
 }
 
-function buildStepDemoResult(
-  payload: { type: DetectionType; content: string | File },
-): ScamDetectionResult {
+function buildStepDemoResult(payload: {
+  type: DetectionType;
+  content: string | File;
+}): ScamDetectionResult {
   const baseResult: ScamDetectionResult = {
     score: 78,
     riskLevel: "high",

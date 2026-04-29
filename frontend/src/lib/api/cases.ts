@@ -149,7 +149,8 @@ function mapCase(item: ScamCaseApiResponse): ScamCase {
 async function readError(response: Response): Promise<string | null> {
   try {
     const json = (await response.json()) as { detail?: unknown };
-    if (typeof json.detail === "string" && json.detail.trim()) return json.detail;
+    if (typeof json.detail === "string" && json.detail.trim())
+      return json.detail;
     return null;
   } catch {
     return null;
@@ -179,7 +180,9 @@ export async function fetchScamCases(filters: {
 
   if (!response.ok) {
     const detail = await readError(response);
-    throw new Error(detail ?? `Failed to fetch scam cases (${response.status})`);
+    throw new Error(
+      detail ?? `Failed to fetch scam cases (${response.status})`,
+    );
   }
 
   const data = (await response.json()) as ScamCaseApiResponse[];
@@ -187,15 +190,20 @@ export async function fetchScamCases(filters: {
 }
 
 export async function fetchScamCaseById(caseId: string): Promise<ScamCase> {
-  const response = await fetch(buildUrl(`/v1/scam/${encodeURIComponent(caseId)}`), {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    credentials: "include",
-  });
+  const response = await fetch(
+    buildUrl(`/v1/scam/${encodeURIComponent(caseId)}`),
+    {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      credentials: "include",
+    },
+  );
 
   if (!response.ok) {
     const detail = await readError(response);
-    throw new Error(detail ?? `Failed to fetch case detail (${response.status})`);
+    throw new Error(
+      detail ?? `Failed to fetch case detail (${response.status})`,
+    );
   }
 
   const data = (await response.json()) as ScamCaseApiResponse;

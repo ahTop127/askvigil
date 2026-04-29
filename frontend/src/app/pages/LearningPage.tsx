@@ -100,7 +100,9 @@ export default function LearningPage() {
                           className="text-sm text-[#255832] hover:underline"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/cases?scamType=${encodeURIComponent(scam.id)}`);
+                            navigate(
+                              `/cases?scamType=${encodeURIComponent(scam.id)}`,
+                            );
                           }}
                         >
                           View related cases
