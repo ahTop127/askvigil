@@ -88,13 +88,23 @@ jobs:
             cd $TARGET_DIR
 
             # Pause DB
-            docker compose stop db
+            docker compose stop db backend frontend
 
-            # 3. Clean Slate: Fetch latest ver and auto-lint fixes to force the server to match GitHub exactly.
+            # 3. Git Sync Clean Slate: Fetch latest ver and auto-lint fixes to force the server to match GitHub exactly.
             git remote set-url origin $REPO_URL
             git fetch origin ${{ github.ref_name }}
             git reset --hard origin/${{ github.ref_name }}
             git clean -fd
 
-            # 4. Deploy
+            # 4. SELECTIVE CLEANUP: Reclaim space BEFORE building
+            # --remove-orphans in step 4 only stops them; it doesn't delete their volumes.
+            # This kills any 'zombie' volumes left by previous failed builds.
+            docker volume prune -f
+
+            # 5. Deploy
             docker compose --env-file .env -f docker-compose.yml up -d --build --remove-orphans
+
+            # 6. POST-DEPLOY HOUSEKEEPING: 
+            # Delete 'dangling' images (the old versions left behind after --build)
+            # This keeps your 'Images' space usage from creeping up over time.
+            docker image prune -f
