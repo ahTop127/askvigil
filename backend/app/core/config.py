@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     @property
     def URL_MODEL_PATH(self) -> Path:
         return self.MODEL_DIR / "url_onnx"
+    
+    @property
+    def URL_CLASSIFIER_PATH(self) -> Path:
+        return self.URL_MODEL_PATH / "classifier.onnx"
 
     @property
     def MAX_POSSIBLE_RRF(self) -> float:
