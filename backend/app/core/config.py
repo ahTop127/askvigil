@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     def OCR_KEYS_PATH(self) -> str:
         # This is the character dictionary (keys)
         return self._get_ocr_file("keys", extension="txt")
-    
+
     @property
     def MAX_POSSIBLE_RRF(self) -> float:
         return 2.0 / (self.RRF_CONSTANT + 1)

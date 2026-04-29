@@ -420,7 +420,7 @@ async def scan_url(raw_url: str):
 #     return {
 #         "risk_score": round(risk_score, 4),
 #         "decision": "flagged" if risk_score > 0.75 else "clear",
-#         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},        
+#         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
 #         "input text": text,
 
 #     }

@@ -1,11 +1,11 @@
 # Placeholder for OCR/video framework
 import cv2
 import re
+
 # import easyocr
 import numpy as np
 from fastapi import UploadFile
 from rapidocr_onnxruntime import RapidOCR
-from app.core.config import settings # assuming your settings instance is here
 
 # Placeholder for models via oracle storage
 # engine = RapidOCR(
@@ -15,14 +15,13 @@ from app.core.config import settings # assuming your settings instance is here
 #     rec_keys_path=settings.OCR_KEYS_PATH
 # )
 
-# RapidOCR uses ONNX INT8 by default if models are provided, 
+# RapidOCR uses ONNX INT8 by default if models are provided,
 # but the standard package is already 5-10x faster than EasyOCR.
 engine = RapidOCR(det_db_thresh=0.2, det_db_box_thresh=0.4)
 
 # intialize the ocr model once at the module level to avoid repeated loading
 # Note: if easyocr is still too laggy, try rapidocr
 # reader = easyocr.Reader(["en"], gpu=False, verbose=False)
-
 
 
 def extract_audio_from_video(video_file) -> str:
@@ -167,7 +166,7 @@ def detect_qr_codes(image_file) -> list[str]:
 
 def extract_ocr_text(image_file: UploadFile) -> str:
     """
-    Extracts text from UploadFile using RapidOCR. 
+    Extracts text from UploadFile using RapidOCR.
     Optimized for speed and specific language joining rules.
     """
     # 1. IO: Read bytes and manage file pointer
@@ -191,10 +190,10 @@ def extract_ocr_text(image_file: UploadFile) -> str:
     result, _ = engine(img)
     if not result:
         return ""
- 
+
     # 5. Sort: Order text boxes top-to-bottom, then left-to-right
     result.sort(key=lambda x: (x[0][0][1], x[0][0][0]))
-    
+
     extracted_lines = [line[1] for line in result]
     full_text_raw = " ".join(extracted_lines)
 
@@ -203,7 +202,8 @@ def extract_ocr_text(image_file: UploadFile) -> str:
         chinese_chars = len(re.findall(r"[\u4e00-\u9fff]", text))
         english_chars = len(re.findall(r"[A-Za-z]", text))
         total = chinese_chars + english_chars
-        if total == 0: return "Unknown"
+        if total == 0:
+            return "Unknown"
         return "Chinese" if (chinese_chars / total) > 0.7 else "English"
 
     # 7. Join: Remove spaces for Chinese; keep spaces for English/Malay
