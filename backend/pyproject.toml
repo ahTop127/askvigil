@@ -17,15 +17,14 @@ dependencies = [
     "torch>=2.11.0",
     "urlextract>=1.9.0",
     "httpx>=0.28.1",
-    "ffmpeg-python>=0.2.0",
     "optimum[onnxruntime]>=2.1.0",
     "onnxruntime>=1.24.4",
-    "easyocr>=1.7.2",
     "torchvision>=0.26.0",
     "onnx>=1.21.0",
     "onnxscript>=0.6.2",
     "pandas>=3.0.2",
     "scikit-learn>=1.8.0",
+    "rapidocr-onnxruntime>=1.4.4",
 ]
 
 [tool.aerich]

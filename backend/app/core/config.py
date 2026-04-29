@@ -1,4 +1,5 @@
 import os
+import glob
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -57,6 +58,32 @@ class Settings(BaseSettings):
     def URL_CLASSIFIER_PATH(self) -> Path:
         return self.URL_MODEL_PATH / "classifier.onnx"
 
+    @property
+    def OCR_MODEL_DIR(self) -> Path:
+        return self.MODEL_DIR / "ocr_onnx"
+
+    def _get_ocr_file(self, pattern: str, extension: str = "onnx") -> str:
+        """Helper to find OCR files (onnx models or txt keys)"""
+        files = glob.glob(str(self.OCR_MODEL_DIR / f"*{pattern}*.{extension}"))
+        return files[0] if files else ""
+
+    @property
+    def OCR_DET_PATH(self) -> str:
+        return self._get_ocr_file("det")
+
+    @property
+    def OCR_CLS_PATH(self) -> str:
+        return self._get_ocr_file("cls")
+
+    @property
+    def OCR_REC_PATH(self) -> str:
+        return self._get_ocr_file("rec")
+
+    @property
+    def OCR_KEYS_PATH(self) -> str:
+        # This is the character dictionary (keys)
+        return self._get_ocr_file("keys", extension="txt")
+    
     @property
     def MAX_POSSIBLE_RRF(self) -> float:
         return 2.0 / (self.RRF_CONSTANT + 1)
