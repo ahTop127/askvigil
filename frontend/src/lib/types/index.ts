@@ -41,6 +41,10 @@ export interface ScamDetectionResult {
   qrDecodedContent?: string;
   qrContentType?: "url" | "sms" | "contact" | "plain-text";
   guidance?: string[];
+  immediateGuidanceTitle?: string;
+  immediateGuidanceSummary?: string;
+  immediateGuidanceDontDo?: string[];
+  immediateGuidanceSaferAction?: string[];
   relatedCase?: ScamCase;
 }
 

@@ -5,6 +5,14 @@ export function Navigation() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleLogoClick = () => {
+    if (location.pathname !== "/") {
+      navigate("/");
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const isActive = (path: string) => {
     if (path === "/guidance") {
       return location.pathname.startsWith("/guidance");
@@ -24,7 +32,7 @@ export function Navigation() {
         <div className="flex items-center gap-8">
           {/* Logo - Clickable to home */}
           <button
-            onClick={() => navigate("/")}
+            onClick={handleLogoClick}
             className="flex items-center gap-3 hover:opacity-80 transition-opacity shrink-0"
           >
             <div className="w-10 h-10 flex items-center justify-center mt-4">

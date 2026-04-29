@@ -75,7 +75,7 @@ function TextDetectionInput({
             onChange(e.target.value);
           }}
           maxLength={1000}
-          className="min-h-[140px] resize-none text-base bg-muted/40 border-2 border-border focus:border-primary text-foreground placeholder:text-muted-foreground rounded-xl pb-8"
+          className="min-h-[170px] resize-none text-base bg-muted/40 border-2 border-border focus:border-primary text-foreground placeholder:text-muted-foreground rounded-xl pb-8"
           disabled={disabled}
         />
         <div

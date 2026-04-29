@@ -131,7 +131,6 @@ export function useScamDetection(): UseScamDetectionReturn {
     try {
       let res: ScamDetectionResult;
       const shouldUseLocalDemo =
-        payload.type === "url" ||
         payload.type === "qr" ||
         isStepDemoPayload(payload.type, payload.content);
 

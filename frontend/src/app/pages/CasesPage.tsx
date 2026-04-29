@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   FolderOpen,
@@ -27,7 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@components/ui/select";
-import { mockCases } from "@lib/constants/cases";
+import { fetchScamCases } from "@lib/api/cases";
+import type { ScamCase } from "@lib/types";
 
 const PAGE_SIZE = 9;
 
@@ -69,33 +70,37 @@ function getScamVisuals(type: string) {
 export default function CasesPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const [cases, setCases] = useState<ScamCase[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const scamType = params.get("scamType") ?? "all";
   const platform = params.get("platform") ?? "all";
   const date = params.get("date") ?? "all";
   const page = Math.max(1, Number(params.get("page") ?? "1"));
 
-  const filtered = useMemo(() => {
-    return mockCases.filter((c) => {
-      if (scamType !== "all" && c.scamType !== scamType) return false;
-      if (platform !== "all" && c.platform !== platform) return false;
-      if (date === "30d") {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 30);
-        if (new Date(c.date) < cutoff) return false;
-      }
-      if (date === "90d") {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 90);
-        if (new Date(c.date) < cutoff) return false;
-      }
-      if (date === "1y") {
-        const cutoff = new Date();
-        cutoff.setFullYear(cutoff.getFullYear() - 1);
-        if (new Date(c.date) < cutoff) return false;
-      }
-      return true;
-    });
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError(null);
+    fetchScamCases({ scamType, platform, date })
+      .then((items) => {
+        if (cancelled) return;
+        setCases(items);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Failed to load cases.");
+        setCases([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [date, platform, scamType]);
+
+  const filtered = useMemo(() => cases, [cases]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -170,8 +175,8 @@ export default function CasesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Time</SelectItem>
-                  <SelectItem value="30d">Last 30 Days</SelectItem>
-                  <SelectItem value="90d">Last 90 Days</SelectItem>
+                  <SelectItem value="3m">Last 3 Months</SelectItem>
+                  <SelectItem value="6m">Last 6 Months</SelectItem>
                   <SelectItem value="1y">Last Year</SelectItem>
                 </SelectContent>
               </Select>
@@ -180,17 +185,41 @@ export default function CasesPage() {
         </section>
 
         <section>
-            {mockCases.length === 0 ? (
+            {isLoading ? (
+              <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center text-gray-600">
+                Loading scam cases...
+              </div>
+            ) : loadError ? (
+              <div className="bg-white rounded-2xl border border-red-200 p-10 text-center">
+                <p className="font-semibold text-red-700">Failed to load scam cases.</p>
+                <p className="text-sm text-red-600 mt-1">{loadError}</p>
+                <Button
+                  className="mt-4"
+                  variant="outline"
+                  onClick={() => {
+                    setIsLoading(true);
+                    setLoadError(null);
+                    fetchScamCases({ scamType, platform, date })
+                      .then((items) => setCases(items))
+                      .catch((err: unknown) => {
+                        setLoadError(
+                          err instanceof Error ? err.message : "Failed to load cases.",
+                        );
+                        setCases([]);
+                      })
+                      .finally(() => setIsLoading(false));
+                  }}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
                 <FolderOpen className="w-8 h-8 mx-auto text-gray-400 mb-3" />
                 <p className="font-semibold text-gray-900">No scam cases available yet.</p>
                 <p className="text-sm text-gray-600 mt-1">
                   We&apos;re collecting real cases to help you stay safe. Check back soon.
                 </p>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center text-gray-600">
-                No related cases found for the current filters.
               </div>
             ) : (
               <>

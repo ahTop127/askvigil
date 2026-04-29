@@ -40,24 +40,31 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
     [clearError, setActiveTab],
   );
 
+  const handleNewAnalysis = useCallback(() => {
+    resetDetection();
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, [resetDetection]);
+
   return (
     <section
       id="check-section"
-      className="py-20 bg-[#F7F8FA] relative overflow-hidden"
+      className="pt-12 pb-20 md:pt-14 bg-[#F7F8FA] relative overflow-hidden"
     >
       <div className="max-w-4xl mx-auto px-4 relative z-10">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-primary mb-4">
+        <div className="text-center mb-12 -mt-4">
+          <h2 className="text-5xl md:text-6xl font-bold text-primary mb-4">
             {UI_TEXT.detection.hubTitle}
           </h2>
-          <p className="text-lg text-gray-600">
+          <p className="text-xl md:text-2xl leading-relaxed text-gray-600">
             {UI_TEXT.detection.hubSubtitle}
           </p>
         </div>
 
         {showResult ? (
           result && (
-            <ResultDisplay result={result} onNewAnalysis={resetDetection} />
+            <ResultDisplay result={result} onNewAnalysis={handleNewAnalysis} />
           )
         ) : (
           <DetectionForm
