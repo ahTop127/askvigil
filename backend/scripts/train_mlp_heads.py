@@ -3,6 +3,7 @@
 # # uv run python -m scripts.train_mlp_heads
 
 # docker cp ./scripts/train_mlp_heads.py askvigil-backend-1:/app/scripts/train_mlp_heads.py
+# docker exec -it askvigil-db-1 psql -U admin -d askvigil -c "SELECT original_text, clean_text FROM open_dataset WHERE clean_text LIKE '%escapenumber%' LIMIT 5;"
 # docker exec -it -e PYTHONPATH="/app" askvigil-backend-1 python /app/scripts/train_mlp_heads.py
 import random
 import asyncio
@@ -13,8 +14,9 @@ from torch.utils.data import Dataset, DataLoader, random_split
 import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix
 from tortoise import Tortoise
-
+import torch.onnx
 from app.core.config import settings
+
 from app.core.database import TORTOISE_ORM
 from app.models.open_data import OpenDataSet, PhishingURL
 
@@ -108,7 +110,7 @@ class StratifiedDataset(Dataset):
             buckets = {"short": [], "medium": [], "long": []}
             for r in records:
                 # We store a tuple of (record, label) to avoid expensive lookups later
-                label = [1.0, 0.0] if is_hazard else [0.0, 1.0]
+                label = [0.0, 1.0] if is_hazard else [1.0, 0.0]
                 buckets[get_bin(r)].append((r, label))
             return buckets
 
@@ -222,7 +224,10 @@ async def train_and_export(
     criterion = nn.BCELoss()
 
     # 4. Training Loop
-    for epoch in range(15):  # Increased epochs for complex URL patterns
+    best_v_loss = float('inf')
+    best_model_state = None
+
+    for epoch in range(50):  # Increased epochs for complex URL patterns
         model.train()
         t_loss, t_correct = 0, 0
         for feat, target in train_loader:
@@ -243,11 +248,37 @@ async def train_and_export(
                 v_loss += criterion(out, target).item()
                 v_correct += (out.argmax(1) == target.argmax(1)).sum().item()
 
+        avg_v_loss = v_loss / len(val_loader)
+        
         print(
             f"Epoch {epoch + 1:02d} | T_Loss: {t_loss / len(train_loader):.4f} | T_Acc: {t_correct / train_size:.3f} | V_Loss: {v_loss / len(val_loader):.4f} | V_Acc: {v_correct / val_size:.3f}"
         )
+        # --- Track Best Model ---
+        if avg_v_loss < best_v_loss:
+            best_v_loss = avg_v_loss
+            # deepcopy or state_dict to save the weights in memory
+            best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+            print(f"New best model found at Epoch {epoch+1}")
 
-    # 5. THE SACRED TEST (Final Evaluation)
+        # --- Early Stopping ---
+        patience = 7
+        trigger_times = 0
+        if avg_v_loss >= best_v_loss:
+            trigger_times += 1
+            if trigger_times >= patience:
+                print(f"Early stopping: No improvements for {patience} epochs")
+                break
+        else:
+            trigger_times = 0
+
+        
+
+    # --- Load Best Weights before Export ---
+    if best_model_state:
+        model.load_state_dict(best_model_state)
+        print("Restored best weights for export.")
+
+    # 5. Evaluation Test
     print("\n--- [FINAL REPORT] PERFORMANCE ON UNSEEN TEST SET ---")
     model.eval()
     y_true, y_pred = [], []
@@ -294,15 +325,15 @@ async def main():
         attr_name="text_embedding",
     )
 
-    # # RUN URL CLASSIFIER (URLBert-Tiny)
-    # # Ensure your 'ensure_architectural_integrity' has added the 'url_embedding' column!
-    # await train_and_export(
-    #     mode="url",
-    #     label_col="is_malicious",
-    #     haz_val=True,
-    #     safe_val=False,
-    #     attr_name="url_embedding",
-    # )
+    # RUN URL CLASSIFIER (URLBert-Tiny)
+    # Ensure your 'ensure_architectural_integrity' has added the 'url_embedding' column!
+    await train_and_export(
+        mode="url",
+        label_col="is_malicious",
+        haz_val=True,
+        safe_val=False,
+        attr_name="url_embedding",
+    )
 
 
 if __name__ == "__main__":

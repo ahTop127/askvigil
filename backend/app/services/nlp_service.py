@@ -380,7 +380,7 @@ async def scan_url(raw_url: str):
     output = await asyncio.to_thread(
         session.run, None, {"input": vector.reshape(1, -1)}
     )
-    risk_score = float(output[0][0][0])  # Softmax [Hazard, Safe]
+    risk_score = float(output[0][0][1])  # Hazard probability
 
     # 3. Evidence Branch (Historical Discovery)
     # We search using the RESOLVED vector to find similar malicious structures
@@ -410,7 +410,7 @@ async def scan_url(raw_url: str):
 #     output = await asyncio.to_thread(
 #         session.run, None, {"input": vector.reshape(1, -1)}
 #     )
-#     risk_score = float(output[0][0][0])
+#     risk_score = float(output[0][0][1])
 
 #     # 2. Evidence Branch (HNSW + BM25)
 #     # k=20 handles the RRF decay curve standardly without manual squaring
@@ -438,9 +438,9 @@ async def scan_text(text: str):
     # risk_score = float(output[0][0][0])
 
     # spam
-    model_score = float(output[0][0][0])
+    model_score = float(output[0][0][1]) # match training script update
     # harmless
-    ham_score = float(output[0][0][1])
+    ham_score = float(output[0][0][0]) # match training script update
 
     # explainable AI branch#
     explanation_result = explain_text_risk(text)
@@ -938,7 +938,7 @@ async def scan_unified_text(raw_text: str):
         )  # Must contain at least one letter or number
     ]
 
-    results = {"text_analysis": None, "url_analysis": [], "overall_risk_score": 0.0}
+    results = {"text_analysis": None, "url_analysis": [], "overall_risk_score": -1.0}
 
     # 2. Text Decision (Independent Branch)
     if clean_text and len(human_words) > 5:
@@ -963,6 +963,13 @@ async def scan_unified_text(raw_text: str):
 
     return results
 
+def standardize_url_protocol(url: str) -> str:
+    """Ensures URL has a protocol for consistent embedding."""
+    url = url.strip().lower()
+    if not url.startswith(('http://', 'https://')):
+        # Default to http to match the training stratification logic
+        return f"http://{url}"
+    return url
 
 def standardize_text(text: str, label: str = None) -> str:
     """
@@ -971,35 +978,44 @@ def standardize_text(text: str, label: str = None) -> str:
     """
     if not isinstance(text, str) or not text.strip():
         return "", []
+    
+    # 1. Normalize Protocol (Crucial for URLBert)
+    # If the input is just a URL, we fix it first.
+    if "." in text and " " not in text:
+        text = standardize_url_protocol(text)
 
-    # 1. Fix garbled characters and special punctuation marks
+    # 2. Fix garbled characters and special punctuation marks
     repls = {"’": "'", "–": "-", "“": '"', "”": '"', "—": "-", " ": " "}
     for old, new in repls.items():
         text = text.replace(old, new)
 
-    # 2. Extract URLs using parity library (urlextract)
+    # 3. Extract URLs using parity library (urlextract)
     # Done BEFORE number replacement to avoid mangling IP addresses or ports
     urls = extractor.find_urls(text)
 
-    # 3. Mask URLs with URL token ([URL] gets split to 3 tokens, URL is 1)
+    # 4. Standardize extracted URLs for the 'urls' return list
+    # This ensures the scan_url function gets the protocol-included version
+    processed_urls = [standardize_url_protocol(u) for u in urls]
+
+    # 5. Mask URLs with URL token ([URL] gets split to 3 tokens, URL is 1)
     # We sort by length descending to avoid partial replacement (e.g., bit.ly/123 vs bit.ly)
     for u in sorted(urls, key=len, reverse=True):
         text = text.replace(u, " URL ")
 
-    # 4. Clean up HTML residues and extra spaces
+    # 6. Clean up HTML residues and extra spaces
     text = re.sub(r"&[a-z0-9#]+;", " ", text)
 
-    # 5. Label driven legacy placeholders replacement
+    # 7. Label driven legacy placeholders replacement
     # If it's spam, we assume it's a 'Big Number' (000). If ham, a 'Small Number' (0).
     placeholder = " 000 " if label == "spam" else " 0 "
     text = re.sub(r"(?i)escape(number|long|url)", placeholder, text)
 
-    # 6. Standard Numeric Masking (Shape-Preserving for modern text)
+    # 8. Standard Numeric Masking (Shape-Preserving for modern text)
     # This maintains parity between legacy placeholders and real numbers.'
     text = re.sub(r"\d{3,}", " 000 ", text)
     text = re.sub(r"\d{1,2}", " 0 ", text)
 
-    # 7. Formatting
+    # 9. Formatting
     text = re.sub(r"\s+", " ", text).strip()
 
-    return text, urls
+    return text, processed_urls
