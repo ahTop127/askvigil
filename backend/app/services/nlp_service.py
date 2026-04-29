@@ -927,14 +927,18 @@ async def scan_unified_text(raw_text: str):
     # Define what 'noise' tokens look like
     noise_tokens = {"URL", "0", "000"}
     tokens = [t.lower().strip() for t in clean_text.split()]
-
-    # 2. Filter for actual human words (longer than 1 char to ignore punctuation like ':')
-    human_words = [t for t in tokens if t not in noise_tokens and len(t) > 1]
+    
+    # 2. Count real human words, ignoring punctuation
+    human_words = [
+        t for t in tokens 
+        if t not in noise_tokens 
+        and any(char.isalnum() for char in t) # Must contain at least one letter or number
+    ]
 
     results = {"text_analysis": None, "url_analysis": [], "overall_risk_score": 0.0}
 
     # 2. Text Decision (Independent Branch)
-    if clean_text and len(human_words > 5):
+    if clean_text and len(human_words) > 5:
         # scan_text now only takes the 384-dim embedding
         results["text_analysis"] = await scan_text(clean_text)  # MiniLM
         results["overall_risk_score"] = results["text_analysis"]["risk_score"]
