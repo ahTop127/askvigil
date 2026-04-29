@@ -6,27 +6,27 @@ import httpx
 import socket
 import ipaddress
 from urllib.parse import urlparse
-from typing import Dict, List, Tuple
+from typing import List
 
 from app.core.registry import MODEL_REGISTRY
 from app.services.retrieval_services import hybrid_search_rrf
 
 ###########################################################################
-#parameters
+# parameters
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
-#thereshold (anything below we will treat it as uncertain)
+# thereshold (anything below we will treat it as uncertain)
 UNKNOWN_THRESHOLD = 0.50
-#how far is it from the second type so we can have the confidence level
+# how far is it from the second type so we can have the confidence level
 MIN_MARGIN = 0.08
 MIN_RULE_REQUIRED_THRESHOLD = 0.60
 
-#extra points for strong keywords
+# extra points for strong keywords
 RULE_BOOST = 0.12
 STRONG_RULE_BOOST = 0.20
 
 ###########################################################################
-#scam prototypes vector
+# scam prototypes vector
 SCAM_TYPES = {
     "Phishing": [
         "A fake bank or financial service message saying the account is blocked, suspended, locked, frozen, or restricted.",
@@ -35,7 +35,6 @@ SCAM_TYPES = {
         "A fake security alert about suspicious login, unusual activity, unauthorized transaction, or account verification.",
         "A message using account fear and urgency to make the user reveal banking or login details.",
     ],
-
     "Job Scam": [
         "A fake part-time job offer promising high salary, easy money, daily pay, commission, or work from home income.",
         "A recruitment scam targeting students with unrealistic pay such as RM10000 per hour or RM500 per day.",
@@ -43,7 +42,6 @@ SCAM_TYPES = {
         "A job scam asking the user to contact WhatsApp or Telegram to join a task group or recruitment group.",
         "A suspicious job offer that asks for registration fees, deposits, personal details, or bank details.",
     ],
-
     "OTP Scam": [
         "A message asking the user to share an OTP, TAC, verification code, login code, one-time password, or security code.",
         "A scammer asking the user to forward, send, or reveal a code received by SMS or banking app.",
@@ -53,10 +51,10 @@ SCAM_TYPES = {
     ],
 }
 
-#regex patterns for each type of scam
+# regex patterns for each type of scam
 KEYWORD_RULES = {
     "Phishing": [
-        #bank / finance brands
+        # bank / finance brands
         r"\bmaybank\b",
         r"\bcimb\b",
         r"\brhb\b",
@@ -71,8 +69,7 @@ KEYWORD_RULES = {
         r"\bgrabpay\b",
         r"\bduitnow\b",
         r"\bbank\b",
-
-        #account threat
+        # account threat
         r"account.*blocked",
         r"account.*suspended",
         r"account.*locked",
@@ -84,8 +81,7 @@ KEYWORD_RULES = {
         r"suspicious.*login",
         r"unusual.*activity",
         r"security.*alert",
-
-        #action request
+        # action request
         r"verify.*account",
         r"account.*verification",
         r"reactivate.*account",
@@ -96,7 +92,6 @@ KEYWORD_RULES = {
         r"confirm.*details",
         r"verify.*details",
     ],
-
     "Job Scam": [
         r"part[\s-]?time",
         r"work from home",
@@ -105,15 +100,13 @@ KEYWORD_RULES = {
         r"\brecruit(?:ing|ment)?\b",
         r"\bvacancy\b",
         r"\bposition\b",
-
-        #student-targeted job scams
+        # student-targeted job scams
         r"university students?",
         r"college students?",
         r"students?\s+wanted",
         r"hiring.*students?",
         r"students?.*hiring",
-
-        #money / salary patterns
+        # money / salary patterns
         r"\bsalary\b",
         r"\bcommission\b",
         r"\bincome\b",
@@ -130,8 +123,7 @@ KEYWORD_RULES = {
         r"quick.*cash",
         r"instant.*income",
         r"earn.*(quick|fast|easy)",
-
-        #common job scam wording
+        # common job scam wording
         r"daily.*income",
         r"online task",
         r"\btask\b",
@@ -143,8 +135,7 @@ KEYWORD_RULES = {
         r"like.*video",
         r"review.*product",
         r"rating.*task",
-
-        #platform-based recruitment
+        # platform-based recruitment
         r"telegram.*job",
         r"whatsapp.*job",
         r"contact.*whatsapp",
@@ -152,7 +143,6 @@ KEYWORD_RULES = {
         r"join.*telegram",
         r"join.*whatsapp",
     ],
-
     "OTP Scam": [
         r"\botp\b",
         r"\btac\b",
@@ -162,8 +152,7 @@ KEYWORD_RULES = {
         r"security code",
         r"authentication code",
         r"authori[sz]ation code",
-
-        #asking user to reveal code
+        # asking user to reveal code
         r"send.*code",
         r"share.*code",
         r"forward.*code",
@@ -183,21 +172,23 @@ KEYWORD_RULES = {
 SCAM_TYPE_NAMES = None
 SCAM_TYPE_VECTORS = None
 
-#preprocess the text before detection
+
+# preprocess the text before detection
 def clean_text(text):
     text = str(text).lower()
 
-    text = re.sub(r"http\S+|www\.\S+", " URL ", text) #we replace links with URL
+    text = re.sub(r"http\S+|www\.\S+", " URL ", text)  # we replace links with URL
     text = re.sub(r"[^a-zA-Z0-9$%.\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
 
     return text
 
-#build semantic prototypes
+
+# build semantic prototypes
 def build_type_embeddings(model):
     type_names = []
     type_vectors = []
-    #for each scam type we will build the prototype
+    # for each scam type we will build the prototype
     for scam_type, descriptions in SCAM_TYPES.items():
         description_embeddings = model.encode(
             descriptions,
@@ -205,16 +196,17 @@ def build_type_embeddings(model):
             normalize_embeddings=True,
         )
 
-        prototype = np.mean(description_embeddings, axis=0) #average all descriptions
-        #normzalization - text has varying length so we wanna normalize and only compare in the direcito wise
-        prototype = prototype / np.linalg.norm(prototype) 
+        prototype = np.mean(description_embeddings, axis=0)  # average all descriptions
+        # normzalization - text has varying length so we wanna normalize and only compare in the direcito wise
+        prototype = prototype / np.linalg.norm(prototype)
 
         type_names.append(scam_type)
         type_vectors.append(prototype)
-    #covert list of vectors to matrix
+    # covert list of vectors to matrix
     type_vectors = np.vstack(type_vectors)
 
     return type_names, type_vectors
+
 
 # Initialize once globally
 # extract_email=False: Stops it from hunting for @ symbols
@@ -223,7 +215,8 @@ extractor = URLExtract(extract_email=False, cache_dns=False)
 # Don't bother checking for a newer TLD list for a week
 extractor.update_when_older = 168  # hours in a week
 
-#load it first so it wouldnt need to constantly load
+
+# load it first so it wouldnt need to constantly load
 async def build_type_embeddings():
     type_names = []
     type_vectors = []
@@ -244,6 +237,7 @@ async def build_type_embeddings():
 
     return type_names, type_vectors
 
+
 async def get_scam_type_prototypes():
     global SCAM_TYPE_NAMES, SCAM_TYPE_VECTORS
 
@@ -251,7 +245,6 @@ async def get_scam_type_prototypes():
         SCAM_TYPE_NAMES, SCAM_TYPE_VECTORS = await build_type_embeddings()
 
     return SCAM_TYPE_NAMES, SCAM_TYPE_VECTORS
-
 
 
 async def is_internal_ip(hostname: str) -> bool:
@@ -406,6 +399,7 @@ async def scan_url(raw_url: str):
         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
     }
 
+
 # async def scan_text(text: str):
 #     # 1. Decision Branch (MLP)
 #     vector = await get_onnx_embedding(text, mode="text")
@@ -429,6 +423,7 @@ async def scan_url(raw_url: str):
 #         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
 #     }
 
+
 async def scan_text(text: str):
     # 1. Decision Branch (MLP)
     vector = await get_onnx_embedding(text, mode="text")
@@ -439,29 +434,29 @@ async def scan_text(text: str):
     output = await asyncio.to_thread(
         session.run, None, {"input": vector.reshape(1, -1)}
     )
-    #raw mlp score
+    # raw mlp score
     # risk_score = float(output[0][0][0])
 
-    #spam
+    # spam
     model_score = float(output[0][0][0])
-    #harmless
+    # harmless
     ham_score = float(output[0][0][1])
 
-    #explainable AI branch#
+    # explainable AI branch#
     explanation_result = explain_text_risk(text)
     rule_boost = explanation_result["total_boost"]
     rule_risk_floor = explanation_result["risk_floor"]
     matched_indicators = explanation_result["matched_indicators"]
 
-    #if model says risky but no human-readable scam indicator found
-    #redyce the score as its less explainable
+    # if model says risky but no human-readable scam indicator found
+    # redyce the score as its less explainable
     if rule_boost == 0 and model_score > 0.60:
         final_risk_score = model_score * 0.65
     else:
-        #hybird prediction score
+        # hybird prediction score
         final_risk_score = (model_score * 0.75) + (rule_boost * 0.25)
 
-    #classification of scam type
+    # classification of scam type
     type_names, type_vectors = await get_scam_type_prototypes()
 
     scam_classification = await classify_scam_type(
@@ -470,8 +465,8 @@ async def scan_text(text: str):
         type_vectors=type_vectors,
     )
 
-    #apply scam-type safety floor - classifier to help
-    #if classifier is very confident this is OTP Scam, keep it high risk
+    # apply scam-type safety floor - classifier to help
+    # if classifier is very confident this is OTP Scam, keep it high risk
     if (
         scam_classification["predicted_type"] == "OTP Scam"
         and scam_classification["confidence_level"] == "high"
@@ -492,10 +487,9 @@ async def scan_text(text: str):
     # ):
     #     final_risk_score += 0.20
 
-    #avoid showing absolute 0% or 100% in UI
+    # avoid showing absolute 0% or 100% in UI
     final_risk_score = max(final_risk_score, 0.03)
     final_risk_score = min(final_risk_score, 0.97)
-
 
     if final_risk_score >= 0.75:
         decision = "flagged"
@@ -504,7 +498,7 @@ async def scan_text(text: str):
     else:
         decision = "clear"
 
-    #if evidence failed
+    # if evidence failed
     # try:
     #     top_matches = await hybrid_search_rrf(text, vector, "text", limit=5, k=20)
     #     evidence_error = None
@@ -512,36 +506,33 @@ async def scan_text(text: str):
     #     print(f"[scan_text] Evidence search failed: {e}")
     #     top_matches = []
     #     evidence_error = str(e)
-    
-    #guidance based on the type of scam
-    immediate_guidance = get_prevention_guidance(
-    predicted_type=scam_classification["predicted_type"],
-    decision=decision, )
 
+    # guidance based on the type of scam
+    immediate_guidance = get_prevention_guidance(
+        predicted_type=scam_classification["predicted_type"],
+        decision=decision,
+    )
 
     response = {
         "risk_score": round(final_risk_score, 4),
         "risk_score_percent": round(final_risk_score * 100),
         "decision": decision,
-
         "model_output": {
             "spam_score": round(model_score, 4),
             "ham_score": round(ham_score, 4),
         },
-
         "scam_type": scam_classification,
-
         "explainability": {
             "rule_boost": round(rule_boost, 4),
             "matched_indicators": matched_indicators,
         },
-
         "immediate_guidance": immediate_guidance,
     }
 
     return response
 
-#explainable Boosting: Simple keyword-based heuristic to explain WHY a text might be risky.
+
+# explainable Boosting: Simple keyword-based heuristic to explain WHY a text might be risky.
 def explain_text_risk(text: str):
     text_lower = text.lower()
     patterns = [
@@ -682,13 +673,10 @@ def explain_text_risk(text: str):
                 }
             )
 
-    #combo boost: multiple warning signs together should increase confidence
+    # combo boost: multiple warning signs together should increase confidence
     categories = [item["category"] for item in explanations]
 
-    if (
-        "Account threat" in categories
-        and "Suspicious action request" in categories
-    ):
+    if "Account threat" in categories and "Suspicious action request" in categories:
         total_boost += 0.10
         highest_risk_floor = max(highest_risk_floor, 0.75)
 
@@ -706,7 +694,7 @@ def explain_text_risk(text: str):
         total_boost += 0.05
         highest_risk_floor = max(highest_risk_floor, 0.65)
 
-    #cap the influence
+    # cap the influence
     total_boost = min(total_boost, 0.75)
 
     return {
@@ -715,7 +703,8 @@ def explain_text_risk(text: str):
         "matched_indicators": explanations,
     }
 
-#format the explainations better
+
+# format the explainations better
 def format_terms(terms: List[str]) -> str:
     quoted_terms = [f"'{term}'" for term in terms]
 
@@ -728,7 +717,7 @@ def format_terms(terms: List[str]) -> str:
     return ", ".join(quoted_terms[:-1]) + f", and {quoted_terms[-1]}"
 
 
-#find the terms
+# find the terms
 def find_terms(text_lower: str, terms: List[str]) -> List[str]:
     matched = []
 
@@ -739,101 +728,105 @@ def find_terms(text_lower: str, terms: List[str]) -> List[str]:
 
     return matched
 
-#rule boosting for further accuracy
+
+# rule boosting for further accuracy
 def get_rule_boosts(cleaned_text, type_names):
-    #create lists and initial values for each type of the scams
+    # create lists and initial values for each type of the scams
     boosts = {scam_type: 0 for scam_type in type_names}
     matched_rules = {scam_type: [] for scam_type in type_names}
 
-    #now we will go through the scam rules and then see how many it matches
+    # now we will go through the scam rules and then see how many it matches
     for scam_type, patterns in KEYWORD_RULES.items():
-        #skip rule which is not in the scam type
+        # skip rule which is not in the scam type
         if scam_type not in boosts:
             continue
 
         match_count = 0
-        #now perform a regex search pattern
+        # now perform a regex search pattern
         for pattern in patterns:
             if re.search(pattern, cleaned_text):
                 match_count += 1
-                matched_rules[scam_type].append(pattern) #keyword
+                matched_rules[scam_type].append(pattern)  # keyword
 
-        #if we only match 1, we will add a small boost
-        if match_count == 1:    
+        # if we only match 1, we will add a small boost
+        if match_count == 1:
             boosts[scam_type] += RULE_BOOST
-        #matches more than 2, we add a larger boost
+        # matches more than 2, we add a larger boost
         elif match_count >= 2:
             boosts[scam_type] += STRONG_RULE_BOOST
 
     return boosts, matched_rules
 
-#now is the classification
+
+# now is the classification
 async def classify_scam_type(text, type_names, type_vectors):
-    #clean the test first
+    # clean the test first
     cleaned = clean_text(text)
 
-    #convert the input to embeddings
+    # convert the input to embeddings
     text_embedding = await get_onnx_embedding(
         cleaned,
         mode="text",
     )
 
-    #compare the input vector with each type of prototype via dot product
+    # compare the input vector with each type of prototype via dot product
     semantic_scores = np.dot(type_vectors, text_embedding)
 
-    #get the rule boost
+    # get the rule boost
     boosts, matched_rules = get_rule_boosts(cleaned, type_names)
 
     final_scores = []
-    #for each of the scam
+    # for each of the scam
     for i, scam_type in enumerate(type_names):
-        #semantic score
+        # semantic score
         score = float(semantic_scores[i])
-        #rule boost
+        # rule boost
         score += boosts.get(scam_type, 0.0)
         final_scores.append(score)
 
-    #converts final score into array
+    # converts final score into array
     final_scores = np.array(final_scores)
-    #sort them from the highest score to lowest
+    # sort them from the highest score to lowest
     ranked_indices = np.argsort(final_scores)[::-1]
 
-    #gets the first and second best scores
+    # gets the first and second best scores
     best_idx = ranked_indices[0]
     second_idx = ranked_indices[1]
 
-    #gets their name
+    # gets their name
     best_type = type_names[best_idx]
     second_type = type_names[second_idx]
 
-    #convert score into float
+    # convert score into float
     best_score = float(final_scores[best_idx])
     second_score = float(final_scores[second_idx])
 
-    #how confident are we (first compared to second)
+    # how confident are we (first compared to second)
     margin = best_score - second_score
 
-    #if the score is below the thereshold, we are unsure
+    # if the score is below the thereshold, we are unsure
     if best_score < UNKNOWN_THRESHOLD:
         predicted_type = "Not Recognized By Known Type"
         confidence_level = "low"
 
-    elif best_score < MIN_RULE_REQUIRED_THRESHOLD and len(matched_rules[best_type]) == 0:
+    elif (
+        best_score < MIN_RULE_REQUIRED_THRESHOLD and len(matched_rules[best_type]) == 0
+    ):
         predicted_type = "Not Recognized By Known Type"
         confidence_level = "low"
 
-    #if its lower than our margin, its medium confidence
+    # if its lower than our margin, its medium confidence
     elif margin < MIN_MARGIN:
         predicted_type = best_type
         confidence_level = "medium"
-    #high confidence
+    # high confidence
     else:
         predicted_type = best_type
         confidence_level = "high"
 
-    #top_scores = {}
+    # top_scores = {}
 
-    #now we are creating the scores for each type of scam
+    # now we are creating the scores for each type of scam
     # for idx in ranked_indices:
     #     scam_type = type_names[idx]
     #     top_scores[scam_type] = {
@@ -848,9 +841,10 @@ async def classify_scam_type(text, type_names, type_vectors):
         "confidence_level": confidence_level,
     }
 
-#providing prevention guidance
+
+# providing prevention guidance
 def get_prevention_guidance(predicted_type: str, decision: str):
-    #if decision clear
+    # if decision clear
     if decision == "clear":
         return {
             "title": "No immediate scam action needed",
@@ -884,7 +878,6 @@ def get_prevention_guidance(predicted_type: str, decision: str):
                 "Delete or ignore the message if the sender cannot be verified.",
             ],
         },
-
         "OTP Scam": {
             "title": "Before you respond, avoid these actions",
             "summary": "This message may be trying to get your verification code or take over an account.",
@@ -900,7 +893,6 @@ def get_prevention_guidance(predicted_type: str, decision: str):
                 "Change your password if you think someone is trying to access your account.",
             ],
         },
-
         "Job Scam": {
             "title": "Before you respond, avoid these actions",
             "summary": "This message may be a fake job offer using high pay or easy tasks to attract you.",
@@ -940,7 +932,7 @@ async def scan_unified_text(raw_text: str):
         results["text_analysis"] = await scan_text(clean_text)  # MiniLM
         results["overall_risk_score"] = results["text_analysis"]["risk_score"]
 
-        return results #for text we will return early as urls are not the main concern
+        return results  # for text we will return early as urls are not the main concern
 
     # 3. URL Decision (Independent Branch)
     for url in urls:
