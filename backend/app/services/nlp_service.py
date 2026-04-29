@@ -927,7 +927,7 @@ async def scan_unified_text(raw_text: str):
     # Define what 'noise' tokens look like
     noise_tokens = {"URL", "0", "000"}
     tokens = [t.lower().strip() for t in clean_text.split()]
-    
+
     # 2. Filter for actual human words (longer than 1 char to ignore punctuation like ':')
     human_words = [t for t in tokens if t not in noise_tokens and len(t) > 1]
 
@@ -938,7 +938,7 @@ async def scan_unified_text(raw_text: str):
         # scan_text now only takes the 384-dim embedding
         results["text_analysis"] = await scan_text(clean_text)  # MiniLM
         results["overall_risk_score"] = results["text_analysis"]["risk_score"]
-        
+
         # Do NOT return here or urls will never be analyzed
     else:
         # Human word content is <= 5, does not make sense to analyze scam intent here as it is likely just a URL, let urlbert handle it.
