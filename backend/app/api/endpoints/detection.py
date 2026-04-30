@@ -7,9 +7,9 @@ router = APIRouter()
 
 @router.post("/scan")
 async def scan_message(
-        text: str = Form(None),
-        file: UploadFile = File(None),
-        input_type: Literal["text", "image", "audio", "video", "qr", "auto"] = Form("auto"),
+    text: str = Form(None),
+    file: UploadFile = File(None),
+    input_type: Literal["text", "image", "audio", "video", "qr", "auto"] = Form("auto"),
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Must provide text or a file.")

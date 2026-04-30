@@ -5,9 +5,9 @@ from typing import Literal
 
 
 async def scan_universal_input(
-        file: UploadFile = None,
-        text: str = None,
-        input_type: Literal["text", "image", "audio", "video", "qr", "auto"] = "auto",
+    file: UploadFile = None,
+    text: str = None,
+    input_type: Literal["text", "image", "audio", "video", "qr", "auto"] = "auto",
 ):
     """The Master Entry Point with cascading text aggregation."""
     results = {"modalities": {}, "unified_text_analysis": None}
@@ -89,6 +89,7 @@ async def _handle_image_flow(image_file: UploadFile):
 
 # if you wanna test uncomment this
 # result_test = _handle_image_flow("OCR_TEST_EN.png")
+
 
 async def _handle_qr_flow(qr_file: UploadFile):
     """
