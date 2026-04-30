@@ -1,9 +1,14 @@
 from fastapi import UploadFile
 from fastapi.concurrency import run_in_threadpool
 from app.services import nlp_service, vision_service, audio_service
+from typing import Literal
 
 
-async def scan_universal_input(file: UploadFile = None, text: str = None):
+async def scan_universal_input(
+        file: UploadFile = None,
+        text: str = None,
+        input_type: Literal["text", "image", "audio", "video", "qr", "auto"] = "auto",
+):
     """The Master Entry Point with cascading text aggregation."""
     results = {"modalities": {}, "unified_text_analysis": None}
     accumulated_text = []
@@ -13,6 +18,13 @@ async def scan_universal_input(file: UploadFile = None, text: str = None):
 
     if file:
         mime = file.content_type
+
+        # 1) Clarify the QR branch: Only conduct URL detection and do not perform unified_text
+        if input_type == "qr":
+            qr_res = await _handle_qr_flow(file)
+            results["modalities"]["qr"] = qr_res
+            return results
+
         if "video" in mime:
             vid_res, vid_text = await _handle_video_flow(file)
             results["modalities"]["video"] = vid_res
@@ -77,3 +89,40 @@ async def _handle_image_flow(image_file: UploadFile):
 
 # if you wanna test uncomment this
 # result_test = _handle_image_flow("OCR_TEST_EN.png")
+
+async def _handle_qr_flow(qr_file: UploadFile):
+    """
+    QR-only flow:
+    1) Decode QR from image
+    2) Extract URLs
+    3) Scan URLs only (no text analysis)
+    Returns:
+        {
+          "decoded_items": [...],
+          "qr_urls": [...],
+          "url_analysis": [...],
+        }
+    """
+    # 1) Decode QR in threadpool (OpenCV is sync CPU work)
+    qr_items = await run_in_threadpool(vision_service.detect_qr_codes, qr_file)
+    # qr_items expected format:
+    # [
+    #   {"decoded_content": "...", "urls": ["https://..."]},
+    #   ...
+    # ]
+
+    # 2) Flatten + deduplicate URLs
+    qr_urls: list[str] = []
+    for item in qr_items:
+        qr_urls.extend(item.get("urls", []))
+    qr_urls = list(dict.fromkeys(qr_urls))  # keep order, remove duplicates
+
+    # 3) URL-only analysis
+    url_analysis = []
+    for url in qr_urls:
+        url_analysis.append(await nlp_service.scan_url(url))
+    return {
+        "decoded_items": qr_items,
+        "qr_urls": qr_urls,
+        "url_analysis": url_analysis,
+    }

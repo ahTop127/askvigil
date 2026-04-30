@@ -46,12 +46,52 @@ async def scan_visual_forensics(frame_generator):
     """
     return {"visual_risk_score": 0.0, "flags": []}
 
+# QR Regular
+# The regular expression matching the URL
+URL_PATTERN = re.compile(r"https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+[^\s]*")
 
-def detect_qr_codes(image_file) -> list[str]:
+# Initialize the QR code detector of OpenCV (global multiplexing to improve performance)
+qr_detector = cv2.QRCodeDetector()
+
+def detect_qr_codes(image_file: UploadFile) -> list[str]:
     """
-    TODO: Use OpenCV to detect and decode QR codes into URL strings.
+    Decode QR codes from an uploaded image and extract URLs.
+
+    Return format:
+    [
+      {
+        "decoded_content": "...",
+        "urls": ["https://..."]
+      }
+    ]
+
+    Raises:
+        ValueError: when file type/content is invalid or image decode fails.
     """
-    return []
+    # 1) Basic type guard (service layer uses ValueError, not HTTPException)
+    content_type = image_file.content_type or ""
+    if not content_type.startswith("image/"):
+        raise ValueError("Please upload a valid image file.")
+
+    # 2) Read bytes safely (sync service style)
+    image_file.file.seek(0)
+    file_bytes = image_file.file.read()
+    image_file.file.seek(0)
+    if not file_bytes:
+        raise ValueError("Uploaded image is empty.")
+
+    # 3) Decode image
+    nparr = np.frombuffer(file_bytes, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise ValueError("Could not decode image")
+
+    # 4) Decode QR (single QR path; enough for current use case)
+    data, _bbox, _straight_qrcode = qr_detector.detectAndDecode(img)
+
+    # 5) Normalize output
+    if not data:
+        return []
 
 
 # def extract_ocr_text(image_file: UploadFile) -> str:
@@ -162,6 +202,9 @@ def detect_qr_codes(image_file) -> list[str]:
 #     full_text = join_text(extracted_lines, detected_lang)
 
 #     return full_text
+
+    urls = URL_PATTERN.findall(data)
+    return [{"decoded_content": data, "urls": urls}]
 
 
 def extract_ocr_text(image_file: UploadFile) -> str:

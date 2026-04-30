@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import detection, learning, session_api, scam_cases
+from app.api.endpoints import detection, learning, session_api, scam_cases, qr_detection
 
 api_router = APIRouter()
 
@@ -11,3 +11,5 @@ api_router.include_router(
 api_router.include_router(learning.router, prefix="/learning", tags=["Learning & Quiz"])
 # Epic 6
 api_router.include_router(scam_cases.router, prefix="/scam", tags=["Scam Cases"])
+
+api_router.include_router(qr_detection.router, prefix="/qr", tags=["QR Detection"])
