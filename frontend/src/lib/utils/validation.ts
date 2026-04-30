@@ -14,8 +14,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function isValidUrl(url: string): boolean {
   const t = url.trim();
   if (!t) return false;
+  if (!/^https?:\/\//i.test(t)) return false;
   try {
-    const u = new URL(t.startsWith("http") ? t : `https://${t}`);
+    const u = new URL(t);
     return Boolean(u.hostname);
   } catch {
     return URL_REGEX.test(t);

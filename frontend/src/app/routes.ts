@@ -7,6 +7,8 @@ import GuidanceDetailPage from "./pages/GuidanceDetailPage";
 import LearningPage from "./pages/LearningPage";
 import LearningDetailPage from "./pages/LearningDetailPage";
 import PracticePage from "./pages/PracticePage";
+import CasesPage from "./pages/CasesPage";
+import CaseDetailPage from "./pages/CaseDetailPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 export const router = createBrowserRouter([
@@ -22,6 +24,8 @@ export const router = createBrowserRouter([
       { path: "learning/:scamType", Component: LearningDetailPage },
       { path: "practice", Component: PracticePage },
       { path: "quiz", Component: PracticePage },
+      { path: "cases", Component: CasesPage },
+      { path: "cases/:caseId", Component: CaseDetailPage },
       { path: "*", Component: NotFoundPage },
     ],
   },

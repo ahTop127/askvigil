@@ -38,7 +38,7 @@ export const FAQSection = memo(function FAQSection() {
           >
             <AccordionItem
               value="item-1"
-              className="bg-gray-50 rounded-xl px-6 border border-gray-200 hover:border-[#54A388] transition-colors"
+              className="bg-gray-50 rounded-xl px-6 border border-gray-200 hover:border-secondary transition-colors"
             >
               <AccordionTrigger className="hover:no-underline">
                 How does AskVigil check scam messages?
@@ -60,7 +60,7 @@ export const FAQSection = memo(function FAQSection() {
           >
             <AccordionItem
               value="item-2"
-              className="bg-gray-50 rounded-xl px-6 border border-gray-200 hover:border-[#54A388] transition-colors"
+              className="bg-gray-50 rounded-xl px-6 border border-gray-200 hover:border-secondary transition-colors"
             >
               <AccordionTrigger className="hover:no-underline">
                 Is my data safe when I submit content for checking?
@@ -82,7 +82,7 @@ export const FAQSection = memo(function FAQSection() {
           >
             <AccordionItem
               value="item-3"
-              className="bg-gray-50 rounded-xl px-6 border border-gray-200 hover:border-[#54A388] transition-colors"
+              className="bg-gray-50 rounded-xl px-6 border border-gray-200 hover:border-secondary transition-colors"
             >
               <AccordionTrigger className="hover:no-underline">
                 What should I do if I&apos;ve already fallen for a scam?
@@ -104,7 +104,7 @@ export const FAQSection = memo(function FAQSection() {
           >
             <AccordionItem
               value="item-4"
-              className="bg-gray-50 rounded-xl px-6 border border-gray-200 hover:border-[#54A388] transition-colors"
+              className="bg-gray-50 rounded-xl px-6 border border-gray-200 hover:border-secondary transition-colors"
             >
               <AccordionTrigger className="hover:no-underline">
                 Is AskVigil free to use?

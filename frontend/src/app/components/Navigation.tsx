@@ -5,12 +5,23 @@ export function Navigation() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const handleLogoClick = () => {
+    if (location.pathname !== "/") {
+      navigate("/");
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const isActive = (path: string) => {
     if (path === "/guidance") {
       return location.pathname.startsWith("/guidance");
     }
     if (path === "/learning") {
       return location.pathname.startsWith("/learning");
+    }
+    if (path === "/cases") {
+      return location.pathname.startsWith("/cases");
     }
     return location.pathname === path;
   };
@@ -21,7 +32,7 @@ export function Navigation() {
         <div className="flex items-center gap-8">
           {/* Logo - Clickable to home */}
           <button
-            onClick={() => navigate("/")}
+            onClick={handleLogoClick}
             className="flex items-center gap-3 hover:opacity-80 transition-opacity shrink-0"
           >
             <div className="w-10 h-10 flex items-center justify-center mt-4">
@@ -39,8 +50,8 @@ export function Navigation() {
               onClick={() => navigate("/")}
               className={`transition-colors px-3 py-1 rounded-md ${
                 isActive("/")
-                  ? "text-[#8A5A2B] font-semibold bg-[#EAA866]/25"
-                  : "text-slate-700 hover:text-slate-900"
+                  ? "text-primary font-semibold bg-primary/15"
+                  : "text-foreground/80 hover:text-foreground"
               }`}
             >
               Home
@@ -49,8 +60,8 @@ export function Navigation() {
               onClick={() => navigate("/guidance")}
               className={`transition-colors px-3 py-1 rounded-md ${
                 isActive("/guidance")
-                  ? "text-[#8A5A2B] font-semibold bg-[#EAA866]/25"
-                  : "text-slate-700 hover:text-slate-900"
+                  ? "text-primary font-semibold bg-primary/15"
+                  : "text-foreground/80 hover:text-foreground"
               }`}
             >
               Guidance
@@ -59,8 +70,8 @@ export function Navigation() {
               onClick={() => navigate("/learning")}
               className={`transition-colors px-3 py-1 rounded-md ${
                 isActive("/learning")
-                  ? "text-[#8A5A2B] font-semibold bg-[#EAA866]/25"
-                  : "text-slate-700 hover:text-slate-900"
+                  ? "text-primary font-semibold bg-primary/15"
+                  : "text-foreground/80 hover:text-foreground"
               }`}
             >
               Learning
@@ -69,11 +80,21 @@ export function Navigation() {
               onClick={() => navigate("/quiz")}
               className={`transition-colors px-3 py-1 rounded-md ${
                 isActive("/quiz")
-                  ? "text-[#8A5A2B] font-semibold bg-[#EAA866]/25"
-                  : "text-slate-700 hover:text-slate-900"
+                  ? "text-primary font-semibold bg-primary/15"
+                  : "text-foreground/80 hover:text-foreground"
               }`}
             >
               Quiz
+            </button>
+            <button
+              onClick={() => navigate("/cases")}
+              className={`transition-colors px-3 py-1 rounded-md ${
+                isActive("/cases")
+                  ? "text-primary font-semibold bg-primary/15"
+                  : "text-foreground/80 hover:text-foreground"
+              }`}
+            >
+              Cases
             </button>
           </nav>
         </div>

@@ -9,6 +9,59 @@ function isDetectionTab(v: string): v is DetectionType {
   return v === "text" || v === "image" || v === "url" || v === "qr";
 }
 
+const STEP_DEMO_TRIGGER = "__STEP_DEMO__";
+
+function isStepDemoPayload(
+  type: DetectionType,
+  content: string | File,
+): boolean {
+  return (
+    type === "text" &&
+    typeof content === "string" &&
+    content.includes(STEP_DEMO_TRIGGER)
+  );
+}
+
+function buildStepDemoResult(payload: {
+  type: DetectionType;
+  content: string | File;
+}): ScamDetectionResult {
+  const baseResult: ScamDetectionResult = {
+    score: 78,
+    riskLevel: "high",
+    explanation:
+      "This is a demo result for step transition testing. Several urgency and credential-request signals were detected.",
+    scamType: "phishing",
+    timestamp: new Date().toISOString(),
+    suspiciousItems: [
+      { text: "urgent", reason: "Creates pressure to act immediately." },
+      { text: "verify now", reason: "Impersonates account verification flow." },
+    ],
+    guidance: [
+      "Do not click unknown links or open unexpected files.",
+      "Verify requests through official channels before responding.",
+      "Report suspicious content and block the sender immediately.",
+    ],
+  };
+
+  if (payload.type === "url" && typeof payload.content === "string") {
+    return {
+      ...baseResult,
+      submittedUrl: payload.content,
+    };
+  }
+
+  if (payload.type === "qr") {
+    return {
+      ...baseResult,
+      qrDecodedContent: "https://secure-payment-check.example",
+      qrContentType: "url",
+    };
+  }
+
+  return baseResult;
+}
+
 export interface UseScamDetectionReturn {
   activeTab: DetectionType;
   textInput: string;
@@ -62,12 +115,13 @@ export function useScamDetection(): UseScamDetectionReturn {
     }
   }, [activeTab, textInput, urlInput, imageFile, qrFile]);
 
-  const handleCheck = useCallback(async () => {
+  const runDetection = useCallback(async () => {
     setError("");
     const payload = getPayload();
     if (!payload) {
       if (activeTab === "image") setError(ERROR_MESSAGES.imageUpload);
       else if (activeTab === "qr") setError(ERROR_MESSAGES.qrUpload);
+      else if (activeTab === "url") setError(ERROR_MESSAGES.urlInput);
       else setError(ERROR_MESSAGES.textInput);
       return;
     }
@@ -79,19 +133,46 @@ export function useScamDetection(): UseScamDetectionReturn {
     setIsChecking(true);
     setShowResult(false);
     try {
-      const res = await detectScam({
-        type: payload.type,
-        content: payload.content,
-      });
+      let res: ScamDetectionResult;
+      const shouldUseLocalDemo =
+        payload.type === "qr" ||
+        isStepDemoPayload(payload.type, payload.content);
+
+      if (shouldUseLocalDemo) {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 5200);
+        });
+        res = buildStepDemoResult(payload);
+      } else {
+        res = await detectScam({
+          type: payload.type,
+          content: payload.content,
+        });
+      }
       setResult(res);
       setShowResult(true);
     } catch (e) {
       logger.error("Detection failed", e instanceof Error ? e : undefined);
-      setError("Something went wrong. Please try again.");
+      const msg = e instanceof Error ? e.message.toLowerCase() : "";
+      if (activeTab === "url") {
+        if (msg.includes("failed (422)") || msg.includes("reachable")) {
+          setError(ERROR_MESSAGES.unreachableUrl);
+        } else {
+          setError(ERROR_MESSAGES.urlAnalyzeFailed);
+        }
+      } else if (activeTab === "qr") {
+        setError(ERROR_MESSAGES.qrDecodeFailed);
+      } else {
+        setError(ERROR_MESSAGES.analysisFailed);
+      }
     } finally {
       setIsChecking(false);
     }
   }, [activeTab, getPayload]);
+
+  const handleCheck = useCallback(async () => {
+    await runDetection();
+  }, [runDetection]);
 
   const resetDetection = useCallback(() => {
     setShowResult(false);

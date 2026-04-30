@@ -46,23 +46,37 @@ function mapScanResponse(
   raw: unknown,
   input: ScamDetectionInput,
 ): ScamDetectionResult {
-  const textData = getTextData(raw);
-  const riskRaw = textData?.risk_score ?? getRrfTopScore(raw);
+  const textAnalysis = getTextAnalysis(raw);
+  const legacyTextData = getLegacyTextData(raw);
+  const baseRiskRaw =
+    textAnalysis?.risk_score_percent ??
+    textAnalysis?.risk_score ??
+    legacyTextData?.risk_score ??
+    getLegacyRrfTopScore(raw);
+  const riskRaw =
+    input.type === "url"
+      ? (getOverallRiskScore(raw) ?? baseRiskRaw)
+      : baseRiskRaw;
   const score = toScorePercent(riskRaw);
 
-  const category =
-    typeof textData?.category === "string" && textData.category.trim()
-      ? textData.category.trim()
-      : "unknown";
+  const category = normalizeScamType(
+    asNonEmptyString(textAnalysis?.scam_type?.predicted_type) ??
+      asNonEmptyString(legacyTextData?.category) ??
+      "unknown",
+  );
 
-  const clean =
-    typeof textData?.clean_text === "string" && textData.clean_text.trim()
-      ? textData.clean_text.trim()
-      : null;
+  const clean = asNonEmptyString(legacyTextData?.clean_text);
+  const summary = asNonEmptyString(textAnalysis?.immediate_guidance?.summary);
+  const indicatorReasons = getIndicatorReasons(
+    textAnalysis?.explainability?.matched_indicators,
+  );
   const explanation =
-    clean && clean.length > 200
-      ? `${clean.slice(0, 200)}…`
-      : (clean ?? `Scam check completed for ${input.type}.`);
+    summary ??
+    (indicatorReasons && indicatorReasons.length > 200
+      ? `${indicatorReasons.slice(0, 200)}...`
+      : indicatorReasons) ??
+    (clean && clean.length > 200 ? `${clean.slice(0, 200)}…` : clean) ??
+    `Scam check completed for ${input.type}.`;
 
   return {
     score,
@@ -70,21 +84,153 @@ function mapScanResponse(
     explanation,
     scamType: category,
     timestamp: new Date().toISOString(),
+    submittedUrl: input.type === "url" ? String(input.content) : undefined,
+    qrDecodedContent:
+      input.type === "qr" ? "https://secure-payment-check.example" : undefined,
+    qrContentType: input.type === "qr" ? "url" : undefined,
+    suspiciousItems: getSuspiciousItems(
+      textAnalysis?.explainability?.matched_indicators,
+      clean,
+    ),
+    guidance: getGuidance(textAnalysis?.immediate_guidance, category),
+    immediateGuidanceTitle:
+      asNonEmptyString(textAnalysis?.immediate_guidance?.title) ?? undefined,
+    immediateGuidanceSummary: summary ?? undefined,
+    immediateGuidanceDontDo: toStringList(
+      textAnalysis?.immediate_guidance?.dont_do,
+    ),
+    immediateGuidanceSaferAction: toStringList(
+      textAnalysis?.immediate_guidance?.safer_action,
+    ),
   };
 }
 
-function getTextData(raw: unknown): Record<string, unknown> | null {
-  if (!raw || typeof raw !== "object") return null;
-  const unified = (raw as Record<string, unknown>).unified_text_analysis;
-  if (!unified || typeof unified !== "object") return null;
-  const textData = (unified as Record<string, unknown>).text_data;
+function getSuspiciousItems(
+  indicators: IndicatorLike[] | undefined,
+  clean: string | null,
+): ScamDetectionResult["suspiciousItems"] {
+  if (Array.isArray(indicators) && indicators.length > 0) {
+    return indicators
+      .map((item) => {
+        const terms = Array.isArray(item.matched_terms)
+          ? item.matched_terms.filter(
+              (t): t is string => typeof t === "string" && t.trim(),
+            )
+          : [];
+        const reason = asNonEmptyString(item.reason);
+        if (!reason) return null;
+        return {
+          text:
+            terms.length > 0
+              ? terms.join(", ")
+              : (item.category ?? "indicator"),
+          reason,
+        };
+      })
+      .filter((x): x is { text: string; reason: string } => x !== null)
+      .slice(0, 5);
+  }
+
+  if (!clean) return [];
+  const seeds = [
+    { text: "urgent", reason: "Creates pressure to act without verification." },
+    { text: "otp", reason: "Requests one-time password or verification code." },
+    { text: "bank", reason: "Asks for sensitive banking information." },
+    { text: "click", reason: "Pushes user to open unknown links immediately." },
+    { text: "verify", reason: "Impersonates account verification workflow." },
+  ];
+  const lowered = clean.toLowerCase();
+  return seeds.filter((s) => lowered.includes(s.text)).slice(0, 5);
+}
+
+function getGuidance(
+  immediate: ImmediateGuidanceLike | undefined,
+  category: string,
+): string[] {
+  const dontDo = Array.isArray(immediate?.dont_do)
+    ? immediate.dont_do.filter(
+        (x): x is string => typeof x === "string" && x.trim(),
+      )
+    : [];
+  const saferAction = Array.isArray(immediate?.safer_action)
+    ? immediate.safer_action.filter(
+        (x): x is string => typeof x === "string" && x.trim(),
+      )
+    : [];
+  const merged = [...dontDo, ...saferAction];
+  if (merged.length > 0) return merged;
+
+  if (category.includes("job")) {
+    return [
+      "Do not pay any fees or make any transfers.",
+      "Do not share your bank details or OTP codes.",
+      "Verify the offer through the company official website.",
+    ];
+  }
+  return [
+    "Do not click unknown links or open unexpected files.",
+    "Verify requests through official channels before responding.",
+    "Report suspicious content and block the sender immediately.",
+  ];
+}
+
+interface ImmediateGuidanceLike {
+  title?: unknown;
+  summary?: unknown;
+  dont_do?: unknown;
+  safer_action?: unknown;
+}
+
+interface IndicatorLike {
+  category?: string;
+  matched_terms?: unknown;
+  reason?: unknown;
+}
+
+interface TextAnalysisLike {
+  risk_score?: unknown;
+  risk_score_percent?: unknown;
+  scam_type?: {
+    predicted_type?: unknown;
+  };
+  explainability?: {
+    matched_indicators?: IndicatorLike[];
+  };
+  immediate_guidance?: ImmediateGuidanceLike;
+}
+
+function getTextAnalysis(raw: unknown): TextAnalysisLike | null {
+  const unified = getUnifiedTextAnalysis(raw);
+  if (!unified) return null;
+  const textAnalysis = unified.text_analysis;
+  if (!textAnalysis || typeof textAnalysis !== "object") return null;
+  return textAnalysis as TextAnalysisLike;
+}
+
+function getLegacyTextData(raw: unknown): Record<string, unknown> | null {
+  const unified = getUnifiedTextAnalysis(raw);
+  if (!unified) return null;
+  const textData = unified.text_data;
   if (!textData || typeof textData !== "object") return null;
   return textData as Record<string, unknown>;
 }
 
+function getUnifiedTextAnalysis(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const unified = (raw as Record<string, unknown>).unified_text_analysis;
+  if (!unified || typeof unified !== "object") return null;
+  return unified as Record<string, unknown>;
+}
+
+function getOverallRiskScore(raw: unknown): unknown {
+  const unified = getUnifiedTextAnalysis(raw);
+  if (!unified) return null;
+  return unified.overall_risk_score;
+}
+
 /** Fallback score from `unified_text_analysis.text_data.rrf_features[0]` (0-1 range). */
-function getRrfTopScore(raw: unknown): number | null {
-  const textData = getTextData(raw);
+function getLegacyRrfTopScore(raw: unknown): number | null {
+  const textData = getLegacyTextData(raw);
   if (!textData) return null;
   const rrf = textData.rrf_features;
   if (!Array.isArray(rrf) || rrf.length === 0) return null;
@@ -108,6 +254,40 @@ function toScorePercent(value: unknown): number {
     if (Number.isFinite(n)) return toScorePercent(n);
   }
   return 0;
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function getIndicatorReasons(
+  indicators: IndicatorLike[] | undefined,
+): string | null {
+  if (!Array.isArray(indicators) || indicators.length === 0) return null;
+  const reasons = indicators
+    .map((item) => asNonEmptyString(item.reason))
+    .filter((x): x is string => x !== null);
+  if (reasons.length === 0) return null;
+  return reasons.join(" ");
+}
+
+function normalizeScamType(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "not recognized by known type") return "unknown";
+  if (normalized === "job_scam" || normalized === "job-scam") return "job-scam";
+  if (normalized === "phishing") return "phishing";
+  if (normalized === "qr_code_scam" || normalized === "qr-scam")
+    return "qr-scam";
+  if (normalized === "otp_scam" || normalized === "otp-scam") return "otp-scam";
+  if (normalized === "suspicious_link" || normalized === "suspicious-link") {
+    return "suspicious-link";
+  }
+  return value;
+}
+
+function toStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((x): x is string => typeof x === "string" && x.trim());
 }
 
 function toRiskLevel(score: number): ScamDetectionResult["riskLevel"] {
