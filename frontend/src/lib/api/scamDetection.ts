@@ -55,7 +55,7 @@ function mapScanResponse(
     legacyTextData?.risk_score ??
     getLegacyRrfTopScore(raw);
   const riskRaw =
-    input.type === "url" ? overallRiskScore ?? baseRiskRaw : baseRiskRaw;
+    input.type === "url" ? (overallRiskScore ?? baseRiskRaw) : baseRiskRaw;
   const score = toScorePercent(riskRaw);
 
   const category = normalizeScamType(
