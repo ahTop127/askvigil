@@ -32,6 +32,7 @@ export interface ScamDetectionResult {
   explanation: string;
   scamType: string;
   timestamp: string;
+  overallRiskScore?: number;
   steps?: DetectionStepState[];
   suspiciousItems?: SuspiciousItem[];
   extractedText?: string;

@@ -48,15 +48,20 @@ function mapScanResponse(
 ): ScamDetectionResult {
   const textAnalysis = getTextAnalysis(raw);
   const legacyTextData = getLegacyTextData(raw);
+  const overallRiskScore = toNumberOrNull(getOverallRiskScore(raw));
   const baseRiskRaw =
     textAnalysis?.risk_score_percent ??
     textAnalysis?.risk_score ??
     legacyTextData?.risk_score ??
     getLegacyRrfTopScore(raw);
   const riskRaw =
+<<<<<<< HEAD
     input.type === "url"
       ? (getOverallRiskScore(raw) ?? baseRiskRaw)
       : baseRiskRaw;
+=======
+    input.type === "url" ? overallRiskScore ?? baseRiskRaw : baseRiskRaw;
+>>>>>>> 4ccceab (Update UI)
   const score = toScorePercent(riskRaw);
 
   const category = normalizeScamType(
@@ -84,6 +89,8 @@ function mapScanResponse(
     explanation,
     scamType: category,
     timestamp: new Date().toISOString(),
+    overallRiskScore: overallRiskScore ?? undefined,
+    extractedText: clean ?? undefined,
     submittedUrl: input.type === "url" ? String(input.content) : undefined,
     qrDecodedContent:
       input.type === "qr" ? "https://secure-payment-check.example" : undefined,
@@ -288,6 +295,15 @@ function normalizeScamType(value: string): string {
 function toStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((x): x is string => typeof x === "string" && x.trim());
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 function toRiskLevel(score: number): ScamDetectionResult["riskLevel"] {

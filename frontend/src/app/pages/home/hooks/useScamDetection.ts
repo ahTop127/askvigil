@@ -149,6 +149,25 @@ export function useScamDetection(): UseScamDetectionReturn {
           content: payload.content,
         });
       }
+
+      if (payload.type === "image") {
+        const extracted = (res.extractedText ?? "").trim();
+        if (extracted.length < 5) {
+          setError(ERROR_MESSAGES.insufficientContent);
+          setShowResult(false);
+          return;
+        }
+      }
+
+      if (
+        (payload.type === "text" || payload.type === "image") &&
+        res.overallRiskScore === -1
+      ) {
+        setError(ERROR_MESSAGES.insufficientContent);
+        setShowResult(false);
+        return;
+      }
+
       setResult(res);
       setShowResult(true);
     } catch (e) {
