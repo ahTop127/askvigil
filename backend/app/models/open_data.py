@@ -69,7 +69,7 @@ class PhishingURL(Model):
     metadata_vector = VectorField(
         vector_size=8,
         null=True,
-        description="Structural metadata: [path_ratio, tld_score, entropy, dot_count, digit_ratio, special_chars, subdomain_flag, path_depth]"
+        description="Structural metadata: [path_ratio, tld_score, entropy, dot_count, digit_ratio, special_chars, subdomain_flag, path_depth]",
     )
 
     # Audit timestamp

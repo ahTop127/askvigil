@@ -371,7 +371,6 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text"):
     return final_result[0] if is_single else final_result
 
 
-
 # async def scan_url(raw_url: str):
 #     # 1. Safely resolve redirects, because phishers hide behind shorteners.
 #     resolved_url, resolved_successfully = await safe_resolve_redirect(raw_url)
@@ -402,34 +401,35 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text"):
 #         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
 #     }
 
+
 async def scan_url(raw_url: str):
     resolved_url, resolved_successfully = await safe_resolve_redirect(raw_url)
 
     # 1. Feature Extraction (Stripped for integrity)
     stripped_url = strip_url_protocol(resolved_url)
-    vector = await get_onnx_embedding(stripped_url, mode="url") # 768-dim
-    meta_vector = calculate_advanced_metadata(resolved_url) # 8-dim
-    
+    vector = await get_onnx_embedding(stripped_url, mode="url")  # 768-dim
+    meta_vector = calculate_advanced_metadata(resolved_url)  # 8-dim
+
     # 2. Concat for MLP (776-dim total)
-    combined_input = np.concatenate((vector.reshape(1, -1), meta_vector.reshape(1, -1)), axis=1)
+    combined_input = np.concatenate(
+        (vector.reshape(1, -1), meta_vector.reshape(1, -1)), axis=1
+    )
 
     # 3. Execution
     session = MODEL_REGISTRY["url_classifier"]["session"]
-    output = await asyncio.to_thread(
-        session.run, None, {"input": combined_input}
-    )
+    output = await asyncio.to_thread(session.run, None, {"input": combined_input})
     risk_score = float(output[0][0])  # Hazard probability
 
     # 4. Metacognitive Dissonance Check
     # Approximate risk from structural metadata (sum of normalized risk factors / 8)
-    meta_risk_score = float(np.mean(meta_vector)) 
+    meta_risk_score = float(np.mean(meta_vector))
     dissonance = abs(risk_score - meta_risk_score)
 
     # 5. Decision Tree
     decision = "clear"
     if risk_score > 0.8:
         decision = "flagged"
-    elif dissonance > 0.5: # Model says safe, structure says dangerous (or vice versa)
+    elif dissonance > 0.5:  # Model says safe, structure says dangerous (or vice versa)
         decision = "audit"
 
     # 6. Evidence Branch (Unchanged, uses vector)
@@ -441,8 +441,14 @@ async def scan_url(raw_url: str):
         "risk_score": round(risk_score, 4),
         "meta_vector": meta_vector.tolist(), # Json serialize 
         "meta_labels": [
-            "Path Ratio", "TLD Tier", "Entropy", "Dot Count", 
-            "Digit Ratio", "Special Chars", "Subdomain Flag", "Path Depth"
+            "Path Ratio",
+            "TLD Tier",
+            "Entropy",
+            "Dot Count",
+            "Digit Ratio",
+            "Special Chars",
+            "Subdomain Flag",
+            "Path Depth",
         ],
         "dissonance": round(dissonance, 4),
         "resolved_url": resolved_url,
@@ -450,6 +456,7 @@ async def scan_url(raw_url: str):
         "decision": decision,
         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
     }
+
 
 # async def scan_text(text: str):
 #     # 1. Decision Branch (MLP)
@@ -493,7 +500,7 @@ async def scan_text(text: str):
     # spam
     model_score = float(output[0][0])  # match training script update
     # harmless
-    ham_score = 1-model_score  # match training script update
+    ham_score = 1 - model_score  # match training script update
 
     # explainable AI branch#
     explanation_result = explain_text_risk(text)
@@ -1076,33 +1083,35 @@ def standardize_text(text: str, label: str = None) -> str:
 
     return text, processed_urls
 
+
 def strip_url_protocol(url: str) -> str:
     """Removes protocol and www for unbiased embedding."""
-    return re.sub(r'^https?://(www\.)?', '', url.strip().lower())
+    return re.sub(r"^https?://(www\.)?", "", url.strip().lower())
+
 
 def get_tld_tier(domain: str) -> float:
     """
     Categorizes domains into trust tiers based on TLD acquisition friction.
-    
+
     Returns:
         0.0: High Trust (Legacy & Regulated)
         0.5: Mid Trust (Standard ccTLDs)
         1.0: Low Trust/Suspicious (gTLDs & High-Abuse ccTLDs)
     """
-    parts = domain.lower().split('.')
+    parts = domain.lower().split(".")
     if len(parts) < 2:
         return 1.0
-    
+
     tld = parts[-1]
 
     # Tier 0: Legacy & Highly Regulated
     # These represent the most established and strictly managed namespaces.
-    if tld in {'com', 'org', 'net', 'gov', 'edu', 'mil'}:
+    if tld in {"com", "org", "net", "gov", "edu", "mil"}:
         return 0.0
 
     # Tier 1: Standard Country Codes (ccTLDs)
     # Includes ISO 3166-1 alpha-2 (2-chars), excluding known "free/burner" TLDs.
-    high_abuse_cc = {'tk', 'ml', 'ga', 'cf', 'gq'}
+    high_abuse_cc = {"tk", "ml", "ga", "cf", "gq"}
     if len(tld) == 2 and tld not in high_abuse_cc:
         return 0.5
 
@@ -1110,45 +1119,49 @@ def get_tld_tier(domain: str) -> float:
     # Includes modern gTLDs (.top, .xyz) and the "free" ccTLDs filtered above.
     return 1.0
 
+
 def calculate_advanced_metadata(url: str) -> np.ndarray:
     """Returns 8-dim structural vector."""
     clean_url = strip_url_protocol(url)
-    parsed = urlparse(url if '://' in url else f'http://{url}')
+    parsed = urlparse(url if "://" in url else f"http://{url}")
     domain = parsed.netloc
     path = parsed.path
     full_len = len(clean_url)
-    
+
     # 1. Path Ratio
     path_ratio = len(path) / full_len if full_len > 0 else 0.0
     # 2. TLD Tier
     tld_score = get_tld_tier(domain)
     # 3. Entropy
-    prob = [n/len(domain) for n in Counter(domain).values()] if domain else [0]
+    prob = [n / len(domain) for n in Counter(domain).values()] if domain else [0]
     entropy = -sum(p * math.log2(p) for p in prob)
     # 4. Dot Count
-    dot_count = domain.count('.')
+    dot_count = domain.count(".")
     # 5. Digit Ratio
     digits = sum(c.isdigit() for c in clean_url)
     digit_ratio = digits / full_len if full_len > 0 else 0.0
     # 6. Special Chars
-    special_chars = len(re.findall(r'[@\-_?=%]', clean_url))
+    special_chars = len(re.findall(r"[@\-_?=%]", clean_url))
     # 7. Subdomain Flag
     subdomain_flag = 1.0 if dot_count > 2 else 0.0
     # 8. Path Depth
-    path_depth = path.count('/')
+    path_depth = path.count("/")
 
     # Scale raw values to prevent gradient dominance (approximate normalization)
     # Entropy max ~4.5, Dot count usually <5, Special chars usually <10, Path depth <5
-    return np.array([
-        path_ratio, 
-        tld_score, 
-        min(entropy / 5.0, 1.0), 
-        min(dot_count / 5.0, 1.0), 
-        digit_ratio, 
-        min(special_chars / 10.0, 1.0), 
-        subdomain_flag, 
-        min(path_depth / 5.0, 1.0)
-    ], dtype=np.float32)
+    return np.array(
+        [
+            path_ratio,
+            tld_score,
+            min(entropy / 5.0, 1.0),
+            min(dot_count / 5.0, 1.0),
+            digit_ratio,
+            min(special_chars / 10.0, 1.0),
+            subdomain_flag,
+            min(path_depth / 5.0, 1.0),
+        ],
+        dtype=np.float32,
+    )
 
 
 # import Levenshtein  # pip install python-Levenshtein
@@ -1160,16 +1173,16 @@ def calculate_advanced_metadata(url: str) -> np.ndarray:
 #     """
 #     # Just the top targets—no need for a massive list
 #     targets = ["google", "paypal", "microsoft", "apple", "amazon", "netflix", "facebook"]
-    
+
 #     # Strip TLD for comparison (e.g., 'paypa1' from 'paypa1.com')
 #     main_part = domain.split('.')[0].lower()
-    
+
 #     for target in targets:
 #         distance = Levenshtein.distance(main_part, target)
-        
+
 #         # A distance of 1 or 2 is the "Sweet Spot" for typosquatting
 #         # e.g., 'g00gle' (dist 2), 'paypa1' (dist 1)
 #         if 0 < distance <= 2:
 #             return 1.0
-            
+
 #     return 0.0
