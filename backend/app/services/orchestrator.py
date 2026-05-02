@@ -135,7 +135,6 @@ async def _handle_qr_flow(qr_file: UploadFile):
     for url in qr_urls:
         url_analysis.append(await nlp_service.scan_url(url))
 
-
     # 4) Analysis results of the URL tool
     report_tasks = [get_url_report(url) for url in qr_urls]
     # return_exceptions=True If a certain task fails, it will not cause the program to crash.
@@ -146,10 +145,12 @@ async def _handle_qr_flow(qr_file: UploadFile):
     url_report_analysis = []
     for u, r in zip(qr_urls, report_results):
         if isinstance(r, Exception):
-            url_report_analysis.append({
-                "Website Address": u,
-                "Error": f"Program exception: {str(r)}",
-            })
+            url_report_analysis.append(
+                {
+                    "Website Address": u,
+                    "Error": f"Program exception: {str(r)}",
+                }
+            )
         else:
             url_report_analysis.append(r)
 
