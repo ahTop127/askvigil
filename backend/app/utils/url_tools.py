@@ -41,14 +41,18 @@ async def get_url_report(target_url: str):
             return {
                 "Website Address": target_url,
                 "Detections Counts": f"{malicious}/{total}",
-                "Domain Registration": reg_date.strftime('%Y-%m-%d') if isinstance(reg_date, datetime) else reg_date,
+                "Domain Registration": reg_date.strftime("%Y-%m-%d")
+                if isinstance(reg_date, datetime)
+                else reg_date,
                 "Status": "Safe" if malicious == 0 else "Malicious",
-                "Last Analysis": report.last_analysis_date.strftime('%Y-%m-%d %H:%M')
+                "Last Analysis": report.last_analysis_date.strftime("%Y-%m-%d %H:%M"),
             }
 
         except vt.APIError as e:
             if e.code == "NotFoundError":
-                return {"Error": "This URL has not been scanned by VT yet. Please submit the scan first."}
+                return {
+                    "Error": "This URL has not been scanned by VT yet. Please submit the scan first."
+                }
             return {"Error": f"VT API error: {str(e)}"}
         except Exception as e:
             return {"Error": f"Program exception: {str(e)}"}
