@@ -56,13 +56,49 @@ function getCaseFilterScamType(scamType: string): string {
   const normalized = scamType.trim().toLowerCase();
   if (normalized === "job_scam" || normalized === "job-scam") return "job-scam";
   if (normalized === "phishing") return "phishing";
-  if (normalized === "qr_code_scam" || normalized === "qr-scam")
-    return "qr-scam";
   if (normalized === "otp_scam" || normalized === "otp-scam") return "otp-scam";
-  if (normalized === "suspicious_link" || normalized === "suspicious-link") {
-    return "suspicious-link";
-  }
   return "all";
+}
+
+function humanizeReportKey(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function toReportDisplayValue(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") return value.trim() || "-";
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    const compact = value
+      .map((item) => toReportDisplayValue(item))
+      .filter((v) => v !== "-");
+    return compact.length > 0 ? compact.join(", ") : "-";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return "-";
+}
+
+function toQrReportRows(
+  report: Record<string, unknown> | Record<string, unknown>[] | undefined,
+): Array<{ label: string; value: string }> {
+  if (!report) return [];
+  const source =
+    Array.isArray(report) && report.length > 0
+      ? report[0]
+      : (report as Record<string, unknown>);
+  return Object.entries(source)
+    .map(([key, value]) => ({
+      label: humanizeReportKey(key),
+      value: toReportDisplayValue(value),
+    }))
+    .filter((row) => row.value !== "-");
 }
 
 /**
@@ -95,6 +131,8 @@ export const ResultDisplay = memo(
     const extraCount = Math.max(0, suspiciousItems.length - 5);
     const noFlags = suspiciousItems.length === 0;
     const scamTypeLabel = result.scamType?.trim() || "Suspicious Content";
+    const shouldShowScamTypeBadge =
+      !result.submittedUrl && !result.qrDecodedContent;
     const guidance = result.guidance ?? [
       "Do not click unknown links or open unexpected files.",
       "Verify requests through official channels before responding.",
@@ -106,6 +144,9 @@ export const ResultDisplay = memo(
       (result.scamType ?? "").trim().toLowerCase() === "unknown";
     const shouldShowRelatedCases =
       !result.submittedUrl && !result.qrDecodedContent;
+    const isQrResult = Boolean(result.qrDecodedContent || result.qrContentType);
+    const isUrlOrQrResult = Boolean(result.submittedUrl || isQrResult);
+    const isTextResult = result.detectionType === "text";
     const dontDoItems =
       result.immediateGuidanceDontDo &&
       result.immediateGuidanceDontDo.length > 0
@@ -119,6 +160,10 @@ export const ResultDisplay = memo(
     const caseFilterScamType = useMemo(
       () => getCaseFilterScamType(result.scamType || ""),
       [result.scamType],
+    );
+    const qrReportRows = useMemo(
+      () => toQrReportRows(result.qrUrlReportAnalysis),
+      [result.qrUrlReportAnalysis],
     );
 
     useEffect(() => {
@@ -155,98 +200,181 @@ export const ResultDisplay = memo(
           role="region"
           aria-label={`Detection result: ${level} risk, score ${result.score}`}
         >
-          <div className={`h-1.5 w-full ${styles.accent}`} />
+          <div className="overflow-hidden border-b border-[#8ed6ce] bg-white shadow-sm">
+            <div className="bg-[#223C61] px-5 py-3">
+              <h3 className="text-lg font-semibold text-white">
+                {result.qrDecodedContent || qrReportRows.length > 0
+                  ? "URL Report Summary"
+                  : "Detection Summary"}
+              </h3>
+            </div>
+            <div className="border-b border-[#d9efec] px-5 py-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                  {steps.map((step) => (
+                    <div
+                      key={step.key}
+                      className={`inline-flex items-center gap-1.5 text-sm font-semibold tracking-wide ${
+                        step.status === "pending"
+                          ? "text-gray-400"
+                          : step.status === "failed"
+                            ? "text-red-600"
+                            : "text-gray-700"
+                      }`}
+                    >
+                      {step.status === "completed" && (
+                        <Check className="h-4 w-4 text-emerald-600" />
+                      )}
+                      {step.status === "current" && (
+                        <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
+                      )}
+                      {step.status === "failed" && (
+                        <TriangleAlert className="h-4 w-4 text-red-600" />
+                      )}
+                      <span>{step.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  onClick={onNewAnalysis}
+                  className="h-9 w-[170px] items-end gap-5 rounded-2xl bg-[#283C5E] px-[2px] text-sm font-semibold text-white hover:bg-[#1f314f]"
+                >
+                  Check Again
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {(result.qrDecodedContent || qrReportRows.length > 0) && (
+            <div className="overflow-hidden border-b border-[#8ed6ce] bg-white shadow-sm">
+              <div className="p-3 md:p-4">
+                <div className="mb-3 rounded-xl border border-[#d9efec] bg-[#f8fdfc] p-4 md:p-5">
+                  <div className="grid gap-5 md:grid-cols-[220px_1fr] md:items-center">
+                    <div
+                      className={`relative mx-auto h-44 w-44 rounded-full border-8 border-slate-100 bg-white shadow-lg ${styles.glow} flex items-center justify-center`}
+                    >
+                      <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border border-slate-100 bg-white">
+                        <div
+                          className={`text-6xl font-black tracking-tight ${styles.score}`}
+                          aria-hidden
+                        >
+                          {result.score}
+                        </div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                          {UI_TEXT.result.scoreSuffix}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-base font-bold ${styles.badge}`}
+                      >
+                        {level === "low" ? (
+                          <Shield className="h-4 w-4" aria-hidden />
+                        ) : (
+                          <AlertCircle className="h-4 w-4" aria-hidden />
+                        )}
+                        {level === "high"
+                          ? UI_TEXT.result.high
+                          : level === "medium"
+                            ? UI_TEXT.result.medium
+                            : UI_TEXT.result.low}
+                      </div>
+                      <p className="mt-3 text-sm font-medium text-gray-500">
+                        {APP_CONFIG.name} ·{" "}
+                        {new Date(result.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {result.qrDecodedContent && (
+                  <div className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 bg-white md:px-4">
+                    <p className="text-sm font-semibold text-slate-800">
+                      QR Code Content
+                    </p>
+                    <p className="text-sm text-slate-700 break-words">
+                      {result.qrContentType === "url"
+                        ? `This QR code opens: ${result.qrDecodedContent}`
+                        : `This QR code contains: ${result.qrDecodedContent}`}
+                    </p>
+                  </div>
+                )}
+                {qrReportRows.map((row) => (
+                  <div
+                    key={row.label}
+                    className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 odd:bg-white even:bg-[#fbfefe] last:border-b-0 md:px-4"
+                  >
+                    <p className="text-sm font-semibold text-slate-800">
+                      {row.label}
+                    </p>
+                    <p className="text-sm text-slate-700 break-words">
+                      {row.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="relative z-10">
             <div className="p-6 md:p-9 bg-gradient-to-b from-white via-white to-slate-50/50 text-[15px] md:text-base">
-              <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center">
-                <div className="rounded-2xl p-4 border border-slate-200 bg-white/90 shadow-sm md:flex-1">
-                  <div className="flex flex-wrap gap-3">
-                    {steps.map((step) => (
-                      <div
-                        key={step.key}
-                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold tracking-wide ${
-                          step.status === "current"
-                            ? "text-primary bg-primary/10"
-                            : step.status === "pending"
-                              ? "text-gray-400 bg-gray-100"
-                              : step.status === "failed"
-                                ? "text-red-600 bg-red-50"
-                                : "text-gray-700 bg-slate-100"
-                        }`}
-                      >
-                        {step.status === "completed" && (
-                          <Check className="w-4 h-4" />
-                        )}
-                        {step.status === "current" && (
-                          <LoaderCircle className="w-4 h-4 animate-spin" />
-                        )}
-                        {step.status === "failed" && (
-                          <TriangleAlert className="w-4 h-4" />
-                        )}
-                        <span>{step.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={onNewAnalysis}
-                    className="h-10 rounded-full bg-primary px-5 text-base text-primary-foreground font-semibold hover:bg-secondary shadow-sm"
-                  >
-                    Check Again
-                  </Button>
-                </div>
-              </div>
+              <div className="-mt-2 mb-6 md:-mt-4 md:mb-5" />
 
-              <div className="grid gap-6 rounded-3xl border border-slate-200 bg-white p-5 md:grid-cols-[220px_1fr] md:items-center md:p-6 mb-8 shadow-sm">
-                <div
-                  className={`relative mx-auto w-44 h-44 rounded-full border-8 border-slate-100 bg-white flex items-center justify-center shadow-lg ${styles.glow}`}
-                >
-                  <div className="w-32 h-32 rounded-full border border-slate-100 bg-white flex flex-col items-center justify-center">
-                    <div
-                      className={`text-6xl font-black tracking-tight ${styles.score}`}
-                      aria-hidden
-                    >
-                      {result.score}
-                    </div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
-                      {UI_TEXT.result.scoreSuffix}
+              {!isQrResult && (
+                <div className="grid gap-6 rounded-3xl border border-slate-200 bg-white p-5 md:grid-cols-[220px_1fr] md:items-center md:p-6 mb-8 shadow-sm">
+                  <div
+                    className={`relative mx-auto w-44 h-44 rounded-full border-8 border-slate-100 bg-white flex items-center justify-center shadow-lg ${styles.glow}`}
+                  >
+                    <div className="w-32 h-32 rounded-full border border-slate-100 bg-white flex flex-col items-center justify-center">
+                      <div
+                        className={`text-6xl font-black tracking-tight ${styles.score}`}
+                        aria-hidden
+                      >
+                        {result.score}
+                      </div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                        {UI_TEXT.result.scoreSuffix}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <div
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${styles.badge}`}
-                    >
-                      {level === "low" ? (
-                        <Shield className="w-4 h-4" aria-hidden />
-                      ) : (
-                        <AlertCircle className="w-4 h-4" aria-hidden />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <div
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${styles.badge}`}
+                      >
+                        {level === "low" ? (
+                          <Shield className="w-4 h-4" aria-hidden />
+                        ) : (
+                          <AlertCircle className="w-4 h-4" aria-hidden />
+                        )}
+                        {level === "high"
+                          ? UI_TEXT.result.high
+                          : level === "medium"
+                            ? UI_TEXT.result.medium
+                            : UI_TEXT.result.low}
+                      </div>
+                      {shouldShowScamTypeBadge && (
+                        <Badge
+                          variant="outline"
+                          className="border-primary/40 text-primary bg-primary/10 px-3 py-1 font-semibold"
+                        >
+                          {scamTypeLabel}
+                        </Badge>
                       )}
-                      {level === "high"
-                        ? UI_TEXT.result.high
-                        : level === "medium"
-                          ? UI_TEXT.result.medium
-                          : UI_TEXT.result.low}
                     </div>
-                    <Badge
-                      variant="outline"
-                      className="border-primary/40 text-primary bg-primary/10 px-3 py-1 font-semibold"
-                    >
-                      {scamTypeLabel}
-                    </Badge>
+                    {!isUrlOrQrResult && (
+                      <p className="text-gray-900 leading-relaxed text-lg md:text-xl font-medium">
+                        {result.explanation}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-500 mt-3 font-medium">
+                      {APP_CONFIG.name} ·{" "}
+                      {new Date(result.timestamp).toLocaleString()}
+                    </p>
                   </div>
-                  <p className="text-gray-900 leading-relaxed text-lg md:text-xl font-medium">
-                    {result.explanation}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-3 font-medium">
-                    {APP_CONFIG.name} ·{" "}
-                    {new Date(result.timestamp).toLocaleString()}
-                  </p>
                 </div>
-              </div>
+              )}
 
               {result.submittedUrl && (
                 <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
@@ -264,92 +392,95 @@ export const ResultDisplay = memo(
                 </div>
               )}
 
-              {result.qrDecodedContent && (
-                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
-                  <h3 className="font-semibold text-gray-900 mb-2 text-lg">
-                    QR Code Content
-                  </h3>
-                  <p className="text-base text-gray-700 break-all">
-                    {result.qrContentType === "url"
-                      ? `This QR code opens: ${result.qrDecodedContent}`
-                      : `This QR code contains: ${result.qrDecodedContent}`}
-                  </p>
-                </div>
-              )}
-
-              {!noFlags ? (
-                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    Suspicious Parts
-                  </h3>
-                  {visibleFlags.map((item, idx) => (
-                    <div
-                      key={`${item.text}-${idx}`}
-                      className="rounded-xl bg-slate-50/80 p-4"
-                    >
-                      <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-start">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            Detected Signal
-                          </p>
-                          <p className="mt-1 inline-flex rounded-md bg-amber-100 px-2.5 py-1 text-sm font-semibold text-gray-900">
+              {!isQrResult &&
+                (!noFlags ? (
+                  <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
+                    <h3 className="font-semibold text-gray-900 text-lg">
+                      Suspicious Parts
+                    </h3>
+                    <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
+                      <div className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] bg-white px-3 py-3 md:px-4">
+                        <p className="text-base font-semibold text-slate-800">
+                          Detected Signal
+                        </p>
+                        <p className="text-base font-semibold text-slate-800">
+                          Why It Is Risky
+                        </p>
+                      </div>
+                      {visibleFlags.map((item, idx) => (
+                        <div
+                          key={`${item.text}-${idx}`}
+                          className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 odd:bg-white even:bg-[#fbfefe] last:border-b-0 md:px-4"
+                        >
+                          <p className="text-base text-slate-700 break-words">
                             {item.text}
                           </p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            Why It Is Risky
-                          </p>
-                          <p className="mt-1 text-base leading-relaxed text-gray-700">
+                          <p className="text-base text-slate-700 break-words">
                             {item.reason}
                           </p>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                  {extraCount > 0 && (
-                    <button
-                      className="text-primary text-sm font-medium hover:underline"
-                      onClick={() => setShowAllFlags((v) => !v)}
-                    >
-                      {showAllFlags ? "Show less" : `Show ${extraCount} more`}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-3">
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    No obvious scam patterns found
-                  </h3>
-                </div>
-              )}
+                    {extraCount > 0 && (
+                      <button
+                        className="text-primary text-sm font-medium hover:underline"
+                        onClick={() => setShowAllFlags((v) => !v)}
+                      >
+                        {showAllFlags ? "Show less" : `Show ${extraCount} more`}
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-3">
+                    <h3 className="font-semibold text-gray-900 text-lg">
+                      No obvious scam patterns found
+                    </h3>
+                  </div>
+                ))}
 
-              <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    {immediateTitle}
-                  </h3>
-                  <Badge
-                    variant="outline"
-                    className="text-xs border-primary/30 text-primary font-semibold"
+              {!isQrResult && (
+                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="font-semibold text-gray-900 text-lg">
+                      {immediateTitle}
+                    </h3>
+                  </div>
+                  <div
+                    className={`mt-4 grid gap-4 ${
+                      isUnknownScamType ? "" : "md:grid-cols-2"
+                    }`}
                   >
-                    Action Guide
-                  </Badge>
-                </div>
-                <div
-                  className={`mt-4 grid gap-4 ${
-                    isUnknownScamType ? "" : "md:grid-cols-2"
-                  }`}
-                >
-                  {!isUnknownScamType && (
-                    <div className="rounded-xl bg-red-50 p-4 border border-red-100">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
-                        Don&apos;t Do
+                    {!isUnknownScamType && (
+                      <div className="rounded-xl bg-red-50 p-4 border border-red-100 transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-md">
+                        <p className="text-lg font-semibold text-red-700">
+                          Don&apos;t Do
+                        </p>
+                        <ul className="mt-2 space-y-2 text-base text-red-900">
+                          {dontDoItems.map((line) => (
+                            <li
+                              key={line}
+                              className="flex gap-2 leading-relaxed"
+                            >
+                              <span aria-hidden className="mt-0.5 text-red-600">
+                                •
+                              </span>
+                              <span>{line}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100 transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-md">
+                      <p className="text-lg font-semibold text-emerald-700">
+                        What you should do now:
                       </p>
-                      <ul className="mt-2 space-y-2 text-base text-red-900">
-                        {dontDoItems.map((line) => (
+                      <ul className="mt-2 space-y-2 text-base text-emerald-900">
+                        {saferActionItems.map((line) => (
                           <li key={line} className="flex gap-2 leading-relaxed">
-                            <span aria-hidden className="mt-0.5 text-red-600">
+                            <span
+                              aria-hidden
+                              className="mt-0.5 text-emerald-600"
+                            >
                               •
                             </span>
                             <span>{line}</span>
@@ -357,24 +488,9 @@ export const ResultDisplay = memo(
                         ))}
                       </ul>
                     </div>
-                  )}
-                  <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100">
-                    <p className="text-xs font-semibold tracking-wide text-emerald-700">
-                      What you should do now:
-                    </p>
-                    <ul className="mt-2 space-y-2 text-base text-emerald-900">
-                      {saferActionItems.map((line) => (
-                        <li key={line} className="flex gap-2 leading-relaxed">
-                          <span aria-hidden className="mt-0.5 text-emerald-600">
-                            •
-                          </span>
-                          <span>{line}</span>
-                        </li>
-                      ))}
-                    </ul>
                   </div>
                 </div>
-              </div>
+              )}
 
               {level !== "low" && result.scamType !== "unknown" && (
                 <Button
@@ -401,10 +517,20 @@ export const ResultDisplay = memo(
                     </p>
                   ) : relatedCase ? (
                     <button
-                      className="w-full text-left border rounded-xl p-4 hover:shadow-md transition"
-                      onClick={() => navigate(`/cases/${relatedCase.id}`)}
+                      className="group w-full text-left p-0 transition"
+                      onClick={() => {
+                        if (relatedCase.sourceUrl?.trim()) {
+                          window.open(
+                            relatedCase.sourceUrl,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                          return;
+                        }
+                        navigate(`/cases/${relatedCase.id}`);
+                      }}
                     >
-                      <p className="font-semibold text-gray-900 line-clamp-1">
+                      <p className="line-clamp-1 font-semibold text-gray-900 transition-colors group-hover:text-primary group-hover:underline">
                         {relatedCase.title}
                       </p>
                       <p className="text-base text-gray-600 mt-1">
@@ -418,11 +544,15 @@ export const ResultDisplay = memo(
                   )}
                   <button
                     className="mt-3 text-primary font-medium text-sm hover:underline"
-                    onClick={() =>
+                    onClick={() => {
+                      if (caseFilterScamType === "all") {
+                        navigate("/cases");
+                        return;
+                      }
                       navigate(
                         `/cases?scamType=${encodeURIComponent(caseFilterScamType)}`,
-                      )
-                    }
+                      );
+                    }}
                   >
                     View More Cases →
                   </button>
@@ -431,14 +561,6 @@ export const ResultDisplay = memo(
             </div>
           </div>
         </div>
-
-        <Button
-          type="button"
-          onClick={onNewAnalysis}
-          className="w-full h-14 text-base font-semibold bg-background hover:bg-muted/40 text-primary border-2 border-primary/50 shadow-md transition-all"
-        >
-          {UI_TEXT.result.newAnalysis}
-        </Button>
       </div>
     );
   },

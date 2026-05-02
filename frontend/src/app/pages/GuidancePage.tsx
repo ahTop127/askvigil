@@ -88,7 +88,7 @@ export default function GuidancePage() {
                     </div>
                     {/* Bottom: White Background + Text */}
                     <div className="bg-white p-6 h-50">
-                      <h3 className="text-2xl font-semibold text-primary mb-3">
+                      <h3 className="text-2xl font-semibold text-[#F38F36] mb-3">
                         {scam.title}
                       </h3>
                       <p className="text-gray-700 leading-relaxed mb-4">

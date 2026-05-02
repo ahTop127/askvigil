@@ -17,9 +17,10 @@ describe("Navigation", () => {
     renderWithRouter();
     expect(screen.getByAltText("AskVigil Logo")).toBeInTheDocument();
     expect(screen.getByText("Home")).toBeInTheDocument();
-    expect(screen.getByText("Guidance")).toBeInTheDocument();
+    expect(screen.getByText("Scam Help")).toBeInTheDocument();
     expect(screen.getByText("Learning")).toBeInTheDocument();
     expect(screen.getByText("Quiz")).toBeInTheDocument();
+    expect(screen.getByText("Scam Feed")).toBeInTheDocument();
   });
 
   it("clicking logo navigates to home", () => {

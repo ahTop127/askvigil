@@ -64,7 +64,7 @@ export function Navigation() {
                   : "text-foreground/80 hover:text-foreground"
               }`}
             >
-              Guidance
+              Scam Help
             </button>
             <button
               onClick={() => navigate("/learning")}
@@ -94,7 +94,7 @@ export function Navigation() {
                   : "text-foreground/80 hover:text-foreground"
               }`}
             >
-              Cases
+              Scam Feed
             </button>
           </nav>
         </div>

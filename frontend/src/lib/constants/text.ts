@@ -8,6 +8,7 @@ export const ERROR_MESSAGES = {
   fileTooLarge: "File is too large. Please choose a smaller image.",
   unsupportedImage: "Unsupported image format.",
   textTooLong: "Text exceeds the maximum length allowed.",
+  insufficientContent: "Content is insufficient and cannot be analyzed.",
   analysisFailed: "Unable to complete analysis. Please try again.",
   urlAnalyzeFailed: "Unable to analyze this URL. Please try again later.",
   unreachableUrl:
@@ -43,7 +44,7 @@ export const UI_TEXT = {
     textPlaceholder: "Paste suspicious message text here...",
     imageDropTitle: "Upload a screenshot or image",
     imageDropHint: "Drag and drop or click to browse",
-    urlPlaceholder: "e.g. https://example.com",
+    urlPlaceholder: "e.g. https://example.com or example.com",
     qrDropTitle: "Upload a QR code image",
     qrDropHint: "Drag and drop or click to browse",
     buttonCheck: "Check for Scams Now",

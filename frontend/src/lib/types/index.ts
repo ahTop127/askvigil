@@ -32,6 +32,8 @@ export interface ScamDetectionResult {
   explanation: string;
   scamType: string;
   timestamp: string;
+  detectionType?: DetectionType;
+  overallRiskScore?: number;
   steps?: DetectionStepState[];
   suspiciousItems?: SuspiciousItem[];
   extractedText?: string;
@@ -40,6 +42,7 @@ export interface ScamDetectionResult {
   redirectUrl?: string;
   qrDecodedContent?: string;
   qrContentType?: "url" | "sms" | "contact" | "plain-text";
+  qrUrlReportAnalysis?: Record<string, unknown> | Record<string, unknown>[];
   guidance?: string[];
   immediateGuidanceTitle?: string;
   immediateGuidanceSummary?: string;
