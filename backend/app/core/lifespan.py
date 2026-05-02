@@ -147,8 +147,8 @@ def load_onnx_session(model_path: str):
     options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
 
-    # Match your docker-compose: Force 1 thread per operation
-    options.intra_op_num_threads = 1
+    # Intra = 4 maximizes single user speed
+    options.intra_op_num_threads = 4
     options.inter_op_num_threads = 1
 
     # Attempt ACL (Arm Compute Library) first, fallback to CPU
@@ -343,6 +343,9 @@ async def ensure_architectural_integrity():
         -- Ensure columns for phishing_url
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='url_embedding') THEN
             ALTER TABLE phishing_url ADD COLUMN url_embedding vector(768);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='metadata_vector') THEN
+            ALTER TABLE phishing_url ADD COLUMN metadata_vector vector(8);
         END IF;
 
         -- 1. Check if the column exists AND if it's missing the fallback logic

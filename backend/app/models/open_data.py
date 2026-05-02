@@ -66,6 +66,11 @@ class PhishingURL(Model):
         null=True,
         description="The feature vector extracted by URLBERT (768-dim)",
     )
+    metadata_vector = VectorField(
+        vector_size=8,
+        null=True,
+        description="Structural metadata: [path_ratio, tld_score, entropy, dot_count, digit_ratio, special_chars, subdomain_flag, path_depth]"
+    )
 
     # Audit timestamp
     created_at = fields.DatetimeField(auto_now_add=True)

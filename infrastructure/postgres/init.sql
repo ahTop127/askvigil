@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS phishing_url (
     raw_length INTEGER,
     clean_length INTEGER,
     url_embedding vector(768),
+    metadata_vector vector(8),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     url_search_vector tsvector GENERATED ALWAYS AS (

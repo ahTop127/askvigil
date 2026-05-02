@@ -112,7 +112,7 @@ async def generate_and_update_url_embeddings():
             # Only take the necessary fields to reduce memory usage
             records = (
                 await PhishingURL.filter(url_embedding__isnull=True)
-                .only("id", "original_url", "resolved_url")
+                .only("id", "original_url", "resolved_url", "metadata_vector")
                 .limit(batch_size)
             )
 
@@ -141,7 +141,7 @@ async def generate_and_update_url_embeddings():
 
             # Update to the database
             await PhishingURL.bulk_update(
-                records, fields=["url_embedding"], batch_size=batch_size
+                records, fields=["url_embedding", "metadata_vector"], batch_size=batch_size
             )
             offset += len(records)
             print(f"[embedding phishing url] URL Progress: {offset} / {total_count}")

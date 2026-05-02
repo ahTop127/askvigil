@@ -22,22 +22,28 @@ from app.models.open_data import OpenDataSet, PhishingURL
 
 
 class ScamPhishingMLP(nn.Module):
-    def __init__(self, input_dim=settings.DIM_TEXT):
+    def __init__(self, base_dim=settings.DIM_TEXT, meta_dim=0):
         super(ScamPhishingMLP, self).__init__()
+        input_dim = base_dim + meta_dim
+        # Dynamically scale the first layer to prevent 
+        # an aggressive bottleneck for larger transformers
+        hidden_1 = 256 if input_dim > 500 else 128
+        hidden_2 = 64
         self.net = nn.Sequential(
-            nn.Linear(input_dim, 128),
-            nn.BatchNorm1d(128),  # Vital for cross-dataset stability
+            nn.Linear(input_dim, hidden_1),
+            nn.BatchNorm1d(hidden_1),  # Vital for cross-dataset stability
             nn.ReLU(),
             nn.Dropout(0.4),  # Primary regularization
-            nn.Linear(128, 64),
+            nn.Linear(hidden_1, hidden_2),
             nn.ReLU(),
             nn.Dropout(0.3),  # Secondary regularization
-            nn.Linear(64, 2),  # [Prob_Spam, Prob_Ham]
-            nn.Softmax(dim=1),  # Ensures probabilities sum to 1.0
+            nn.Linear(hidden_2, 1),  # [Prob_Spam, Prob_Ham]
+            # Softmax included in BCEWithLogitsLoss
         )
 
-    def forward(self, x):
-        return self.net(x)
+    def forward(self, x, temperature=1.0):
+        logits = self.net(x)
+        return logits / temperature # Temperature scaling: shift output distribution
 
 
 class StratifiedDataset(Dataset):
@@ -110,7 +116,7 @@ class StratifiedDataset(Dataset):
             buckets = {"short": [], "medium": [], "long": []}
             for r in records:
                 # We store a tuple of (record, label) to avoid expensive lookups later
-                label = [0.0, 1.0] if is_hazard else [1.0, 0.0]
+                label = 1.0 if is_hazard else 0.0
                 buckets[get_bin(r)].append((r, label))
             return buckets
 
@@ -142,11 +148,21 @@ class StratifiedDataset(Dataset):
 
         for record, label in final_pairs:
             emb = getattr(record, attr_name)
-            if emb is not None:
+            # --- HYBRID INJECTION LOGIC ---
+            if attr_name == "url_embedding":
+                meta = getattr(record, "metadata_vector", None)
+                if emb is not None and meta is not None:
+                    # Combine 768-dim + 8-dim into 776-dim
+                    combined = np.concatenate((emb, meta), axis=0)
+                    self.features.append(np.array(combined, dtype=np.float32))
+                    self.labels.append(label)
+            else:
+                # Text mode fallback (MiniLM - no metadata currently defined)
                 # Convert the list to a numpy array on the fly here
                 # np.array() or np.float32() handles Python lists perfectly
-                self.features.append(np.array(emb, dtype=np.float32))
-                self.labels.append(label)
+                if emb is not None:
+                    self.features.append(np.array(emb, dtype=np.float32))
+                    self.labels.append(label)
 
         # Use np.stack for better performance with lists of arrays
         self.features = np.stack(self.features)
@@ -156,7 +172,10 @@ class StratifiedDataset(Dataset):
         return len(self.features)
 
     def __getitem__(self, idx):
-        return torch.from_numpy(self.features[idx]), torch.from_numpy(self.labels[idx])
+        return (
+        torch.from_numpy(self.features[idx]), 
+        torch.as_tensor(self.labels[idx], dtype=torch.float32)
+    )
 
 
 async def train_and_export(
@@ -219,25 +238,39 @@ async def train_and_export(
 
     # 3. Model & Optimizer
     dim = settings.DIM_TEXT if mode == "text" else settings.DIM_URL
-    model = ScamPhishingMLP(dim)
+    meta_dim = 8 if mode == "url" else 0
+    model = ScamPhishingMLP(base_dim=dim, meta_dim=meta_dim)
     optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-2)
-    criterion = nn.BCELoss()
+    smoothing = 0.1 # Label smoothing - make model less sure
+    # BCEWithLogitsLoss supports soft labels (floats between 0 and 1)
+    criterion = nn.BCEWithLogitsLoss()
 
     # 4. Training Loop
     best_v_loss = float("inf")
     best_model_state = None
 
+    trigger_times = 0    
+    patience = 7
     for epoch in range(50):  # Increased epochs for complex URL patterns
         model.train()
         t_loss, t_correct = 0, 0
         for feat, target in train_loader:
             optimizer.zero_grad()
-            out = model(feat)
-            loss = criterion(out, target)
+            # Ensure target is [batch_size, 1] to match out
+            target = target.view(-1, 1)
+            smoothed_target = target * (1 - smoothing) + (smoothing / 2)    
+            out = model(feat) # temperature defaults to 1.0 here
+            loss = criterion(out, smoothed_target)
             loss.backward()
             optimizer.step()
             t_loss += loss.item()
-            t_correct += (out.argmax(1) == target.argmax(1)).sum().item()
+
+            # 'out' is [batch_size, 1], 'target' is [batch_size]
+            # We force target to [batch_size, 1] and check if both agree they are > threshold
+            predictions = (out > 0) 
+            actuals = (target.view_as(out) > 0.5)
+            t_correct += (predictions == actuals).sum().item()
+            
 
         # Validation (In-training telemetry)
         model.eval()
@@ -245,8 +278,11 @@ async def train_and_export(
         with torch.no_grad():
             for feat, target in val_loader:
                 out = model(feat)
-                v_loss += criterion(out, target).item()
-                v_correct += (out.argmax(1) == target.argmax(1)).sum().item()
+                v_loss += criterion(out, target.view_as(out)).item() # Added view_as here too for safety
+                # LOGIC PARITY FIX:
+                v_predictions = (out > 0)
+                v_actuals = (target.view_as(out) > 0.5)
+                v_correct += (v_predictions == v_actuals).sum().item()
 
         avg_v_loss = v_loss / len(val_loader)
 
@@ -256,55 +292,128 @@ async def train_and_export(
         # --- Track Best Model ---
         if avg_v_loss < best_v_loss:
             best_v_loss = avg_v_loss
-            # deepcopy or state_dict to save the weights in memory
-            best_model_state = {
-                k: v.cpu().clone() for k, v in model.state_dict().items()
-            }
+            best_model_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             print(f"New best model found at Epoch {epoch + 1}")
-
-        # --- Early Stopping ---
-        patience = 7
-        trigger_times = 0
-        if avg_v_loss >= best_v_loss:
-            trigger_times += 1
-            if trigger_times >= patience:
-                print(f"Early stopping: No improvements for {patience} epochs")
-                break
+            trigger_times = 0 # Reset counter on improvement
         else:
-            trigger_times = 0
+            trigger_times += 1 # Only increment if no improvement
+
+        if trigger_times >= patience:
+            print(f"Early stopping: No improvements for {patience} epochs")
+            break
 
     # --- Load Best Weights before Export ---
     if best_model_state:
         model.load_state_dict(best_model_state)
         print("Restored best weights for export.")
 
+    # # --- TEMPERATURE CALIBRATION SEARCH (ECE-BASED) ---
+    # # --- NOT USED - DATA IS TOO CLEAN ---
+    # print("\n--- [CALIBRATING] Optimizing Temperature for Reliability (ECE) ---")
+    
+    # def calculate_ece(probs, labels, n_bins=10):
+    #     bin_boundaries = np.linspace(0, 1, n_bins + 1)
+    #     ece = 0
+    #     for i in range(n_bins):
+    #         mask = (probs > bin_boundaries[i]) & (probs <= bin_boundaries[i+1])
+    #         if np.any(mask):
+    #             bin_acc = np.mean(labels[mask])
+    #             bin_conf = np.mean(probs[mask])
+    #             ece += np.abs(bin_acc - bin_conf) * (np.sum(mask) / len(probs))
+    #     return ece
+
+    # # 1. Collect all raw logits and labels from the validation set
+    # val_logits_list = []
+    # val_labels_list = []
+    # model.eval()
+    # with torch.no_grad():
+    #     for feat, target in val_loader:
+    #         logits = model(feat)
+    #         val_logits_list.append(logits)
+    #         val_labels_list.append(target.view_as(logits))
+    
+    # all_val_logits = torch.cat(val_logits_list).cpu()
+    # all_val_labels = torch.cat(val_labels_list).cpu().numpy()
+
+    # # 2. Search for the Temperature that minimizes the Calibration Error
+    # best_temp = 1.0
+    # min_ece = float('inf')
+    
+    # # We test a range from "Sharp" to "Very Soft"
+    # for t_candidate in [0.8, 1.0, 1.2, 1.4, 1.5, 1.8, 2.0, 2.5]:
+    #     # Apply T and convert to probability
+    #     probs = torch.sigmoid(all_val_logits / t_candidate).numpy()
+    #     current_ece = calculate_ece(probs, all_val_labels)
+        
+    #     print(f"  T: {t_candidate:.1f} | ECE: {current_ece:.4f}")
+        
+    #     if current_ece < min_ece:
+    #         min_ece = current_ece
+    #         best_temp = t_candidate
+            
+    # print(f"OPTIMAL TEMPERATURE IDENTIFIED VIA ECE: {best_temp}")
+
     # 5. Evaluation Test
     print("\n--- [FINAL REPORT] PERFORMANCE ON UNSEEN TEST SET ---")
     model.eval()
     y_true, y_pred = [], []
+    all_probs = []
     with torch.no_grad():
         for feat, target in test_loader:
             out = model(feat)
-            y_true.extend(target.argmax(1).tolist())
-            y_pred.extend(out.argmax(1).tolist())
+            # Convert logits to binary (0 or 1)
+            preds = (out > 0).int() 
+            y_true.extend(target.view_as(preds).tolist())
+            y_pred.extend(preds.tolist())
+
+            probs = torch.sigmoid(out) # Convert logits to 0.0 - 1.0
+            all_probs.extend(probs.cpu().numpy().flatten())
 
     print("--- F1 Metrics Matrix ---")
     print(
         classification_report(
-            y_true, y_pred, target_names=[str(haz_val), str(safe_val)]
+            y_true, y_pred, target_names=[str(safe_val), str(haz_val)] # Safe (0) first, Haz (1) second
         )
     )
     print("--- CONFUSION MATRIX ---")
     print(confusion_matrix(y_true, y_pred))
 
+    all_probs = np.array(all_probs)
+    extreme_count = np.sum((all_probs > 0.99) | (all_probs < 0.01))
+    print(f"--- CONFIDENCE ANALYSIS ---")
+    print(f"Total Samples: {len(all_probs)}")
+    print(f"Extreme Predictions (>99% or <1%): {extreme_count} ({extreme_count/len(all_probs):.2%})")
+    print(f"Average Confidence: {np.mean(np.abs(all_probs - 0.5) + 0.5):.4f}")
+
+    class ExportWrapper(nn.Module):
+        """
+        Encapsulates the model with Calibration and Probabilistic normalization.
+        Ensures the ONNX output is a valid probability distribution [0, 1].
+        """
+        def __init__(self, trained_model, temperature=1.5):
+            super().__init__()
+            self.model = trained_model
+            self.temperature = nn.Parameter(torch.tensor([temperature]), requires_grad=False)
+
+        def forward(self, x):
+            logits = self.model(x)
+            # Apply Temperature Scaling and convert Logit to Probability [0, 1]
+            return torch.sigmoid(logits / self.temperature)
+        
     # 6. ONNX Export
     export_dir = settings.TEXT_MODEL_PATH if mode == "text" else settings.URL_MODEL_PATH
     export_path = export_dir / "classifier.onnx"
     export_path.parent.mkdir(parents=True, exist_ok=True)
 
-    dummy_input = torch.randn(1, dim).float()
+    # Set temperature = 1.2 because data is too clean
+    calibrated_model = ExportWrapper(model, temperature=1.2)
+    calibrated_model.eval()
+
+    # Adjust dummy input for Export
+    export_dim = dim if mode == "text" else dim + 8
+    dummy_input = torch.randn(1, export_dim).float()
     torch.onnx.export(
-        model,
+        calibrated_model, # Use the wrapper, not the raw model
         dummy_input,
         str(export_path),
         input_names=["input"],
