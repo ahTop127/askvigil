@@ -209,6 +209,7 @@ function QRCodeDetectionInput({
   onDragOver,
   onPick,
   onFileChange,
+  onRemove,
 }: {
   file: File | null;
   disabled?: boolean;
@@ -216,7 +217,19 @@ function QRCodeDetectionInput({
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;
   onPick: () => void;
   onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onRemove: () => void;
 }) {
+  const previewUrl = useMemo(
+    () => (file ? URL.createObjectURL(file) : null),
+    [file],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   return (
     <div
       onDrop={onDrop}
@@ -232,13 +245,36 @@ function QRCodeDetectionInput({
       role="button"
       tabIndex={0}
     >
-      <QrCode className="w-12 h-12 text-primary mx-auto mb-3" aria-hidden />
-      <p className="text-gray-700 mb-1 font-medium">
-        {UI_TEXT.detection.qrDropTitle}
-      </p>
-      <p className="text-sm text-gray-500">
-        {file ? file.name : UI_TEXT.detection.qrDropHint}
-      </p>
+      {!file ? (
+        <>
+          <QrCode className="w-12 h-12 text-primary mx-auto mb-3" aria-hidden />
+          <p className="text-gray-700 mb-1 font-medium">
+            {UI_TEXT.detection.qrDropTitle}
+          </p>
+          <p className="text-sm text-gray-500">{UI_TEXT.detection.qrDropHint}</p>
+        </>
+      ) : (
+        <>
+          {previewUrl && (
+            <img
+              src={previewUrl}
+              alt="QR preview"
+              className="max-h-36 mx-auto rounded-lg mb-3 object-contain"
+            />
+          )}
+          <p className="text-sm text-gray-600">{file.name}</p>
+          <p className="text-xs text-gray-400 mt-1">Click to change image</p>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="text-red-500 text-xs mt-2 hover:underline"
+          >
+            Remove image
+          </button>
+        </>
+      )}
       <input
         id="qr-upload"
         type="file"
@@ -529,6 +565,7 @@ const DetectionFormInner = forwardRef<DetectionFormHandle, DetectionFormProps>(
               onDragOver={handleDragOver}
               onPick={() => document.getElementById("qr-upload")?.click()}
               onFileChange={(e) => handleFileChange(e, "qr")}
+              onRemove={() => onQrFile(null)}
             />
           </TabsContent>
         </Tabs>
