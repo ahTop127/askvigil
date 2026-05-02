@@ -439,7 +439,7 @@ async def scan_url(raw_url: str):
 
     return {
         "risk_score": round(risk_score, 4),
-        "meta_vector": meta_vector.tolist(), # Json serialize 
+        "meta_vector": meta_vector.tolist(),  # Json serialize
         "meta_labels": [
             "Path Ratio",
             "TLD Tier",
