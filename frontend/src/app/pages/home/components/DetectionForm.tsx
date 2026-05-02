@@ -251,7 +251,9 @@ function QRCodeDetectionInput({
           <p className="text-gray-700 mb-1 font-medium">
             {UI_TEXT.detection.qrDropTitle}
           </p>
-          <p className="text-sm text-gray-500">{UI_TEXT.detection.qrDropHint}</p>
+          <p className="text-sm text-gray-500">
+            {UI_TEXT.detection.qrDropHint}
+          </p>
         </>
       ) : (
         <>

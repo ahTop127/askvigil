@@ -86,10 +86,7 @@ function toReportDisplayValue(value: unknown): string {
 }
 
 function toQrReportRows(
-  report:
-    | Record<string, unknown>
-    | Record<string, unknown>[]
-    | undefined,
+  report: Record<string, unknown> | Record<string, unknown>[] | undefined,
 ): Array<{ label: string; value: string }> {
   if (!report) return [];
   const source =
@@ -326,56 +323,56 @@ export const ResultDisplay = memo(
 
               {!isQrResult && (
                 <div className="grid gap-6 rounded-3xl border border-slate-200 bg-white p-5 md:grid-cols-[220px_1fr] md:items-center md:p-6 mb-8 shadow-sm">
-                <div
-                  className={`relative mx-auto w-44 h-44 rounded-full border-8 border-slate-100 bg-white flex items-center justify-center shadow-lg ${styles.glow}`}
-                >
-                  <div className="w-32 h-32 rounded-full border border-slate-100 bg-white flex flex-col items-center justify-center">
-                    <div
-                      className={`text-6xl font-black tracking-tight ${styles.score}`}
-                      aria-hidden
-                    >
-                      {result.score}
-                    </div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
-                      {UI_TEXT.result.scoreSuffix}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <div
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${styles.badge}`}
-                    >
-                      {level === "low" ? (
-                        <Shield className="w-4 h-4" aria-hidden />
-                      ) : (
-                        <AlertCircle className="w-4 h-4" aria-hidden />
-                      )}
-                      {level === "high"
-                        ? UI_TEXT.result.high
-                        : level === "medium"
-                          ? UI_TEXT.result.medium
-                          : UI_TEXT.result.low}
-                    </div>
-                    {shouldShowScamTypeBadge && (
-                      <Badge
-                        variant="outline"
-                        className="border-primary/40 text-primary bg-primary/10 px-3 py-1 font-semibold"
+                  <div
+                    className={`relative mx-auto w-44 h-44 rounded-full border-8 border-slate-100 bg-white flex items-center justify-center shadow-lg ${styles.glow}`}
+                  >
+                    <div className="w-32 h-32 rounded-full border border-slate-100 bg-white flex flex-col items-center justify-center">
+                      <div
+                        className={`text-6xl font-black tracking-tight ${styles.score}`}
+                        aria-hidden
                       >
-                        {scamTypeLabel}
-                      </Badge>
-                    )}
+                        {result.score}
+                      </div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                        {UI_TEXT.result.scoreSuffix}
+                      </div>
+                    </div>
                   </div>
-                  {!isUrlOrQrResult && (
-                    <p className="text-gray-900 leading-relaxed text-lg md:text-xl font-medium">
-                      {result.explanation}
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <div
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${styles.badge}`}
+                      >
+                        {level === "low" ? (
+                          <Shield className="w-4 h-4" aria-hidden />
+                        ) : (
+                          <AlertCircle className="w-4 h-4" aria-hidden />
+                        )}
+                        {level === "high"
+                          ? UI_TEXT.result.high
+                          : level === "medium"
+                            ? UI_TEXT.result.medium
+                            : UI_TEXT.result.low}
+                      </div>
+                      {shouldShowScamTypeBadge && (
+                        <Badge
+                          variant="outline"
+                          className="border-primary/40 text-primary bg-primary/10 px-3 py-1 font-semibold"
+                        >
+                          {scamTypeLabel}
+                        </Badge>
+                      )}
+                    </div>
+                    {!isUrlOrQrResult && (
+                      <p className="text-gray-900 leading-relaxed text-lg md:text-xl font-medium">
+                        {result.explanation}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-500 mt-3 font-medium">
+                      {APP_CONFIG.name} ·{" "}
+                      {new Date(result.timestamp).toLocaleString()}
                     </p>
-                  )}
-                  <p className="text-sm text-gray-500 mt-3 font-medium">
-                    {APP_CONFIG.name} ·{" "}
-                    {new Date(result.timestamp).toLocaleString()}
-                  </p>
-                </div>
+                  </div>
                 </div>
               )}
 
@@ -460,7 +457,10 @@ export const ResultDisplay = memo(
                         </p>
                         <ul className="mt-2 space-y-2 text-base text-red-900">
                           {dontDoItems.map((line) => (
-                            <li key={line} className="flex gap-2 leading-relaxed">
+                            <li
+                              key={line}
+                              className="flex gap-2 leading-relaxed"
+                            >
                               <span aria-hidden className="mt-0.5 text-red-600">
                                 •
                               </span>
@@ -477,7 +477,10 @@ export const ResultDisplay = memo(
                       <ul className="mt-2 space-y-2 text-base text-emerald-900">
                         {saferActionItems.map((line) => (
                           <li key={line} className="flex gap-2 leading-relaxed">
-                            <span aria-hidden className="mt-0.5 text-emerald-600">
+                            <span
+                              aria-hidden
+                              className="mt-0.5 text-emerald-600"
+                            >
                               •
                             </span>
                             <span>{line}</span>
@@ -517,7 +520,11 @@ export const ResultDisplay = memo(
                       className="group w-full text-left p-0 transition"
                       onClick={() => {
                         if (relatedCase.sourceUrl?.trim()) {
-                          window.open(relatedCase.sourceUrl, "_blank", "noopener,noreferrer");
+                          window.open(
+                            relatedCase.sourceUrl,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
                           return;
                         }
                         navigate(`/cases/${relatedCase.id}`);
@@ -554,7 +561,6 @@ export const ResultDisplay = memo(
             </div>
           </div>
         </div>
-
       </div>
     );
   },

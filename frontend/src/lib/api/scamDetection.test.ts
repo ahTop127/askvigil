@@ -53,6 +53,8 @@ describe("detectScam qr mapping", () => {
     });
 
     expect(result.qrDecodedContent).toBe("https://www.bilibili.com");
-    expect(result.qrUrlReportAnalysis).toEqual(payload.modalities.qr.url_report_analysis);
+    expect(result.qrUrlReportAnalysis).toEqual(
+      payload.modalities.qr.url_report_analysis,
+    );
   });
 });

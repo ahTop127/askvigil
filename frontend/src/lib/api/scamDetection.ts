@@ -171,7 +171,8 @@ function extractQrReportAnalysis(
       sourceObject.rl_report_analysis !== undefined ||
       sourceObject.url_report_analysis !== undefined
     ) {
-      report = sourceObject.rl_report_analysis ?? sourceObject.url_report_analysis;
+      report =
+        sourceObject.rl_report_analysis ?? sourceObject.url_report_analysis;
     } else {
       const looksLikeUrlAnalysis =
         sourceObject.risk_score !== undefined ||

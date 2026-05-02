@@ -33,7 +33,10 @@ function normalizeStoredResult(raw: unknown): ScamDetectionResult | null {
     return obj as unknown as ScamDetectionResult;
   }
 
-  if (typeof obj.riskLevel === "string" && typeof obj.explanation === "string") {
+  if (
+    typeof obj.riskLevel === "string" &&
+    typeof obj.explanation === "string"
+  ) {
     const legacy = obj as LegacyScanResult;
     return {
       score: toScoreFromLevel(legacy.riskLevel),
@@ -107,10 +110,7 @@ export default function DetectionResultPage() {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       <main className="mx-auto w-full max-w-[1280px] px-4 py-12">
-        <ResultDisplay
-          result={result}
-          onNewAnalysis={() => navigate("/")}
-        />
+        <ResultDisplay result={result} onNewAnalysis={() => navigate("/")} />
       </main>
     </div>
   );
