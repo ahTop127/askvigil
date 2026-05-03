@@ -20,16 +20,17 @@ from app.core.config import settings
 from app.core.database import TORTOISE_ORM
 from app.models.open_data import OpenDataSet, PhishingURL
 
+
 class FocalLoss(nn.Module):
     def __init__(self, alpha=1, gamma=2):
         super(FocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
-        self.bce = nn.BCEWithLogitsLoss(reduction='none')
+        self.bce = nn.BCEWithLogitsLoss(reduction="none")
 
     def forward(self, inputs, targets):
         bce_loss = self.bce(inputs, targets)
-        pt = torch.exp(-bce_loss) # Prevents over-fitting to easy samples
+        pt = torch.exp(-bce_loss)  # Prevents over-fitting to easy samples
         focal_loss = self.alpha * (1 - pt) ** self.gamma * bce_loss
         return focal_loss.mean()
 
@@ -48,7 +49,7 @@ class ScamPhishingMLP(nn.Module):
             nn.GELU(),
             nn.Dropout(0.4),  # Primary regularization
             nn.Linear(hidden_1, hidden_2),
-            nn.LayerNorm(hidden_2), # Added second normalization layer
+            nn.LayerNorm(hidden_2),  # Added second normalization layer
             nn.GELU(),
             nn.Dropout(0.3),  # Secondary regularization
             nn.Linear(hidden_2, 1),  # [Prob_Spam, Prob_Ham]
@@ -257,7 +258,7 @@ async def train_and_export(
     optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-2)
     smoothing = 0.1  # Label smoothing - make model less sure
     # FocalLoss mathematically down-weights "easy" samples to handle boundary drift
-    criterion = FocalLoss(gamma=2) # Gamma=2 is the standard 'magic number'
+    criterion = FocalLoss(gamma=2)  # Gamma=2 is the standard 'magic number'
 
     # 4. Training Loop
     best_v_loss = float("inf")
@@ -322,7 +323,7 @@ async def train_and_export(
     # --- Load Best Weights before Export ---
     if best_model_state:
         model.load_state_dict(best_model_state)
-        print("Restored best weights for export.")   
+        print("Restored best weights for export.")
 
     # # --- TEMPERATURE CALIBRATION SEARCH (ECE-BASED) ---
     # # --- NOT USED - DATA IS TOO CLEAN ---
@@ -420,13 +421,15 @@ async def train_and_export(
     avg_bias = all_val_logits.mean().item()
     std_bias = all_val_logits.std().item()
 
-    print(f"\n--- [DIAGNOSTIC] BIAS ANALYSIS ---")
+    print("\n--- [DIAGNOSTIC] BIAS ANALYSIS ---")
     print(f"Mean Logit: {avg_bias:.4f} (Ideally near 0.0)")
     print(f"Logit StdDev: {std_bias:.4f}")
     if abs(avg_bias) > 0.5:
-        print(f"⚠️ WARNING: Significant model drift detected. Check feature scaling or data balance.")
+        print(
+            "⚠️ WARNING: Significant model drift detected. Check feature scaling or data balance."
+        )
     else:
-        print(f"✅ Model centered within acceptable tolerances.")
+        print("✅ Model centered within acceptable tolerances.")
     # -------------------------------------------------
 
     class ExportWrapper(nn.Module):

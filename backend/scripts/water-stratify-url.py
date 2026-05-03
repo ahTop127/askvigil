@@ -17,9 +17,20 @@ OUTPUT_PATH = "/app/resources/askvigil_50k_balanced_hybrid.csv"
 # ==========================================
 # List of common shorteners to exclude since the system resolves them
 SHORTENER_DOMAINS = {
-    "bit.ly", "t.co", "tinyurl.com", "is.gd", "buff.ly", "goo.gl", 
-    "ow.ly", "rebrand.ly", "bl.ink", "tiny.cc", "shorte.st", "cutt.ly"
+    "bit.ly",
+    "t.co",
+    "tinyurl.com",
+    "is.gd",
+    "buff.ly",
+    "goo.gl",
+    "ow.ly",
+    "rebrand.ly",
+    "bl.ink",
+    "tiny.cc",
+    "shorte.st",
+    "cutt.ly",
 }
+
 
 def standardize_url(url: str) -> str:
     """
@@ -33,11 +44,13 @@ def standardize_url(url: str) -> str:
     # Re-prefix with https://
     return f"https://{clean}"
 
+
 def is_shortened(url: str) -> bool:
     """Checks if the domain is a known link shortener."""
     parsed = urlparse(url if "://" in url else f"http://{url}")
     domain = parsed.netloc.replace("www.", "")
     return domain in SHORTENER_DOMAINS
+
 
 def get_tld_tier(domain: str) -> float:
     """
