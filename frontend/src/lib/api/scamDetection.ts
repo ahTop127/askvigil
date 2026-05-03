@@ -120,8 +120,7 @@ function mapScanResponse(
     : [];
 
   const isUrlStripSubmission =
-    input.submissionChannel === "url_tab" &&
-    typeof input.content === "string";
+    input.submissionChannel === "url_tab" && typeof input.content === "string";
 
   /** Text-area message with URL branch: backend must return both NLP text analysis and url_analysis. */
   const dualTextUrlDetection = dualTextUrlCandidate;
@@ -140,8 +139,7 @@ function mapScanResponse(
       displayUrl,
       urlRiskScore: branchScore,
       urlRiskLevel: toRiskLevel(branchScore),
-      urlMetaFeatures:
-        branchMeta.length > 0 ? branchMeta : undefined,
+      urlMetaFeatures: branchMeta.length > 0 ? branchMeta : undefined,
     };
   }
 
@@ -149,8 +147,7 @@ function mapScanResponse(
   const submittedUrl = ((): string | undefined => {
     if (!unifiedUrlEntry) return undefined;
     if (isUrlStripSubmission) {
-      const t =
-        typeof input.content === "string" ? input.content.trim() : "";
+      const t = typeof input.content === "string" ? input.content.trim() : "";
       return t && isValidUrl(t) ? t : undefined;
     }
     return submittedUrlFromInput(input);
@@ -169,12 +166,11 @@ function mapScanResponse(
     qrContentType: undefined,
     dualTextUrlDetection: dualTextUrlDetection ? true : undefined,
     urlDetectionSummary,
-    urlMetaFeatures:
-      dualTextUrlDetection
-        ? undefined
-        : urlMetaFeatures.length > 0
-          ? urlMetaFeatures
-          : undefined,
+    urlMetaFeatures: dualTextUrlDetection
+      ? undefined
+      : urlMetaFeatures.length > 0
+        ? urlMetaFeatures
+        : undefined,
     suspiciousItems: getSuspiciousItems(
       textAnalysis?.explainability?.matched_indicators,
       clean,
