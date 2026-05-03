@@ -1,6 +1,8 @@
 import type { ScamDetectionInput, ScamDetectionResult } from "@lib/types";
 import { APP_CONFIG } from "@lib/config/app";
 import { logger } from "@lib/utils/logger";
+import { isValidUrl } from "@lib/utils/validation";
+import { buildUrlMetaHighlights } from "@lib/utils/urlMetaFeatures";
 
 /**
  * POST /api/v1/detection/scan — multipart `text` and/or `file`.
@@ -45,6 +47,18 @@ export async function detectScam(
   }
 }
 
+/** URL tab sends `type: "text"`; derive displayed link from a lone URL string. */
+function submittedUrlFromInput(input: ScamDetectionInput): string | undefined {
+  if (typeof input.content !== "string") return undefined;
+  const trimmed = input.content.trim();
+  if (!trimmed) return undefined;
+  if (input.type === "url") return trimmed;
+  if (input.type === "text" && !trimmed.includes("\n") && isValidUrl(trimmed)) {
+    return trimmed;
+  }
+  return undefined;
+}
+
 function mapScanResponse(
   raw: unknown,
   input: ScamDetectionInput,
@@ -55,14 +69,21 @@ function mapScanResponse(
 
   const textAnalysis = getTextAnalysis(raw);
   const legacyTextData = getLegacyTextData(raw);
+  const unifiedUrlEntry = getFirstUnifiedUrlAnalysis(raw);
   const overallRiskScore = toNumberOrNull(getOverallRiskScore(raw));
   const baseRiskRaw =
     textAnalysis?.risk_score_percent ??
     textAnalysis?.risk_score ??
     legacyTextData?.risk_score ??
     getLegacyRrfTopScore(raw);
+  const useUnifiedOverall =
+    input.type === "url" || unifiedUrlEntry !== null;
   const riskRaw =
-    input.type === "url" ? (overallRiskScore ?? baseRiskRaw) : baseRiskRaw;
+    useUnifiedOverall &&
+    overallRiskScore !== null &&
+    overallRiskScore !== -1
+      ? overallRiskScore
+      : baseRiskRaw;
   const score = toScorePercent(riskRaw);
 
   const category = normalizeScamType(
@@ -84,6 +105,36 @@ function mapScanResponse(
     (clean && clean.length > 200 ? `${clean.slice(0, 200)}…` : clean) ??
     `Scam check completed for ${input.type}.`;
 
+  const urlMetaFeatures = unifiedUrlEntry
+    ? buildUrlMetaHighlights(
+        unifiedUrlEntry.meta_labels,
+        unifiedUrlEntry.meta_vector,
+      )
+    : [];
+
+  const dualTextUrlDetection =
+    input.type === "text" &&
+    textAnalysis !== null &&
+    unifiedUrlEntry !== null;
+
+  let urlDetectionSummary: ScamDetectionResult["urlDetectionSummary"];
+  if (dualTextUrlDetection && unifiedUrlEntry) {
+    const displayUrl =
+      asNonEmptyString(unifiedUrlEntry.resolved_url)?.trim() ?? "";
+    const branchScore = toScorePercent(unifiedUrlEntry.risk_score ?? 0);
+    const branchMeta = buildUrlMetaHighlights(
+      unifiedUrlEntry.meta_labels,
+      unifiedUrlEntry.meta_vector,
+    );
+    urlDetectionSummary = {
+      displayUrl,
+      urlRiskScore: branchScore,
+      urlRiskLevel: toRiskLevel(branchScore),
+      urlMetaFeatures:
+        branchMeta.length > 0 ? branchMeta : undefined,
+    };
+  }
+
   return {
     score,
     riskLevel: toRiskLevel(score),
@@ -92,9 +143,17 @@ function mapScanResponse(
     timestamp: new Date().toISOString(),
     overallRiskScore: overallRiskScore ?? undefined,
     extractedText: clean ?? undefined,
-    submittedUrl: input.type === "url" ? String(input.content) : undefined,
+    submittedUrl: submittedUrlFromInput(input),
     qrDecodedContent: undefined,
     qrContentType: undefined,
+    dualTextUrlDetection: dualTextUrlDetection ? true : undefined,
+    urlDetectionSummary,
+    urlMetaFeatures:
+      dualTextUrlDetection
+        ? undefined
+        : urlMetaFeatures.length > 0
+          ? urlMetaFeatures
+          : undefined,
     suspiciousItems: getSuspiciousItems(
       textAnalysis?.explainability?.matched_indicators,
       clean,
@@ -288,6 +347,8 @@ interface QrUrlAnalysisLike {
   resolved_url?: unknown;
   url_report_analysis?: unknown;
   rl_report_analysis?: unknown;
+  meta_labels?: unknown;
+  meta_vector?: unknown;
 }
 
 interface QrDecodedItemLike {
@@ -355,6 +416,17 @@ function getUnifiedTextAnalysis(raw: unknown): Record<string, unknown> | null {
   const unified = (raw as Record<string, unknown>).unified_text_analysis;
   if (!unified || typeof unified !== "object") return null;
   return unified as Record<string, unknown>;
+}
+
+/** First entry from `unified_text_analysis.url_analysis` (URL branch of unified scan). */
+function getFirstUnifiedUrlAnalysis(raw: unknown): QrUrlAnalysisLike | null {
+  const unified = getUnifiedTextAnalysis(raw);
+  if (!unified) return null;
+  const arr = unified.url_analysis;
+  if (!Array.isArray(arr) || arr.length === 0) return null;
+  const first = arr[0];
+  if (!first || typeof first !== "object") return null;
+  return first as QrUrlAnalysisLike;
 }
 
 function getOverallRiskScore(raw: unknown): unknown {

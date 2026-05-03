@@ -12,7 +12,12 @@ import { Badge } from "@components/ui/badge";
 import { fetchScamCases } from "@lib/api/cases";
 import { APP_CONFIG } from "@lib/config/app";
 import { UI_TEXT } from "@lib/constants/text";
-import type { RiskLevel, ScamCase, ScamDetectionResult } from "@lib/types";
+import type {
+  RiskLevel,
+  ScamCase,
+  ScamDetectionResult,
+  UrlMetaFeatureHighlight,
+} from "@lib/types";
 
 const RISK_STYLES: Record<
   RiskLevel,
@@ -42,6 +47,131 @@ const RISK_STYLES: Record<
     glow: "shadow-green-100",
   },
 };
+
+const URL_META_SEVERITY_STYLES: Record<
+  UrlMetaFeatureHighlight["severity"],
+  { card: string; badge: string; emphasis: string; labelCell: string }
+> = {
+  high: {
+    card: "border-red-200 bg-red-50/90",
+    badge: "border border-red-300 bg-red-100 text-red-800",
+    emphasis: "text-red-700",
+    labelCell: "bg-red-200 text-black border-r border-red-500/85",
+  },
+  medium: {
+    card: "border-amber-200 bg-amber-50/90",
+    badge: "border border-amber-300 bg-amber-100 text-amber-900",
+    emphasis: "text-amber-800",
+    labelCell: "bg-amber-200 text-black border-r border-amber-500/85",
+  },
+  low: {
+    card: "border-yellow-200 bg-yellow-50/80",
+    badge: "border border-yellow-400 bg-yellow-100 text-yellow-900",
+    emphasis: "text-yellow-800",
+    labelCell: "bg-yellow-200 text-black border-r border-yellow-600/80",
+  },
+};
+
+/** URL paste flow: score bands match app risk (high ≥70 / medium 40–69 / low &lt;40). */
+const URL_ACTION_GUIDANCE_BY_LEVEL: Record<
+  RiskLevel,
+  { dontDo: string[]; safer: string[] }
+> = {
+  high: {
+    dontDo: [
+      "Don't click, type, or share this link — it is highly likely to be a phishing or credential-harvesting site.",
+      "Don't enter any passwords, OTP, or bank details if you already opened it.",
+    ],
+    safer: [
+      "Close the tab immediately and do not forward this link to anyone.",
+      "If you entered any credentials, change your passwords now and contact your bank's official hotline.",
+      "Report this link to your bank's fraud department or the Malaysian Cyber Security Centre (Cyber999).",
+    ],
+  },
+  medium: {
+    dontDo: [
+      "Don't click this link directly from messages, emails, or WhatsApp groups without verifying.",
+      "Don't enter personal information, IC number, or banking details without verifying the domain first.",
+    ],
+    safer: [
+      "Verify the link through official channels before clicking.",
+      "Navigate to the brand's official website directly by typing the URL manually (e.g., type maybank2u.com.my instead of clicking).",
+      "Cross-check the domain with the official brand's domain — look at the rightmost part of the URL to see who really controls the site.",
+    ],
+  },
+  low: {
+    dontDo: [
+      "Don't assume a \"safe\" score means you can relax completely — scammers can mimic legitimate structures.",
+      "Don't share sensitive information even if the link appears technically safe.",
+    ],
+    safer: [
+      "Double-check the URL and verify the sender's identity before proceeding.",
+      "If you received this from an unknown sender, verify the source through other channels before taking any action.",
+    ],
+  },
+};
+
+function mulberry32(seed: number): () => number {
+  return () => {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashGuidanceSeed(parts: string[]): number {
+  let h = 2166136261;
+  for (const p of parts) {
+    for (let i = 0; i < p.length; i++) {
+      h ^= p.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+  }
+  return h >>> 0;
+}
+
+/** Picks 1 or 2 distinct lines when the pool has ≥2; stable RNG via `next`. */
+function pickUrlGuidanceSubset(lines: string[], next: () => number): string[] {
+  if (lines.length === 0) return [];
+  if (lines.length === 1) return [lines[0]];
+  const count = next() < 0.5 ? 1 : 2;
+  const order = lines.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order.slice(0, count).map((i) => lines[i]);
+}
+
+function urlMetaFeaturesEqual(
+  a: ScamDetectionResult["urlMetaFeatures"],
+  b: ScamDetectionResult["urlMetaFeatures"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return !a && !b;
+  return a.every(
+    (item, i) =>
+      item.label === b[i]?.label &&
+      item.score === b[i]?.score &&
+      item.severity === b[i]?.severity &&
+      item.explanation === b[i]?.explanation,
+  );
+}
+
+function urlDetectionSummaryEqual(
+  a: ScamDetectionResult["urlDetectionSummary"],
+  b: ScamDetectionResult["urlDetectionSummary"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  return (
+    a.displayUrl === b.displayUrl &&
+    a.urlRiskScore === b.urlRiskScore &&
+    a.urlRiskLevel === b.urlRiskLevel &&
+    urlMetaFeaturesEqual(a.urlMetaFeatures, b.urlMetaFeatures)
+  );
+}
 
 export interface ResultDisplayProps {
   result: ScamDetectionResult;
@@ -86,7 +216,10 @@ function toReportDisplayValue(value: unknown): string {
 }
 
 function toQrReportRows(
-  report: Record<string, unknown> | Record<string, unknown>[] | undefined,
+  report:
+    | Record<string, unknown>
+    | Record<string, unknown>[]
+    | undefined,
 ): Array<{ label: string; value: string }> {
   if (!report) return [];
   const source =
@@ -131,8 +264,6 @@ export const ResultDisplay = memo(
     const extraCount = Math.max(0, suspiciousItems.length - 5);
     const noFlags = suspiciousItems.length === 0;
     const scamTypeLabel = result.scamType?.trim() || "Suspicious Content";
-    const shouldShowScamTypeBadge =
-      !result.submittedUrl && !result.qrDecodedContent;
     const guidance = result.guidance ?? [
       "Do not click unknown links or open unexpected files.",
       "Verify requests through official channels before responding.",
@@ -142,21 +273,134 @@ export const ResultDisplay = memo(
     const immediateSummary = result.immediateGuidanceSummary?.trim();
     const isUnknownScamType =
       (result.scamType ?? "").trim().toLowerCase() === "unknown";
-    const shouldShowRelatedCases =
-      !result.submittedUrl && !result.qrDecodedContent;
     const isQrResult = Boolean(result.qrDecodedContent || result.qrContentType);
     const isUrlOrQrResult = Boolean(result.submittedUrl || isQrResult);
-    const isTextResult = result.detectionType === "text";
+    const dualTextUrl =
+      Boolean(result.dualTextUrlDetection) &&
+      Boolean(result.urlDetectionSummary);
+    const [summaryTab, setSummaryTab] = useState<"text" | "url">("text");
+
+    useEffect(() => {
+      setSummaryTab("text");
+    }, [
+      result.timestamp,
+      result.score,
+      result.dualTextUrlDetection,
+      result.urlDetectionSummary?.displayUrl,
+    ]);
+
+    /** QR / URL flows (including dual-branch URL tab): do not show scam type badge. */
+    const shouldShowScamTypeBadge =
+      !isQrResult &&
+      result.detectionType !== "qr" &&
+      result.detectionType !== "url" &&
+      !result.submittedUrl &&
+      !(dualTextUrl && summaryTab === "url");
+
+    const shouldShowRelatedCases =
+      !result.submittedUrl &&
+      !result.qrDecodedContent &&
+      (!dualTextUrl || summaryTab === "text");
+
+    const urlBranchLevel =
+      result.urlDetectionSummary &&
+      isRiskLevel(result.urlDetectionSummary.urlRiskLevel)
+        ? result.urlDetectionSummary.urlRiskLevel
+        : level;
+    const scoreCardLevel =
+      dualTextUrl && summaryTab === "url" ? urlBranchLevel : level;
+    const scoreCardStyles = RISK_STYLES[scoreCardLevel];
+    const scoreCardScore =
+      dualTextUrl && summaryTab === "url" && result.urlDetectionSummary
+        ? result.urlDetectionSummary.urlRiskScore
+        : result.score;
+
+    const showExplanationUnderScore = dualTextUrl
+      ? summaryTab === "text"
+      : !isUrlOrQrResult;
+
+    const detectedLinkPrimary = dualTextUrl
+      ? summaryTab === "url"
+        ? result.urlDetectionSummary?.displayUrl?.trim()
+        : undefined
+      : result.submittedUrl?.trim();
+    const showDetectedLinkCard = Boolean(detectedLinkPrimary);
+    const notableUrlMeta =
+      dualTextUrl && summaryTab === "url"
+        ? result.urlDetectionSummary?.urlMetaFeatures
+        : result.urlMetaFeatures;
+
+    /** Non–dual-branch: same as legacy URL paste row (`submittedUrl` + merged `level`). */
+    const submittedUrlGuidancePick = useMemo(() => {
+      const url = result.submittedUrl?.trim();
+      if (!url || !isRiskLevel(level)) return null;
+      const seed = hashGuidanceSeed([
+        url,
+        result.timestamp,
+        String(result.score),
+        level,
+      ]);
+      const next = mulberry32(seed);
+      const pool = URL_ACTION_GUIDANCE_BY_LEVEL[level];
+      return {
+        dontDo: pickUrlGuidanceSubset(pool.dontDo, next),
+        safer: pickUrlGuidanceSubset(pool.safer, next),
+      };
+    }, [result.submittedUrl, result.timestamp, result.score, level]);
+
+    /** Dual-branch URL tab: same pool + RNG pattern as URL paste, keyed by branch URL/score/tier. */
+    const dualUrlTabGuidancePick = useMemo(() => {
+      if (!result.dualTextUrlDetection || !result.urlDetectionSummary) {
+        return null;
+      }
+      const sum = result.urlDetectionSummary;
+      const uLevel = isRiskLevel(sum.urlRiskLevel)
+        ? sum.urlRiskLevel
+        : level;
+      const seed = hashGuidanceSeed([
+        sum.displayUrl.trim() || "url-branch",
+        result.timestamp,
+        String(sum.urlRiskScore),
+        uLevel,
+      ]);
+      const next = mulberry32(seed);
+      const pool = URL_ACTION_GUIDANCE_BY_LEVEL[uLevel];
+      return {
+        dontDo: pickUrlGuidanceSubset(pool.dontDo, next),
+        safer: pickUrlGuidanceSubset(pool.safer, next),
+      };
+    }, [
+      result.dualTextUrlDetection,
+      result.timestamp,
+      result.urlDetectionSummary?.displayUrl,
+      result.urlDetectionSummary?.urlRiskScore,
+      result.urlDetectionSummary?.urlRiskLevel,
+      level,
+    ]);
+
+    /** Dual text tab: behave like plain text result (no URL-line guidance). URL tab: URL-style guidance. */
+    const urlGuidancePick = dualTextUrl
+      ? summaryTab === "url"
+        ? dualUrlTabGuidancePick
+        : null
+      : submittedUrlGuidancePick;
+
     const dontDoItems =
-      result.immediateGuidanceDontDo &&
+      urlGuidancePick?.dontDo ??
+      (result.immediateGuidanceDontDo &&
       result.immediateGuidanceDontDo.length > 0
         ? result.immediateGuidanceDontDo
-        : guidance.slice(0, 2);
+        : guidance.slice(0, 2));
     const saferActionItems =
-      result.immediateGuidanceSaferAction &&
+      urlGuidancePick?.safer ??
+      (result.immediateGuidanceSaferAction &&
       result.immediateGuidanceSaferAction.length > 0
         ? result.immediateGuidanceSaferAction
-        : guidance.slice(2, 5);
+        : guidance.slice(2, 5));
+    const urlActionGuideTwoColumn =
+      urlGuidancePick !== null || !isUnknownScamType;
+    const showUrlAwareDontDoPanel =
+      urlGuidancePick !== null || !isUnknownScamType;
     const caseFilterScamType = useMemo(
       () => getCaseFilterScamType(result.scamType || ""),
       [result.scamType],
@@ -198,7 +442,7 @@ export const ResultDisplay = memo(
         <div
           className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm"
           role="region"
-          aria-label={`Detection result: ${level} risk, score ${result.score}`}
+          aria-label={`Detection result: ${scoreCardLevel} risk, score ${scoreCardScore}`}
         >
           <div className="overflow-hidden border-b border-[#8ed6ce] bg-white shadow-sm">
             <div className="bg-[#223C61] px-5 py-3">
@@ -322,121 +566,199 @@ export const ResultDisplay = memo(
               <div className="-mt-2 mb-6 md:-mt-4 md:mb-5" />
 
               {!isQrResult && (
-                <div className="grid gap-6 rounded-3xl border border-slate-200 bg-white p-5 md:grid-cols-[220px_1fr] md:items-center md:p-6 mb-8 shadow-sm">
-                  <div
-                    className={`relative mx-auto w-44 h-44 rounded-full border-8 border-slate-100 bg-white flex items-center justify-center shadow-lg ${styles.glow}`}
-                  >
-                    <div className="w-32 h-32 rounded-full border border-slate-100 bg-white flex flex-col items-center justify-center">
-                      <div
-                        className={`text-6xl font-black tracking-tight ${styles.score}`}
-                        aria-hidden
-                      >
-                        {result.score}
-                      </div>
-                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
-                        {UI_TEXT.result.scoreSuffix}
+                <div className="mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                  {dualTextUrl && (
+                    <div
+                      className="border-b border-slate-200 bg-[#eef1f6]"
+                      role="tablist"
+                      aria-label="Detection summary type"
+                    >
+                      <div className="flex p-1.5 md:p-2">
+                        <div className="flex w-full gap-0 rounded-md bg-slate-300/35 p-1 shadow-inner ring-1 ring-slate-300/40 md:max-w-2xl">
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={summaryTab === "text"}
+                            onClick={() => setSummaryTab("text")}
+                            className={`min-h-9 flex-1 rounded px-2 py-2 text-center text-xs font-medium leading-snug transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#283C5E] md:px-4 md:text-sm ${
+                              summaryTab === "text"
+                                ? "bg-[#283C5E] text-white shadow-sm"
+                                : "bg-transparent text-slate-700 hover:bg-white/60 hover:text-slate-900"
+                            }`}
+                          >
+                            Text detection summary
+                          </button>
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={summaryTab === "url"}
+                            onClick={() => setSummaryTab("url")}
+                            className={`min-h-9 flex-1 rounded px-2 py-2 text-center text-xs font-medium leading-snug transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#283C5E] md:px-4 md:text-sm ${
+                              summaryTab === "url"
+                                ? "bg-[#283C5E] text-white shadow-sm"
+                                : "bg-transparent text-slate-700 hover:bg-white/60 hover:text-slate-900"
+                            }`}
+                          >
+                            URL detection summary
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                      <div
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${styles.badge}`}
-                      >
-                        {level === "low" ? (
-                          <Shield className="w-4 h-4" aria-hidden />
-                        ) : (
-                          <AlertCircle className="w-4 h-4" aria-hidden />
-                        )}
-                        {level === "high"
-                          ? UI_TEXT.result.high
-                          : level === "medium"
-                            ? UI_TEXT.result.medium
-                            : UI_TEXT.result.low}
-                      </div>
-                      {shouldShowScamTypeBadge && (
-                        <Badge
-                          variant="outline"
-                          className="border-primary/40 text-primary bg-primary/10 px-3 py-1 font-semibold"
+                  )}
+                  <div className="grid gap-6 p-5 md:grid-cols-[220px_1fr] md:items-center md:p-6">
+                    <div
+                      className={`relative mx-auto w-44 h-44 rounded-full border-8 border-slate-100 bg-white flex items-center justify-center shadow-lg ${scoreCardStyles.glow}`}
+                    >
+                      <div className="w-32 h-32 rounded-full border border-slate-100 bg-white flex flex-col items-center justify-center">
+                        <div
+                          className={`text-6xl font-black tracking-tight ${scoreCardStyles.score}`}
+                          aria-hidden
                         >
-                          {scamTypeLabel}
-                        </Badge>
-                      )}
+                          {scoreCardScore}
+                        </div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                          {UI_TEXT.result.scoreSuffix}
+                        </div>
+                      </div>
                     </div>
-                    {!isUrlOrQrResult && (
-                      <p className="text-gray-900 leading-relaxed text-lg md:text-xl font-medium">
-                        {result.explanation}
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <div
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${scoreCardStyles.badge}`}
+                        >
+                          {scoreCardLevel === "low" ? (
+                            <Shield className="w-4 h-4" aria-hidden />
+                          ) : (
+                            <AlertCircle className="w-4 h-4" aria-hidden />
+                          )}
+                          {scoreCardLevel === "high"
+                            ? UI_TEXT.result.high
+                            : scoreCardLevel === "medium"
+                              ? UI_TEXT.result.medium
+                              : UI_TEXT.result.low}
+                        </div>
+                        {shouldShowScamTypeBadge && (
+                          <Badge
+                            variant="outline"
+                            className="border-primary/40 text-primary bg-primary/10 px-3 py-1 font-semibold"
+                          >
+                            {scamTypeLabel}
+                          </Badge>
+                        )}
+                      </div>
+                      {showExplanationUnderScore && (
+                        <p className="text-gray-900 leading-relaxed text-lg md:text-xl font-medium">
+                          {result.explanation}
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-500 mt-3 font-medium">
+                        {APP_CONFIG.name} ·{" "}
+                        {new Date(result.timestamp).toLocaleString()}
                       </p>
-                    )}
-                    <p className="text-sm text-gray-500 mt-3 font-medium">
-                      {APP_CONFIG.name} ·{" "}
-                      {new Date(result.timestamp).toLocaleString()}
-                    </p>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {result.submittedUrl && (
+              {showDetectedLinkCard && (
                 <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
                   <h3 className="font-semibold text-gray-900 mb-2 text-lg">
                     Detected Link
                   </h3>
                   <p className="text-base text-gray-700 break-all">
-                    {result.submittedUrl}
+                    {detectedLinkPrimary}
                   </p>
-                  {result.redirectUrl && (
+                  {!dualTextUrl && result.redirectUrl && (
                     <p className="text-base text-gray-600 mt-1 break-all">
                       Redirects to: {result.redirectUrl}
                     </p>
+                  )}
+                  {notableUrlMeta && notableUrlMeta.length > 0 && (
+                    <div className="mt-6">
+                      <h4 className="mb-3 text-base font-semibold text-gray-900">
+                        Notable URL signals
+                      </h4>
+                      <div className="overflow-hidden rounded-none border border-[#e9f4f2]">
+                        {notableUrlMeta.map((item, idx) => {
+                          const ms = URL_META_SEVERITY_STYLES[item.severity];
+                          const bandLabel =
+                            item.severity === "high"
+                              ? "High"
+                              : item.severity === "medium"
+                                ? "Moderate"
+                                : "Notice";
+                          return (
+                            <div
+                              key={`${item.label}-${idx}`}
+                              className="flex items-center gap-3 border-b border-[#e9f4f2] last:border-b-0 md:gap-4"
+                            >
+                              <div
+                                className={`m-0 flex w-[132px] shrink-0 items-center px-2 py-2 text-sm font-semibold ${ms.labelCell}`}
+                              >
+                                {item.label}
+                              </div>
+                              <div
+                                className={`min-w-0 flex-1 py-3 pr-3 text-sm leading-relaxed text-black break-words md:pr-4 ${
+                                  idx % 2 === 0 ? "bg-white" : "bg-[#fbfefe]"
+                                }`}
+                              >
+                                <span
+                                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold md:text-sm ${ms.badge}`}
+                                >
+                                  {bandLabel}
+                                </span>
+                                <span className="text-neutral-600">{" — "}</span>
+                                <span>{item.explanation}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
 
               {!isQrResult &&
-                (!noFlags ? (
-                  <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
-                    <h3 className="font-semibold text-gray-900 text-lg">
-                      Suspicious Parts
-                    </h3>
-                    <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
-                      <div className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] bg-white px-3 py-3 md:px-4">
-                        <p className="text-base font-semibold text-slate-800">
-                          Detected Signal
+                !noFlags &&
+                (!dualTextUrl || summaryTab === "text") && (
+                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
+                  <h3 className="font-semibold text-gray-900 text-lg">
+                    Suspicious Parts
+                  </h3>
+                  <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
+                    <div className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] bg-white px-3 py-3 md:px-4">
+                      <p className="text-base font-semibold text-slate-800">
+                        Detected Signal
+                      </p>
+                      <p className="text-base font-semibold text-slate-800">
+                        Why It Is Risky
+                      </p>
+                    </div>
+                    {visibleFlags.map((item, idx) => (
+                      <div
+                        key={`${item.text}-${idx}`}
+                        className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 odd:bg-white even:bg-[#fbfefe] last:border-b-0 md:px-4"
+                      >
+                        <p className="text-base text-slate-700 break-words">
+                          {item.text}
                         </p>
-                        <p className="text-base font-semibold text-slate-800">
-                          Why It Is Risky
+                        <p className="text-base text-slate-700 break-words">
+                          {item.reason}
                         </p>
                       </div>
-                      {visibleFlags.map((item, idx) => (
-                        <div
-                          key={`${item.text}-${idx}`}
-                          className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 odd:bg-white even:bg-[#fbfefe] last:border-b-0 md:px-4"
-                        >
-                          <p className="text-base text-slate-700 break-words">
-                            {item.text}
-                          </p>
-                          <p className="text-base text-slate-700 break-words">
-                            {item.reason}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    {extraCount > 0 && (
-                      <button
-                        className="text-primary text-sm font-medium hover:underline"
-                        onClick={() => setShowAllFlags((v) => !v)}
-                      >
-                        {showAllFlags ? "Show less" : `Show ${extraCount} more`}
-                      </button>
-                    )}
+                    ))}
                   </div>
-                ) : (
-                  <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-3">
-                    <h3 className="font-semibold text-gray-900 text-lg">
-                      No obvious scam patterns found
-                    </h3>
-                  </div>
-                ))}
+                  {extraCount > 0 && (
+                    <button
+                      className="text-primary text-sm font-medium hover:underline"
+                      onClick={() => setShowAllFlags((v) => !v)}
+                    >
+                      {showAllFlags ? "Show less" : `Show ${extraCount} more`}
+                    </button>
+                  )}
+                </div>
+                )}
 
               {!isQrResult && (
                 <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
@@ -447,20 +769,17 @@ export const ResultDisplay = memo(
                   </div>
                   <div
                     className={`mt-4 grid gap-4 ${
-                      isUnknownScamType ? "" : "md:grid-cols-2"
+                      urlActionGuideTwoColumn ? "md:grid-cols-2" : ""
                     }`}
                   >
-                    {!isUnknownScamType && (
+                    {showUrlAwareDontDoPanel && (
                       <div className="rounded-xl bg-red-50 p-4 border border-red-100 transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-md">
                         <p className="text-lg font-semibold text-red-700">
                           Don&apos;t Do
                         </p>
                         <ul className="mt-2 space-y-2 text-base text-red-900">
                           {dontDoItems.map((line) => (
-                            <li
-                              key={line}
-                              className="flex gap-2 leading-relaxed"
-                            >
+                            <li key={line} className="flex gap-2 leading-relaxed">
                               <span aria-hidden className="mt-0.5 text-red-600">
                                 •
                               </span>
@@ -477,10 +796,7 @@ export const ResultDisplay = memo(
                       <ul className="mt-2 space-y-2 text-base text-emerald-900">
                         {saferActionItems.map((line) => (
                           <li key={line} className="flex gap-2 leading-relaxed">
-                            <span
-                              aria-hidden
-                              className="mt-0.5 text-emerald-600"
-                            >
+                            <span aria-hidden className="mt-0.5 text-emerald-600">
                               •
                             </span>
                             <span>{line}</span>
@@ -520,11 +836,7 @@ export const ResultDisplay = memo(
                       className="group w-full text-left p-0 transition"
                       onClick={() => {
                         if (relatedCase.sourceUrl?.trim()) {
-                          window.open(
-                            relatedCase.sourceUrl,
-                            "_blank",
-                            "noopener,noreferrer",
-                          );
+                          window.open(relatedCase.sourceUrl, "_blank", "noopener,noreferrer");
                           return;
                         }
                         navigate(`/cases/${relatedCase.id}`);
@@ -561,11 +873,22 @@ export const ResultDisplay = memo(
             </div>
           </div>
         </div>
+
       </div>
     );
   },
   (prev, next) =>
     prev.result.score === next.result.score &&
     prev.result.riskLevel === next.result.riskLevel &&
-    prev.result.timestamp === next.result.timestamp,
+    prev.result.timestamp === next.result.timestamp &&
+    prev.result.submittedUrl === next.result.submittedUrl &&
+    prev.result.dualTextUrlDetection === next.result.dualTextUrlDetection &&
+    urlDetectionSummaryEqual(
+      prev.result.urlDetectionSummary,
+      next.result.urlDetectionSummary,
+    ) &&
+    urlMetaFeaturesEqual(
+      prev.result.urlMetaFeatures,
+      next.result.urlMetaFeatures,
+    ),
 );

@@ -165,13 +165,27 @@ export const HowItWorks = memo(function HowItWorks() {
             </motion.div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 items-center lg:pl-20">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, x: 60 }}
+              whileInView={{ opacity: 1, scale: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+              className="order-1"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1080"
+                alt="Reviewing documents and case examples"
+                className="w-full h-80 object-cover rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300"
+                loading="lazy"
+              />
+            </motion.div>
             <motion.div
               initial={{ opacity: 0, x: -60 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ duration: 0.7, ease: "easeOut" }}
-              className="order-2 lg:order-1"
+              className="order-2"
             >
               <h3 className="text-3xl font-bold text-[#213034] mb-4">
                 Browse real scam cases
@@ -191,20 +205,6 @@ export const HowItWorks = memo(function HowItWorks() {
                 <FolderOpen className="w-5 h-5" aria-hidden />
                 Browse cases
               </button>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, x: 60 }}
-              whileInView={{ opacity: 1, scale: 1, x: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
-              className="order-1 lg:order-2"
-            >
-              <img
-                src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1080"
-                alt="Reviewing documents and case examples"
-                className="w-full h-80 object-cover rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300"
-                loading="lazy"
-              />
             </motion.div>
           </div>
         </div>

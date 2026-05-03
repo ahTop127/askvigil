@@ -43,6 +43,12 @@ export interface ScamDetectionResult {
   qrDecodedContent?: string;
   qrContentType?: "url" | "sms" | "contact" | "plain-text";
   qrUrlReportAnalysis?: Record<string, unknown> | Record<string, unknown>[];
+  /** URL scan: top signals from `unified_text_analysis.url_analysis[0]` meta fields. */
+  urlMetaFeatures?: UrlMetaFeatureHighlight[];
+  /** Unified scan ran both text + URL branches (text channel only). */
+  dualTextUrlDetection?: boolean;
+  /** URL-branch payload for dual-mode summary tab (includes branch score tier for guidance). */
+  urlDetectionSummary?: UrlDetectionSummary;
   guidance?: string[];
   immediateGuidanceTitle?: string;
   immediateGuidanceSummary?: string;
@@ -66,6 +72,22 @@ export interface DetectionStepState {
 export interface SuspiciousItem {
   text: string;
   reason: string;
+}
+
+/** One highlighted dimension from backend URL meta vector (0–1, independent). */
+export interface UrlMetaFeatureHighlight {
+  label: string;
+  score: number;
+  severity: "high" | "medium" | "low";
+  explanation: string;
+}
+
+/** URL branch snapshot when unified scan returns both text + URL analysis (text input only). */
+export interface UrlDetectionSummary {
+  displayUrl: string;
+  urlRiskScore: number;
+  urlRiskLevel: RiskLevel;
+  urlMetaFeatures?: UrlMetaFeatureHighlight[];
 }
 
 export interface ScamCase {

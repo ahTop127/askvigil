@@ -39,19 +39,33 @@ export function DetectionSection({ detection }: DetectionSectionProps) {
   return (
     <section
       id="check-section"
-      className="relative overflow-hidden bg-gradient-to-b from-[#f7fbff] via-[#f4f8ff] to-[#eef4ff] pt-12 pb-20 md:pt-14"
+      className="relative overflow-hidden bg-[#F6F4F1] pt-12 pb-20 md:pt-14"
     >
+      {/* Layered gradient: anchored on #F6F4F1, subtle luminosity shift */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-[#93c5fd]/20 blur-3xl"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#FAFAF8] via-[#F6F4F1] to-[#E8E4DE]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute top-24 -right-24 h-80 w-80 rounded-full bg-[#a7f3d0]/20 blur-3xl"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-[#FFFCF9]/75"
+      />
+      {/* Soft radial accents — restrained, editorial */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-28 left-[12%] h-[28rem] w-[28rem] -translate-x-1/2 rounded-full bg-[#283C5E]/[0.045] blur-[100px]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/70 to-transparent"
+        className="pointer-events-none absolute top-8 -right-16 h-[22rem] w-[22rem] rounded-full bg-[#B8A99A]/12 blur-[88px]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-0 left-1/2 h-64 w-[120%] -translate-x-1/2 rounded-[100%] bg-gradient-to-t from-[#DFD8CF]/35 via-transparent to-transparent"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/55 to-transparent"
       />
       <div className="max-w-4xl mx-auto px-4 relative z-10">
         <div className="text-center mb-12 -mt-4">

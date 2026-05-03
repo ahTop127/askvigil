@@ -102,7 +102,7 @@ export function useScamDetection(): UseScamDetectionReturn {
       case "text":
         return { type: "text", content: textInput };
       case "url":
-        return { type: "url", content: urlInput };
+        return { type: "text", content: urlInput };
       case "image":
         return imageFile ? { type: "image", content: imageFile } : null;
       case "qr":
@@ -122,7 +122,10 @@ export function useScamDetection(): UseScamDetectionReturn {
       else setError(ERROR_MESSAGES.textInput);
       return;
     }
-    const v = validateDetectionInput(payload.type, payload.content);
+    const v =
+      activeTab === "url"
+        ? validateDetectionInput("url", urlInput)
+        : validateDetectionInput(payload.type, payload.content);
     if (!v.isValid) {
       setError(v.error ?? ERROR_MESSAGES.textInput);
       return;
@@ -147,14 +150,14 @@ export function useScamDetection(): UseScamDetectionReturn {
         });
       }
 
-      if (payload.type === "text" && res.overallRiskScore === -1) {
+      if (activeTab === "text" && res.overallRiskScore === -1) {
         setError(ERROR_MESSAGES.insufficientContent);
         return;
       }
 
       localStorage.setItem(
         "lastScanResult",
-        JSON.stringify({ ...res, detectionType: payload.type }),
+        JSON.stringify({ ...res, detectionType: activeTab }),
       );
       navigate("/result");
     } catch (e) {
