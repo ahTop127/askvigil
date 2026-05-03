@@ -149,8 +149,7 @@ export function useScamDetection(): UseScamDetectionReturn {
           content: payload.content,
           ...(typeof payload.content === "string"
             ? {
-                submissionChannel:
-                  activeTab === "url" ? "url_tab" : "text_tab",
+                submissionChannel: activeTab === "url" ? "url_tab" : "text_tab",
               }
             : {}),
         });

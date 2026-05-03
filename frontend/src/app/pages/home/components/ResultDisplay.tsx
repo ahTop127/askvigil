@@ -279,9 +279,7 @@ export const ResultDisplay = memo(
     const isPureUrlResult =
       result.detectionType === "url" && !isQrResult && !dualTextUrl;
     const showIamScammedButton =
-      !isQrResult &&
-      level !== "low" &&
-      (isPureUrlResult || !isUnknownScamType);
+      !isQrResult && level !== "low" && (isPureUrlResult || !isUnknownScamType);
 
     const [summaryTab, setSummaryTab] = useState<"text" | "url">("text");
 
