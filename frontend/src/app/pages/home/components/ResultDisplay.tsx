@@ -101,7 +101,7 @@ const URL_ACTION_GUIDANCE_BY_LEVEL: Record<
   },
   low: {
     dontDo: [
-      "Don't assume a \"safe\" score means you can relax completely — scammers can mimic legitimate structures.",
+      'Don\'t assume a "safe" score means you can relax completely — scammers can mimic legitimate structures.',
       "Don't share sensitive information even if the link appears technically safe.",
     ],
     safer: [
@@ -216,10 +216,7 @@ function toReportDisplayValue(value: unknown): string {
 }
 
 function toQrReportRows(
-  report:
-    | Record<string, unknown>
-    | Record<string, unknown>[]
-    | undefined,
+  report: Record<string, unknown> | Record<string, unknown>[] | undefined,
 ): Array<{ label: string; value: string }> {
   if (!report) return [];
   const source =
@@ -354,9 +351,7 @@ export const ResultDisplay = memo(
         return null;
       }
       const sum = result.urlDetectionSummary;
-      const uLevel = isRiskLevel(sum.urlRiskLevel)
-        ? sum.urlRiskLevel
-        : level;
+      const uLevel = isRiskLevel(sum.urlRiskLevel) ? sum.urlRiskLevel : level;
       const seed = hashGuidanceSeed([
         sum.displayUrl.trim() || "url-branch",
         result.timestamp,
@@ -707,7 +702,9 @@ export const ResultDisplay = memo(
                                 >
                                   {bandLabel}
                                 </span>
-                                <span className="text-neutral-600">{" — "}</span>
+                                <span className="text-neutral-600">
+                                  {" — "}
+                                </span>
                                 <span>{item.explanation}</span>
                               </div>
                             </div>
@@ -722,42 +719,42 @@ export const ResultDisplay = memo(
               {!isQrResult &&
                 !noFlags &&
                 (!dualTextUrl || summaryTab === "text") && (
-                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    Suspicious Parts
-                  </h3>
-                  <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
-                    <div className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] bg-white px-3 py-3 md:px-4">
-                      <p className="text-base font-semibold text-slate-800">
-                        Detected Signal
-                      </p>
-                      <p className="text-base font-semibold text-slate-800">
-                        Why It Is Risky
-                      </p>
-                    </div>
-                    {visibleFlags.map((item, idx) => (
-                      <div
-                        key={`${item.text}-${idx}`}
-                        className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 odd:bg-white even:bg-[#fbfefe] last:border-b-0 md:px-4"
-                      >
-                        <p className="text-base text-slate-700 break-words">
-                          {item.text}
+                  <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
+                    <h3 className="font-semibold text-gray-900 text-lg">
+                      Suspicious Parts
+                    </h3>
+                    <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
+                      <div className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] bg-white px-3 py-3 md:px-4">
+                        <p className="text-base font-semibold text-slate-800">
+                          Detected Signal
                         </p>
-                        <p className="text-base text-slate-700 break-words">
-                          {item.reason}
+                        <p className="text-base font-semibold text-slate-800">
+                          Why It Is Risky
                         </p>
                       </div>
-                    ))}
+                      {visibleFlags.map((item, idx) => (
+                        <div
+                          key={`${item.text}-${idx}`}
+                          className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 odd:bg-white even:bg-[#fbfefe] last:border-b-0 md:px-4"
+                        >
+                          <p className="text-base text-slate-700 break-words">
+                            {item.text}
+                          </p>
+                          <p className="text-base text-slate-700 break-words">
+                            {item.reason}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {extraCount > 0 && (
+                      <button
+                        className="text-primary text-sm font-medium hover:underline"
+                        onClick={() => setShowAllFlags((v) => !v)}
+                      >
+                        {showAllFlags ? "Show less" : `Show ${extraCount} more`}
+                      </button>
+                    )}
                   </div>
-                  {extraCount > 0 && (
-                    <button
-                      className="text-primary text-sm font-medium hover:underline"
-                      onClick={() => setShowAllFlags((v) => !v)}
-                    >
-                      {showAllFlags ? "Show less" : `Show ${extraCount} more`}
-                    </button>
-                  )}
-                </div>
                 )}
 
               {!isQrResult && (
@@ -779,7 +776,10 @@ export const ResultDisplay = memo(
                         </p>
                         <ul className="mt-2 space-y-2 text-base text-red-900">
                           {dontDoItems.map((line) => (
-                            <li key={line} className="flex gap-2 leading-relaxed">
+                            <li
+                              key={line}
+                              className="flex gap-2 leading-relaxed"
+                            >
                               <span aria-hidden className="mt-0.5 text-red-600">
                                 •
                               </span>
@@ -796,7 +796,10 @@ export const ResultDisplay = memo(
                       <ul className="mt-2 space-y-2 text-base text-emerald-900">
                         {saferActionItems.map((line) => (
                           <li key={line} className="flex gap-2 leading-relaxed">
-                            <span aria-hidden className="mt-0.5 text-emerald-600">
+                            <span
+                              aria-hidden
+                              className="mt-0.5 text-emerald-600"
+                            >
                               •
                             </span>
                             <span>{line}</span>
@@ -836,7 +839,11 @@ export const ResultDisplay = memo(
                       className="group w-full text-left p-0 transition"
                       onClick={() => {
                         if (relatedCase.sourceUrl?.trim()) {
-                          window.open(relatedCase.sourceUrl, "_blank", "noopener,noreferrer");
+                          window.open(
+                            relatedCase.sourceUrl,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
                           return;
                         }
                         navigate(`/cases/${relatedCase.id}`);
@@ -873,7 +880,6 @@ export const ResultDisplay = memo(
             </div>
           </div>
         </div>
-
       </div>
     );
   },

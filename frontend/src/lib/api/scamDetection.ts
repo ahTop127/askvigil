@@ -76,12 +76,9 @@ function mapScanResponse(
     textAnalysis?.risk_score ??
     legacyTextData?.risk_score ??
     getLegacyRrfTopScore(raw);
-  const useUnifiedOverall =
-    input.type === "url" || unifiedUrlEntry !== null;
+  const useUnifiedOverall = input.type === "url" || unifiedUrlEntry !== null;
   const riskRaw =
-    useUnifiedOverall &&
-    overallRiskScore !== null &&
-    overallRiskScore !== -1
+    useUnifiedOverall && overallRiskScore !== null && overallRiskScore !== -1
       ? overallRiskScore
       : baseRiskRaw;
   const score = toScorePercent(riskRaw);
@@ -113,9 +110,7 @@ function mapScanResponse(
     : [];
 
   const dualTextUrlDetection =
-    input.type === "text" &&
-    textAnalysis !== null &&
-    unifiedUrlEntry !== null;
+    input.type === "text" && textAnalysis !== null && unifiedUrlEntry !== null;
 
   let urlDetectionSummary: ScamDetectionResult["urlDetectionSummary"];
   if (dualTextUrlDetection && unifiedUrlEntry) {
@@ -130,8 +125,7 @@ function mapScanResponse(
       displayUrl,
       urlRiskScore: branchScore,
       urlRiskLevel: toRiskLevel(branchScore),
-      urlMetaFeatures:
-        branchMeta.length > 0 ? branchMeta : undefined,
+      urlMetaFeatures: branchMeta.length > 0 ? branchMeta : undefined,
     };
   }
 
@@ -148,12 +142,11 @@ function mapScanResponse(
     qrContentType: undefined,
     dualTextUrlDetection: dualTextUrlDetection ? true : undefined,
     urlDetectionSummary,
-    urlMetaFeatures:
-      dualTextUrlDetection
-        ? undefined
-        : urlMetaFeatures.length > 0
-          ? urlMetaFeatures
-          : undefined,
+    urlMetaFeatures: dualTextUrlDetection
+      ? undefined
+      : urlMetaFeatures.length > 0
+        ? urlMetaFeatures
+        : undefined,
     suspiciousItems: getSuspiciousItems(
       textAnalysis?.explainability?.matched_indicators,
       clean,
