@@ -521,55 +521,27 @@ function getIndicatorReasons(
 function normalizeScamType(value: string): string {
   const normalized = value.trim().toLowerCase().replace(/\s+/g, " ");
   const compact = normalized.replace(/[\s-]+/g, "_");
-
-  if (normalized === "not recognized by known type") return "unknown";
-
-  // Backend NLP classifier labels (see backend/app/services/nlp_service.py SCAM_TYPES keys)
+  // Contract output set is still only 3 classes; this just tolerates format drift.
   if (
     compact === "job_scam" ||
     compact === "job_scams" ||
-    normalized === "job scam" ||
-    normalized === "job scams" ||
     normalized.startsWith("job scam")
-  )
+  ) {
     return "job-scam";
-
-  if (
-    compact === "phishing" ||
-    normalized === "phishing" ||
-    normalized.startsWith("phishing")
-  )
+  }
+  if (compact === "phishing" || normalized.startsWith("phishing")) {
     return "phishing";
-
-  if (
-    compact === "qr_code_scam" ||
-    compact === "qr_scam" ||
-    normalized.includes("qr code") ||
-    normalized.includes("qr-code") ||
-    normalized.includes("qr scam")
-  )
-    return "qr-scam";
-
+  }
   if (
     compact === "otp_scam" ||
     compact === "otp_scams" ||
-    normalized === "otp scam" ||
-    normalized === "otp scams" ||
     normalized.startsWith("otp scam") ||
     normalized.includes("one-time password") ||
     normalized.includes("one time password")
-  )
-    return "otp-scam";
-
-  if (
-    compact === "suspicious_link" ||
-    compact === "suspicious_links" ||
-    normalized.includes("suspicious link")
   ) {
-    return "suspicious-link";
+    return "otp-scam";
   }
-
-  return value;
+  return "unknown";
 }
 
 function toStringList(value: unknown): string[] {

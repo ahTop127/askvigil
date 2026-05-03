@@ -183,10 +183,11 @@ function isRiskLevel(v: string): v is RiskLevel {
 }
 
 function getCaseFilterScamType(scamType: string): string {
-  const normalized = scamType.trim().toLowerCase();
-  if (normalized === "job_scam" || normalized === "job-scam") return "job-scam";
-  if (normalized === "phishing") return "phishing";
-  if (normalized === "otp_scam" || normalized === "otp-scam") return "otp-scam";
+  const normalized = scamType.trim().toLowerCase().replace(/\s+/g, " ");
+  const compact = normalized.replace(/[\s-]+/g, "_");
+  if (compact === "job_scam" || compact === "job_scams") return "job-scam";
+  if (compact === "phishing") return "phishing";
+  if (compact === "otp_scam" || compact === "otp_scams") return "otp-scam";
   return "all";
 }
 
@@ -292,18 +293,18 @@ export const ResultDisplay = memo(
       result.urlDetectionSummary?.displayUrl,
     ]);
 
-    /** QR / URL flows (including dual-branch URL tab): do not show scam type badge. */
-    const shouldShowScamTypeBadge =
-      !isQrResult &&
-      result.detectionType !== "qr" &&
-      result.detectionType !== "url" &&
-      !result.submittedUrl &&
-      !(dualTextUrl && summaryTab === "url");
+    /** Mixed mode text tab must surface scam type even if other URL flags are present. */
+    const shouldShowScamTypeBadge = dualTextUrl
+      ? summaryTab === "text"
+      : !isQrResult &&
+        result.detectionType !== "qr" &&
+        result.detectionType !== "url" &&
+        !result.submittedUrl;
 
-    const shouldShowRelatedCases =
-      !result.submittedUrl &&
-      !result.qrDecodedContent &&
-      (!dualTextUrl || summaryTab === "text");
+    /** Mixed mode text tab must keep related-case card visible. */
+    const shouldShowRelatedCases = dualTextUrl
+      ? summaryTab === "text"
+      : !result.submittedUrl && !result.qrDecodedContent;
 
     const urlBranchLevel =
       result.urlDetectionSummary &&

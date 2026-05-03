@@ -117,7 +117,7 @@ describe("detectScam qr mapping", () => {
         text_analysis: {
           risk_score_percent: 41,
           risk_score: 0.4,
-          scam_type: { predicted_type: "phishing" },
+          scam_type: { predicted_type: "Phishing" },
           immediate_guidance: { summary: "Mixed content looks risky." },
         },
         url_analysis: [
@@ -162,7 +162,7 @@ describe("detectScam qr mapping", () => {
         overall_risk_score: 0.41,
         text_analysis: {
           risk_score: 0.41,
-          scam_type: { predicted_type: "job_scam" },
+          scam_type: { predicted_type: "Job Scam" },
         },
         url_analysis: [],
       },
@@ -253,7 +253,7 @@ describe("detectScam qr mapping", () => {
         overall_risk_score: 0.55,
         text_analysis: {
           risk_score: 0.3,
-          scam_type: { predicted_type: "job_scam" },
+          scam_type: { predicted_type: "Job Scam" },
         },
         url_analysis: [
           {
@@ -282,5 +282,59 @@ describe("detectScam qr mapping", () => {
 
     expect(result.dualTextUrlDetection).toBeFalsy();
     expect(result.urlDetectionSummary).toBeUndefined();
+  });
+
+  it("maps unsupported predicted_type to unknown", async () => {
+    const payload = {
+      unified_text_analysis: {
+        text_analysis: {
+          risk_score: 0.2,
+          scam_type: { predicted_type: "QR Code Scam" },
+        },
+        url_analysis: [],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+      }),
+    );
+
+    const result = await detectScam({
+      type: "text",
+      content: "scan this",
+    });
+
+    expect(result.scamType).toBe("unknown");
+  });
+
+  it("maps backend variant job_scam to job-scam for case compatibility", async () => {
+    const payload = {
+      unified_text_analysis: {
+        text_analysis: {
+          risk_score: 0.8,
+          scam_type: { predicted_type: "job_scam" },
+        },
+        url_analysis: [],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+      }),
+    );
+
+    const result = await detectScam({
+      type: "text",
+      content: "Part time job RM900 per day. Register now using this link.",
+    });
+
+    expect(result.scamType).toBe("job-scam");
   });
 });
