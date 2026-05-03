@@ -147,6 +147,12 @@ export function useScamDetection(): UseScamDetectionReturn {
         res = await detectScam({
           type: payload.type,
           content: payload.content,
+          ...(typeof payload.content === "string"
+            ? {
+                submissionChannel:
+                  activeTab === "url" ? "url_tab" : "text_tab",
+              }
+            : {}),
         });
       }
 

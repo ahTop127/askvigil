@@ -69,16 +69,19 @@ function mapScanResponse(
 
   const textAnalysis = getTextAnalysis(raw);
   const legacyTextData = getLegacyTextData(raw);
-  const unifiedUrlEntry = getFirstUnifiedUrlAnalysis(raw);
+  const unifiedUrlEntry = resolveUnifiedUrlBranch(raw);
   const overallRiskScore = toNumberOrNull(getOverallRiskScore(raw));
   const baseRiskRaw =
     textAnalysis?.risk_score_percent ??
     textAnalysis?.risk_score ??
     legacyTextData?.risk_score ??
     getLegacyRrfTopScore(raw);
-  const useUnifiedOverall = input.type === "url" || unifiedUrlEntry !== null;
+  /** URL merge score only when backend actually returned an analyzable `url_analysis` row. */
+  const useUnifiedOverall = unifiedUrlEntry !== null;
   const riskRaw =
-    useUnifiedOverall && overallRiskScore !== null && overallRiskScore !== -1
+    useUnifiedOverall &&
+    overallRiskScore !== null &&
+    overallRiskScore !== -1
       ? overallRiskScore
       : baseRiskRaw;
   const score = toScorePercent(riskRaw);
@@ -109,13 +112,22 @@ function mapScanResponse(
       )
     : [];
 
+  const isUrlStripSubmission =
+    input.submissionChannel === "url_tab" &&
+    typeof input.content === "string";
+
+  /** Text-area message with URL branch: backend must return both NLP text analysis and url_analysis. */
   const dualTextUrlDetection =
-    input.type === "text" && textAnalysis !== null && unifiedUrlEntry !== null;
+    input.type === "text" &&
+    input.submissionChannel !== "url_tab" &&
+    textAnalysis !== null &&
+    unifiedUrlEntry !== null;
 
   let urlDetectionSummary: ScamDetectionResult["urlDetectionSummary"];
   if (dualTextUrlDetection && unifiedUrlEntry) {
+    const resolvedRaw = asNonEmptyString(unifiedUrlEntry.resolved_url)?.trim();
     const displayUrl =
-      asNonEmptyString(unifiedUrlEntry.resolved_url)?.trim() ?? "";
+      resolvedRaw && isValidUrl(resolvedRaw) ? resolvedRaw : "";
     const branchScore = toScorePercent(unifiedUrlEntry.risk_score ?? 0);
     const branchMeta = buildUrlMetaHighlights(
       unifiedUrlEntry.meta_labels,
@@ -125,9 +137,21 @@ function mapScanResponse(
       displayUrl,
       urlRiskScore: branchScore,
       urlRiskLevel: toRiskLevel(branchScore),
-      urlMetaFeatures: branchMeta.length > 0 ? branchMeta : undefined,
+      urlMetaFeatures:
+        branchMeta.length > 0 ? branchMeta : undefined,
     };
   }
+
+  /** Link row / paste-URL UX only when backend returned a real url_analysis payload. */
+  const submittedUrl = ((): string | undefined => {
+    if (!unifiedUrlEntry) return undefined;
+    if (isUrlStripSubmission) {
+      const t =
+        typeof input.content === "string" ? input.content.trim() : "";
+      return t && isValidUrl(t) ? t : undefined;
+    }
+    return submittedUrlFromInput(input);
+  })();
 
   return {
     score,
@@ -137,16 +161,17 @@ function mapScanResponse(
     timestamp: new Date().toISOString(),
     overallRiskScore: overallRiskScore ?? undefined,
     extractedText: clean ?? undefined,
-    submittedUrl: submittedUrlFromInput(input),
+    submittedUrl,
     qrDecodedContent: undefined,
     qrContentType: undefined,
     dualTextUrlDetection: dualTextUrlDetection ? true : undefined,
     urlDetectionSummary,
-    urlMetaFeatures: dualTextUrlDetection
-      ? undefined
-      : urlMetaFeatures.length > 0
-        ? urlMetaFeatures
-        : undefined,
+    urlMetaFeatures:
+      dualTextUrlDetection
+        ? undefined
+        : urlMetaFeatures.length > 0
+          ? urlMetaFeatures
+          : undefined,
     suspiciousItems: getSuspiciousItems(
       textAnalysis?.explainability?.matched_indicators,
       clean,
@@ -420,6 +445,29 @@ function getFirstUnifiedUrlAnalysis(raw: unknown): QrUrlAnalysisLike | null {
   const first = arr[0];
   if (!first || typeof first !== "object") return null;
   return first as QrUrlAnalysisLike;
+}
+
+/** Backend returned a substantive URL row — not merely an empty array. */
+function unifiedUrlBranchHasPayload(entry: QrUrlAnalysisLike): boolean {
+  const resolved = asNonEmptyString(entry.resolved_url)?.trim();
+  if (resolved && isValidUrl(resolved)) return true;
+  const rs = entry.risk_score;
+  if (typeof rs === "number" && Number.isFinite(rs)) return true;
+  if (typeof rs === "string" && rs.trim()) {
+    const n = Number(rs);
+    if (Number.isFinite(n)) return true;
+  }
+  if (Array.isArray(entry.meta_labels) && entry.meta_labels.length > 0) {
+    return true;
+  }
+  return false;
+}
+
+/** Enables URL-branch mapping only when `url_analysis[0]` carries analyzable scores/meta or a usable URL. */
+function resolveUnifiedUrlBranch(raw: unknown): QrUrlAnalysisLike | null {
+  const first = getFirstUnifiedUrlAnalysis(raw);
+  if (!first) return null;
+  return unifiedUrlBranchHasPayload(first) ? first : null;
 }
 
 function getOverallRiskScore(raw: unknown): unknown {

@@ -1,3 +1,8 @@
 @import "./fonts.css";
 @import "./tailwind.css";
 @import "./theme.css";
+
+/** Uniform page scale (~90%) — reduces perceived size across Tailwind/rem/px layouts */
+html {
+  zoom: 90%;
+}

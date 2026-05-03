@@ -152,4 +152,132 @@ describe("detectScam qr mapping", () => {
     );
     expect(result.urlMetaFeatures).toBeUndefined();
   });
+
+  it("does not enable URL branch or submittedUrl when url_analysis is missing or empty", async () => {
+    const payload = {
+      unified_text_analysis: {
+        overall_risk_score: 0.41,
+        text_analysis: {
+          risk_score: 0.41,
+          scam_type: { predicted_type: "job_scam" },
+        },
+        url_analysis: [],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+      }),
+    );
+
+    const result = await detectScam({
+      type: "text",
+      content: "https://example.com/only-line",
+    });
+
+    expect(result.submittedUrl).toBeUndefined();
+    expect(result.urlMetaFeatures).toBeUndefined();
+    expect(result.dualTextUrlDetection).toBeFalsy();
+  });
+
+  it("URL tab sets submittedUrl only when backend returned analyzable url_analysis", async () => {
+    const payload = {
+      unified_text_analysis: {
+        overall_risk_score: 0.7,
+        text_analysis: null,
+        url_analysis: [
+          {
+            risk_score: 0.72,
+            resolved_url: "https://phish.example/login",
+            meta_labels: ["Entropy"],
+            meta_vector: [0.5],
+          },
+        ],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+      }),
+    );
+
+    const result = await detectScam({
+      type: "text",
+      content: "https://phish.example/login",
+      submissionChannel: "url_tab",
+    });
+
+    expect(result.submittedUrl).toBe("https://phish.example/login");
+    expect(result.dualTextUrlDetection).toBeFalsy();
+    expect(result.urlMetaFeatures?.length).toBeGreaterThan(0);
+  });
+
+  it("URL tab does not set submittedUrl when url_analysis is absent", async () => {
+    const payload = {
+      unified_text_analysis: {
+        overall_risk_score: 0.2,
+        text_analysis: { risk_score: 0.2 },
+        url_analysis: [],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+      }),
+    );
+
+    const result = await detectScam({
+      type: "text",
+      content: "https://safe.example/",
+      submissionChannel: "url_tab",
+    });
+
+    expect(result.submittedUrl).toBeUndefined();
+  });
+
+  it("does not enable dual text/url when submitted from URL strip (url_tab)", async () => {
+    const payload = {
+      unified_text_analysis: {
+        overall_risk_score: 0.55,
+        text_analysis: {
+          risk_score: 0.3,
+          scam_type: { predicted_type: "job_scam" },
+        },
+        url_analysis: [
+          {
+            risk_score: 0.8,
+            resolved_url: "https://x.example/hook",
+            meta_labels: ["Entropy"],
+            meta_vector: [0.5],
+          },
+        ],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+      }),
+    );
+
+    const result = await detectScam({
+      type: "text",
+      content: "https://x.example/hook",
+      submissionChannel: "url_tab",
+    });
+
+    expect(result.dualTextUrlDetection).toBeFalsy();
+    expect(result.urlDetectionSummary).toBeUndefined();
+  });
 });

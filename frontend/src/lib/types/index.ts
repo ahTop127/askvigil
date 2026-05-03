@@ -3,6 +3,9 @@ import type { LucideIcon } from "lucide-react";
 /** Supported detection input channels. */
 export type DetectionType = "text" | "image" | "url" | "qr";
 
+/** Textarea vs URL strip — same multipart `text` field, distinct UI semantics. */
+export type DetectionSubmissionChannel = "text_tab" | "url_tab";
+
 /** Normalized scam risk bucket. */
 export type RiskLevel = "high" | "medium" | "low";
 
@@ -15,6 +18,8 @@ export type RiskLevel = "high" | "medium" | "low";
 export interface ScamDetectionInput {
   type: DetectionType;
   content: string | File;
+  /** String scans only: distinguishes URL-strip submission from textarea (default textarea). */
+  submissionChannel?: DetectionSubmissionChannel;
 }
 
 /**

@@ -95,7 +95,7 @@ export default function GuidancePage() {
                         {v.description}
                       </p>
                       <div className="flex items-center justify-end">
-                        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        <ArrowRight className="w-5 h-5 text-[#F39036] group-hover:translate-x-1 transition-all" />
                       </div>
                     </div>
                   </div>

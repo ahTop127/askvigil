@@ -275,6 +275,14 @@ export const ResultDisplay = memo(
     const dualTextUrl =
       Boolean(result.dualTextUrlDetection) &&
       Boolean(result.urlDetectionSummary);
+    /** URL strip flow only — not textarea + dual summary, not QR */
+    const isPureUrlResult =
+      result.detectionType === "url" && !isQrResult && !dualTextUrl;
+    const showIamScammedButton =
+      !isQrResult &&
+      level !== "low" &&
+      (isPureUrlResult || !isUnknownScamType);
+
     const [summaryTab, setSummaryTab] = useState<"text" | "url">("text");
 
     useEffect(() => {
@@ -811,12 +819,14 @@ export const ResultDisplay = memo(
                 </div>
               )}
 
-              {level !== "low" && result.scamType !== "unknown" && (
+              {showIamScammedButton && (
                 <Button
                   type="button"
                   onClick={() =>
                     navigate(
-                      `/guidance/${encodeURIComponent(result.scamType || "phishing")}`,
+                      isPureUrlResult
+                        ? "/guidance/suspicious-link"
+                        : `/guidance/${encodeURIComponent(result.scamType || "phishing")}`,
                     )
                   }
                   className="w-full h-12 bg-primary hover:bg-secondary text-primary-foreground border-0 font-semibold shadow-md mb-4"
@@ -889,6 +899,7 @@ export const ResultDisplay = memo(
     prev.result.timestamp === next.result.timestamp &&
     prev.result.submittedUrl === next.result.submittedUrl &&
     prev.result.dualTextUrlDetection === next.result.dualTextUrlDetection &&
+    prev.result.detectionType === next.result.detectionType &&
     urlDetectionSummaryEqual(
       prev.result.urlDetectionSummary,
       next.result.urlDetectionSummary,
