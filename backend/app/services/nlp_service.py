@@ -406,7 +406,7 @@ async def scan_url(raw_url: str):
     resolved_url, resolved_successfully = await safe_resolve_redirect(raw_url)
 
     # 1. Feature Extraction (Stripped for integrity)
-    stripped_url = strip_url_protocol(resolved_url)
+    stripped_url = standardize_url(resolved_url)
     vector = await get_onnx_embedding(stripped_url, mode="url")  # 768-dim
     meta_vector = calculate_advanced_metadata(resolved_url)  # 8-dim
 
@@ -1025,14 +1025,6 @@ async def scan_unified_text(raw_text: str):
     return results
 
 
-def standardize_url_protocol(url: str) -> str:
-    """Ensures URL has a protocol for consistent embedding."""
-    url = url.strip().lower()
-    if not url.startswith(("http://", "https://")):
-        # Default to http to match the training stratification logic
-        return f"http://{url}"
-    return url
-
 
 def standardize_text(text: str, label: str = None) -> str:
     """
@@ -1045,7 +1037,7 @@ def standardize_text(text: str, label: str = None) -> str:
     # 1. Normalize Protocol (Crucial for URLBert)
     # If the input is just a URL, we fix it first.
     if "." in text and " " not in text:
-        text = standardize_url_protocol(text)
+        text = standardize_url(text)
 
     # 2. Fix garbled characters and special punctuation marks
     repls = {"’": "'", "–": "-", "“": '"', "”": '"', "—": "-", " ": " "}
@@ -1058,7 +1050,7 @@ def standardize_text(text: str, label: str = None) -> str:
 
     # 4. Standardize extracted URLs for the 'urls' return list
     # This ensures the scan_url function gets the protocol-included version
-    processed_urls = [standardize_url_protocol(u) for u in urls]
+    processed_urls = [standardize_url(u) for u in urls]
 
     # 5. Mask URLs with URL token ([URL] gets split to 3 tokens, URL is 1)
     # We sort by length descending to avoid partial replacement (e.g., bit.ly/123 vs bit.ly)
@@ -1084,9 +1076,17 @@ def standardize_text(text: str, label: str = None) -> str:
     return text, processed_urls
 
 
-def strip_url_protocol(url: str) -> str:
-    """Removes protocol and www for unbiased embedding."""
-    return re.sub(r"^https?://(www\.)?", "", url.strip().lower())
+def standardize_url(url: str) -> str:
+    """
+    Standardizes URL to https://domain.tld/path.
+    Removes www. to save token space and ensure consistency.
+    """
+    url = url.strip().lower()
+    # Remove existing protocol and www
+    clean = re.sub(r"^https?://", "", url)
+    clean = re.sub(r"^www\.", "", clean)
+    # Re-prefix with https://
+    return f"https://{clean}"
 
 
 def get_tld_tier(domain: str) -> float:
@@ -1122,7 +1122,7 @@ def get_tld_tier(domain: str) -> float:
 
 def calculate_advanced_metadata(url: str) -> np.ndarray:
     """Returns 8-dim structural vector."""
-    clean_url = strip_url_protocol(url)
+    clean_url = standardize_url(url)
     parsed = urlparse(url if "://" in url else f"http://{url}")
     domain = parsed.netloc
     path = parsed.path

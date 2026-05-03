@@ -15,10 +15,29 @@ OUTPUT_PATH = "/app/resources/askvigil_50k_balanced_hybrid.csv"
 # ==========================================
 # 1. CORE EXTRACTION LOGIC (PARITY WITH INFERENCE)
 # ==========================================
-def strip_url_protocol(url: str) -> str:
-    """Removes protocol and www for unbiased embedding."""
-    return re.sub(r"^https?://(www\.)?", "", url.strip().lower())
+# List of common shorteners to exclude since the system resolves them
+SHORTENER_DOMAINS = {
+    "bit.ly", "t.co", "tinyurl.com", "is.gd", "buff.ly", "goo.gl", 
+    "ow.ly", "rebrand.ly", "bl.ink", "tiny.cc", "shorte.st", "cutt.ly"
+}
 
+def standardize_url(url: str) -> str:
+    """
+    Standardizes URL to https://domain.tld/path.
+    Removes www. to save token space and ensure consistency.
+    """
+    url = url.strip().lower()
+    # Remove existing protocol and www
+    clean = re.sub(r"^https?://", "", url)
+    clean = re.sub(r"^www\.", "", clean)
+    # Re-prefix with https://
+    return f"https://{clean}"
+
+def is_shortened(url: str) -> bool:
+    """Checks if the domain is a known link shortener."""
+    parsed = urlparse(url if "://" in url else f"http://{url}")
+    domain = parsed.netloc.replace("www.", "")
+    return domain in SHORTENER_DOMAINS
 
 def get_tld_tier(domain: str) -> float:
     """
@@ -53,7 +72,7 @@ def get_tld_tier(domain: str) -> float:
 
 def calculate_advanced_metadata(url: str) -> np.ndarray:
     """Returns 8-dim structural vector."""
-    clean_url = strip_url_protocol(url)
+    clean_url = standardize_url(url)
     parsed = urlparse(url if "://" in url else f"http://{url}")
     domain = parsed.netloc
     path = parsed.path
@@ -104,7 +123,7 @@ def extract_unified_features(raw_url: str):
     4. clean_length: int
     """
     raw_url = str(raw_url)
-    clean_url = strip_url_protocol(raw_url)
+    model_ready_url = standardize_url(raw_url)
 
     # --- STEP 1: GENERATE METADATA VECTOR (STRICT PARITY) ---
     # We use the raw_url logic from [1] to calculate the 8-dim vector
@@ -112,7 +131,7 @@ def extract_unified_features(raw_url: str):
 
     # --- STEP 2: GENERATE STRATIFICATION KEY ---
     # Re-use the components for categorization (bins)
-    parsed = urlparse(raw_url if "://" in raw_url else f"http://{raw_url}")
+    parsed = urlparse(model_ready_url)
     domain = parsed.netloc
     path = parsed.path
 
@@ -121,18 +140,23 @@ def extract_unified_features(raw_url: str):
     prob = [n / len(domain) for n in Counter(domain).values()] if domain else [0]
     entropy = -sum(p * math.log2(p) for p in prob)
     path_depth = path.count("/")
-    subdomain_flag = 1.0 if domain.count(".") > 2 else 0.0
 
     tier_bin = f"T{int(tld_score * 2)}"  # 0.0->T0, 0.5->T1, 1.0->T2
     entropy_bin = "H-Ent" if entropy > 3.5 else "L-Ent"
     depth_bin = "Deep" if path_depth > 2 else "Shallow"
-    sub_bin = "MultiSub" if subdomain_flag == 1.0 else "Base"
+    dot_count = domain.count(".")
+    if dot_count <= 1:
+        sub_bin = "Base"
+    elif dot_count == 2:
+        sub_bin = "Sub"
+    else:
+        sub_bin = "MultiSub"
 
     strat_key = f"{tier_bin}_{entropy_bin}_{depth_bin}_{sub_bin}"
 
     # --- STEP 3: PREPARE OUTPUT ---
     raw_length = len(raw_url)
-    clean_length = len(clean_url)
+    clean_length = len(model_ready_url)
 
     # Convert numpy array to list then JSON string for CSV/Pandas compatibility
     metadata_json = json.dumps(vector_np.tolist())
@@ -152,6 +176,11 @@ final_df = pd.read_csv(INPUT_PATH)
 # Ensure base columns exist
 if "url" not in final_df.columns or "is_malicious" not in final_df.columns:
     raise ValueError("Dataset must contain 'url' and 'is_malicious' columns.")
+
+# --- Filter Shorteners ---
+initial_count = len(final_df)
+final_df = final_df[~final_df["url"].apply(is_shortened)]
+print(f"Filtered {initial_count - len(final_df)} shortened links.")
 
 print("Extracting dual-purpose features (This will take a moment)...")
 features = final_df["url"].apply(
@@ -221,7 +250,7 @@ df_50k = (
 # 3. EXPORT FOR DATABASE SEEDING
 # ==========================================
 # 1. Apply the cleaning to the URL column itself
-df_50k["url"] = df_50k["url"].apply(strip_url_protocol)
+df_50k["url"] = df_50k["url"].apply(standardize_url)
 df_50k["metadata_vector"] = df_50k["metadata_vector"].apply(
     lambda x: x.replace('"', "") if isinstance(x, str) else x
 )
