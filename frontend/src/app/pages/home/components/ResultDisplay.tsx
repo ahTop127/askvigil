@@ -821,11 +821,13 @@ export const ResultDisplay = memo(
                 <Button
                   type="button"
                   onClick={() =>
-                    navigate(
-                      isPureUrlResult
+                    navigate({
+                      pathname: isPureUrlResult
                         ? "/guidance/suspicious-link"
                         : `/guidance/${encodeURIComponent(result.scamType || "phishing")}`,
-                    )
+                      /** Query survives data-router navigation more reliably than `location.state`. */
+                      search: "?from=result",
+                    })
                   }
                   className="w-full h-12 bg-primary hover:bg-secondary text-primary-foreground border-0 font-semibold shadow-md mb-4"
                 >

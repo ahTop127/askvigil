@@ -115,6 +115,7 @@ describe("detectScam qr mapping", () => {
       unified_text_analysis: {
         overall_risk_score: 0.55,
         text_analysis: {
+          risk_score_percent: 41,
           risk_score: 0.4,
           scam_type: { predicted_type: "phishing" },
           immediate_guidance: { summary: "Mixed content looks risky." },
@@ -144,6 +145,8 @@ describe("detectScam qr mapping", () => {
     });
 
     expect(result.dualTextUrlDetection).toBe(true);
+    expect(result.score).toBe(41);
+    expect(result.urlDetectionSummary?.urlRiskScore).toBe(85);
     expect(result.urlDetectionSummary?.displayUrl).toBe(
       "https://resolved.example/phish",
     );
