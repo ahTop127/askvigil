@@ -6,6 +6,8 @@ from enum import Enum
 class InputType(str, Enum):
     TEXT = "text"
     IMAGE = "image"
+    URL = "url"
+    QR = "qr"
 
 
 class ScamCategory(models.Model):
