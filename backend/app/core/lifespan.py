@@ -17,8 +17,8 @@ from app.scripts.generate_url_embeddings import generate_and_update_url_embeddin
 from rapidocr_onnxruntime import RapidOCR
 import cv2
 import multiprocessing
-import onnxruntime as ort
 import numpy as np
+
 
 async def sync_assets():
     if not settings.OCI_PAR_URL:
@@ -98,7 +98,7 @@ async def lifespan(app: FastAPI):
         MODEL_REGISTRY["text_classifier"] = {
             "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
         }
-    except Exception as e:
+    except Exception:
         print("[MISSING MODEL] Text classifier model not loaded: {e}")
 
     # Load URL Model (URLBert)
@@ -109,14 +109,14 @@ async def lifespan(app: FastAPI):
                 str(settings.URL_MODEL_PATH), local_files_only=True
             ),
         }
-    except Exception as e:
+    except Exception:
         print("[MISSING MODEL] Url model not loaded: {e}")
 
     try:
         MODEL_REGISTRY["url_classifier"] = {
             "session": load_onnx_session(str(settings.URL_CLASSIFIER_PATH))
         }
-    except Exception as e:
+    except Exception:
         print("[MISSING MODEL] Url classifier model not loaded: {e}")
 
     # --- OCR MODEL INITIALIZATION ---
@@ -129,23 +129,20 @@ async def lifespan(app: FastAPI):
             det_model_path=str(settings.OCR_DET_RAPID_PATH),
             rec_model_path=str(settings.OCR_REC_RAPID_PATH),
             rec_keys_path=str(settings.OCR_KEYS_PATH),
-            cls_model_path=None,             # Skip classification to save CPU cycles
-
+            cls_model_path=None,  # Skip classification to save CPU cycles
             # 2. Engine & Hardware Optimization
-            use_onnx=True,                   # Force ONNX Runtime backend
-            intra_op_num_threads=4,          # Pin to physical core count (A1.Flex)
-            rec_batch_num=4,                 # Cache-friendly batching (L2/L3 locality)
-            
+            use_onnx=True,  # Force ONNX Runtime backend
+            intra_op_num_threads=4,  # Pin to physical core count (A1.Flex)
+            rec_batch_num=4,  # Cache-friendly batching (L2/L3 locality)
             # 3. Detection & Scaling
-            det_limit_side_len=736,          # Area reduction: ~41% less math than 960px
-            det_db_thresh=0.3,               # Balanced confidence threshold
-            det_db_box_thresh=0.5,           # Filter noise; prioritize high-density text
-            
+            det_limit_side_len=736,  # Area reduction: ~41% less math than 960px
+            det_db_thresh=0.3,  # Balanced confidence threshold
+            det_db_box_thresh=0.5,  # Filter noise; prioritize high-density text
             # 4. Post-Processing & Logic
-            det_db_score_mode="fast",        # Optimization: Use perimeter-based scoring
-            use_angle_cls=False,             # Disable angle check for UI-flat images
-            use_textline_orientation=False,   # Assume standard horizontal layout
-            use_space_char=False             # Standardize output for NLP service
+            det_db_score_mode="fast",  # Optimization: Use perimeter-based scoring
+            use_angle_cls=False,  # Disable angle check for UI-flat images
+            use_textline_orientation=False,  # Assume standard horizontal layout
+            use_space_char=False,  # Standardize output for NLP service
         )
         print("[SUCCESS] OCR Rapid Engine loaded")
     except Exception as e:
@@ -158,27 +155,26 @@ async def lifespan(app: FastAPI):
         MODEL_REGISTRY["ocr_enhanced"] = RapidOCR(
             # 1. Model Paths
             # det_model_path=str(settings.OCR_DET_ENHANCED_PATH), # Accurate, but too slow
-            det_model_path=str(settings.OCR_DET_RAPID_PATH), # Good enough even for enhanced
-            rec_model_path=str(settings.OCR_REC_ENHANCED_PATH), # Thorough rec model
+            det_model_path=str(
+                settings.OCR_DET_RAPID_PATH
+            ),  # Good enough even for enhanced
+            rec_model_path=str(settings.OCR_REC_ENHANCED_PATH),  # Thorough rec model
             rec_keys_path=str(settings.OCR_KEYS_PATH),
             cls_model_path=None,
-
             # 2. Engine & Hardware Optimization
             use_onnx=True,
-            intra_op_num_threads=4,          # Match A1 architecture
+            intra_op_num_threads=4,  # Match A1 architecture
             rec_batch_num=4,
-            
             # 3. Detection & Forensic Scaling
-            det_limit_side_len=960,     # Higher res for forensic detail
-            det_db_thresh=0.3,          # DON'T reduce this, or it will just get noise
-            det_db_box_thresh=0.5,      # Keep this standard to avoid noise
-            det_db_unclip_ratio=1.6,    # Standard expansion
-            
+            det_limit_side_len=960,  # Higher res for forensic detail
+            det_db_thresh=0.3,  # DON'T reduce this, or it will just get noise
+            det_db_box_thresh=0.5,  # Keep this standard to avoid noise
+            det_db_unclip_ratio=1.6,  # Standard expansion
             # 4. Post-Processing & Logic
             det_db_score_mode="fast",
             use_angle_cls=False,
-            use_textline_orientation=True,   # Forensic logic to handle tilted captures
-            use_space_char=False
+            use_textline_orientation=True,  # Forensic logic to handle tilted captures
+            use_space_char=False,
         )
         print("[SUCCESS] OCR Enhanced Engine loaded")
     except Exception as e:
@@ -190,7 +186,7 @@ async def lifespan(app: FastAPI):
         engine = MODEL_REGISTRY["ocr_rapid"]
         session = engine.text_rec.session
         # Correctly handle the RapidOCR wrapper
-        actual_session = session.session if hasattr(session, 'session') else session
+        actual_session = session.session if hasattr(session, "session") else session
         model_neurons = actual_session.get_outputs()[0].shape[2]
 
         # Resolve RAM Truth
@@ -200,7 +196,7 @@ async def lifespan(app: FastAPI):
         # print(f"--- [DETAILED ALIGNMENT REPORT] ---")
         # print(f"[*] Model Neurons: {model_neurons}")
         # print(f"[*] RAM Slots:    {ram_slots}")
-        
+
         # # Show Head and Tail
         # # We convert to list to ensure we can slice safely
         # vocab_list = list(active_vocab)
@@ -230,12 +226,12 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(generate_embeddings_sequentially())
 
     print("--- Server is LIVE. Background ingestion is running. ---")
-    cv2.setNumThreads(0) # Stop OpenCV thread competition    
+    cv2.setNumThreads(0)  # Stop OpenCV thread competition
     print(f"CPU Count: {multiprocessing.cpu_count()}")
     print(f"Available Providers: {ort.get_available_providers()}")
     # Inside your lifespan try-block, after initializing RapidOCR:
     dummy_img = np.zeros((320, 320, 3), dtype=np.uint8)
-    for _ in range(2): # Run twice to ensure full graph optimization
+    for _ in range(2):  # Run twice to ensure full graph optimization
         MODEL_REGISTRY["ocr_rapid"](dummy_img)
         MODEL_REGISTRY["ocr_enhanced"](dummy_img)
     print("[WARMUP] OCR Engines primed and ready")
@@ -256,7 +252,7 @@ def load_onnx_session(model_path: str):
     # options.inter_op_num_threads = 1
 
     # Use CPUExecutionProvider. ACL *not* used as it's not actually optimized for oracle a1
-    providers = [        
+    providers = [
         "CPUExecutionProvider",
     ]
 

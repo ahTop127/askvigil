@@ -1,5 +1,4 @@
 import os
-import glob
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -64,24 +63,24 @@ class Settings(BaseSettings):
 
     @property
     def OCR_DET_RAPID_PATH(self) -> str:
-        return self.OCR_MODEL_DIR/ "v5_det_light_fp32.onnx"
+        return self.OCR_MODEL_DIR / "v5_det_light_fp32.onnx"
 
     @property
     def OCR_REC_RAPID_PATH(self) -> str:
-        return self.OCR_MODEL_DIR/ "v5_rec_light_fp32.onnx"
-    
+        return self.OCR_MODEL_DIR / "v5_rec_light_fp32.onnx"
+
     @property
     def OCR_DET_ENHANCED_PATH(self) -> str:
-        return self.OCR_MODEL_DIR/ "v5_det_server_fp32.onnx"
+        return self.OCR_MODEL_DIR / "v5_det_server_fp32.onnx"
 
     @property
     def OCR_REC_ENHANCED_PATH(self) -> str:
-        return self.OCR_MODEL_DIR/ "v5_rec_server_fp32.onnx"
+        return self.OCR_MODEL_DIR / "v5_rec_server_fp32.onnx"
 
     @property
     def OCR_KEYS_PATH(self) -> str:
         # This is the character dictionary (keys)
-        return self.OCR_MODEL_DIR/ "ppocr_keys.txt"
+        return self.OCR_MODEL_DIR / "ppocr_keys.txt"
 
     @property
     def MAX_POSSIBLE_RRF(self) -> float:
