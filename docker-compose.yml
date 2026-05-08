@@ -53,8 +53,11 @@ services:
       - ./migrations:/app/migrations
     environment:
       ENVIRONMENT: prod
-      OMP_NUM_THREADS: 1  # Force each process to use only 1 core
-      MKL_NUM_THREADS: 1
+      OMP_NUM_THREADS: 4  # Force each process to use only 1 core
+      MKL_NUM_THREADS: 4
+      OMP_THREAD_LIMIT: 4
+      ONNXRUNTIME_INTRA_OP_NUM_THREADS: 4
+      ONNXRUNTIME_INTER_OP_NUM_THREADS: 1
       # PYTHONUNBUFFERED: 1
       # We use the 'db' service name as the hostname
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql      

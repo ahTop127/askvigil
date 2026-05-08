@@ -50,3 +50,4 @@ if __name__ == "__main__":
     upload_directory("data_persistence/datasets", "datasets")
     upload_directory("data_persistence/ai_models/text_onnx", "ai_models/text_onnx")
     upload_directory("data_persistence/ai_models/url_onnx", "ai_models/url_onnx")
+    upload_directory("data_persistence/ai_models/ocr_onnx", "ai_models/ocr_onnx")

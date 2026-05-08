@@ -14,7 +14,11 @@ from app.core.registry import MODEL_REGISTRY
 from app.core.config import settings
 from app.scripts.generate_embeddings import generate_and_update_embeddings
 from app.scripts.generate_url_embeddings import generate_and_update_url_embeddings
-
+from rapidocr_onnxruntime import RapidOCR
+import cv2
+import multiprocessing
+import onnxruntime as ort
+import numpy as np
 
 async def sync_assets():
     if not settings.OCI_PAR_URL:
@@ -75,7 +79,7 @@ async def lifespan(app: FastAPI):
     await ensure_architectural_integrity()
 
     # 2. AI Preload - ONNX Inference Sessions (INT8)
-    # Use 'ACLExecutionProvider' for ARM Neoverse N1
+    # Use 'CPUExecutionProvider' for ARM Neoverse N1 - ACL isn't actually better
 
     print("[Lifespan] Loading Quantized ONNX Models...")
     # try:
@@ -87,15 +91,15 @@ async def lifespan(app: FastAPI):
                 str(settings.TEXT_MODEL_PATH), local_files_only=True
             ),
         }
-    except:
-        print("[MISSING MODEL] Text model not loaded")
+    except Exception as e:
+        print(f"[MISSING MODEL] Text model not loaded: {e}")
 
     try:
         MODEL_REGISTRY["text_classifier"] = {
             "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
         }
-    except:
-        print("[MISSING MODEL] Text classifier model not loaded")
+    except Exception as e:
+        print("[MISSING MODEL] Text classifier model not loaded: {e}")
 
     # Load URL Model (URLBert)
     try:
@@ -105,19 +109,111 @@ async def lifespan(app: FastAPI):
                 str(settings.URL_MODEL_PATH), local_files_only=True
             ),
         }
-    except:
-        print("[MISSING MODEL] Url model not loaded")
+    except Exception as e:
+        print("[MISSING MODEL] Url model not loaded: {e}")
 
     try:
         MODEL_REGISTRY["url_classifier"] = {
             "session": load_onnx_session(str(settings.URL_CLASSIFIER_PATH))
         }
-    except:
-        print("[MISSING MODEL] Url classifier model not loaded")
+    except Exception as e:
+        print("[MISSING MODEL] Url classifier model not loaded: {e}")
 
-    # except Exception as e:
-    #     print(f"CRITICAL: Failed to load models: {e}")
-    #     raise e
+    # --- OCR MODEL INITIALIZATION ---
+    try:
+        # --- THE RAPID PATH (Standard Fidelity / Efficiency) ---
+        # Goal: Real-time inference on clean UI/Screenshots.
+        # Optimized for the Ampere A1 by minimizing L3 cache pressure.
+        MODEL_REGISTRY["ocr_rapid"] = RapidOCR(
+            # 1. Model Paths
+            det_model_path=str(settings.OCR_DET_RAPID_PATH),
+            rec_model_path=str(settings.OCR_REC_RAPID_PATH),
+            rec_keys_path=str(settings.OCR_KEYS_PATH),
+            cls_model_path=None,             # Skip classification to save CPU cycles
+
+            # 2. Engine & Hardware Optimization
+            use_onnx=True,                   # Force ONNX Runtime backend
+            intra_op_num_threads=4,          # Pin to physical core count (A1.Flex)
+            rec_batch_num=4,                 # Cache-friendly batching (L2/L3 locality)
+            
+            # 3. Detection & Scaling
+            det_limit_side_len=736,          # Area reduction: ~41% less math than 960px
+            det_db_thresh=0.3,               # Balanced confidence threshold
+            det_db_box_thresh=0.5,           # Filter noise; prioritize high-density text
+            
+            # 4. Post-Processing & Logic
+            det_db_score_mode="fast",        # Optimization: Use perimeter-based scoring
+            use_angle_cls=False,             # Disable angle check for UI-flat images
+            use_textline_orientation=False,   # Assume standard horizontal layout
+            use_space_char=False             # Standardize output for NLP service
+        )
+        print("[SUCCESS] OCR Rapid Engine loaded")
+    except Exception as e:
+        print(f"[MISSING MODEL] OCR Rapid Engine not loaded: {e}")
+
+    try:
+        # --- THE ENHANCED PATH (Forensic Fidelity / Integrity) ---
+        # Goal: High-fidelity recovery for screen photos/distorted signals.
+        # Uses 'server' weights to extract features from blur and glare.
+        MODEL_REGISTRY["ocr_enhanced"] = RapidOCR(
+            # 1. Model Paths
+            # det_model_path=str(settings.OCR_DET_ENHANCED_PATH), # Accurate, but too slow
+            det_model_path=str(settings.OCR_DET_RAPID_PATH), # Good enough even for enhanced
+            rec_model_path=str(settings.OCR_REC_ENHANCED_PATH), # Thorough rec model
+            rec_keys_path=str(settings.OCR_KEYS_PATH),
+            cls_model_path=None,
+
+            # 2. Engine & Hardware Optimization
+            use_onnx=True,
+            intra_op_num_threads=4,          # Match A1 architecture
+            rec_batch_num=4,
+            
+            # 3. Detection & Forensic Scaling
+            det_limit_side_len=960,     # Higher res for forensic detail
+            det_db_thresh=0.3,          # DON'T reduce this, or it will just get noise
+            det_db_box_thresh=0.5,      # Keep this standard to avoid noise
+            det_db_unclip_ratio=1.6,    # Standard expansion
+            
+            # 4. Post-Processing & Logic
+            det_db_score_mode="fast",
+            use_angle_cls=False,
+            use_textline_orientation=True,   # Forensic logic to handle tilted captures
+            use_space_char=False
+        )
+        print("[SUCCESS] OCR Enhanced Engine loaded")
+    except Exception as e:
+        print(f"[MISSING MODEL] OCR Enhanced Engine not loaded: {e}")
+
+    # Audit
+    # --- [AUDIT] Enhanced Hardware Sync ---
+    try:
+        engine = MODEL_REGISTRY["ocr_rapid"]
+        session = engine.text_rec.session
+        # Correctly handle the RapidOCR wrapper
+        actual_session = session.session if hasattr(session, 'session') else session
+        model_neurons = actual_session.get_outputs()[0].shape[2]
+
+        # Resolve RAM Truth
+        active_vocab = engine.text_rec.postprocess_op.character
+        ram_slots = len(active_vocab)
+
+        # print(f"--- [DETAILED ALIGNMENT REPORT] ---")
+        # print(f"[*] Model Neurons: {model_neurons}")
+        # print(f"[*] RAM Slots:    {ram_slots}")
+        
+        # # Show Head and Tail
+        # # We convert to list to ensure we can slice safely
+        # vocab_list = list(active_vocab)
+        # print(f"[*] HEAD (First 7): {vocab_list[:7]}")
+        # print(f"[*] TAIL (Last 7):  {vocab_list[-7:]}")
+
+        if model_neurons == ram_slots:
+            # print(f"[√] DICT ALIGNMENT OK.") # Once verified, is expected
+            pass
+        else:
+            print(f"[!] DICT MISMATCH: {model_neurons - ram_slots} difference.")
+    except Exception as e:
+        print(f"[!] Audit failed: {e}")
 
     # Run seeding only after loading models
     # wangsi New addition: Perform database idempotent initialization before startup
@@ -134,7 +230,15 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(generate_embeddings_sequentially())
 
     print("--- Server is LIVE. Background ingestion is running. ---")
-
+    cv2.setNumThreads(0) # Stop OpenCV thread competition    
+    print(f"CPU Count: {multiprocessing.cpu_count()}")
+    print(f"Available Providers: {ort.get_available_providers()}")
+    # Inside your lifespan try-block, after initializing RapidOCR:
+    dummy_img = np.zeros((320, 320, 3), dtype=np.uint8)
+    for _ in range(2): # Run twice to ensure full graph optimization
+        MODEL_REGISTRY["ocr_rapid"](dummy_img)
+        MODEL_REGISTRY["ocr_enhanced"](dummy_img)
+    print("[WARMUP] OCR Engines primed and ready")
     yield
     # Shutdown logic
     MODEL_REGISTRY.clear()
@@ -147,13 +251,12 @@ def load_onnx_session(model_path: str):
     options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
 
-    # Intra = 4 maximizes single user speed
-    options.intra_op_num_threads = 4
-    options.inter_op_num_threads = 1
+    # Intra = 4 maximizes single user speed. Is set in docker-compose now.
+    # options.intra_op_num_threads = 4
+    # options.inter_op_num_threads = 1
 
-    # Attempt ACL (Arm Compute Library) first, fallback to CPU
-    providers = [
-        ("ACLExecutionProvider", {"enable_fast_math": "True"}),
+    # Use CPUExecutionProvider. ACL *not* used as it's not actually optimized for oracle a1
+    providers = [        
         "CPUExecutionProvider",
     ]
 
@@ -173,17 +276,6 @@ def load_onnx_session(model_path: str):
     session = ort.InferenceSession(
         target_file, sess_options=options, providers=providers
     )
-
-    # --- ACL CHECK ---
-    active_providers = session.get_providers()
-    if "ACLExecutionProvider" in active_providers:
-        print(
-            f"  [SUCCESS] {Path(model_path).name} loaded with ACL (Arm Compute Library)."
-        )
-    else:
-        print(
-            f"  [FALLBACK] {Path(model_path).name} using standard CPUExecutionProvider."
-        )
 
     return session
 
