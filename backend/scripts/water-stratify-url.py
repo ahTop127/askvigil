@@ -9,7 +9,7 @@ import json
 import csv
 
 INPUT_PATH = "/app/resources/askvigil_master_url_dataset.csv"
-OUTPUT_PATH = "/app/resources/askvigil_50k_balanced_hybrid.csv"
+OUTPUT_PATH = "/app/resources/askvigil_120k_balanced_hybrid.csv"
 
 
 # ==========================================
@@ -242,7 +242,7 @@ def balanced_stratified_sample(df, n_total):
 
 
 print("Executing Water-Filling Stratification...")
-TARGET_ROWS = 50_000
+TARGET_ROWS = 120_000
 TARGET_PER_CLASS = TARGET_ROWS // 2
 
 malicious_df = final_df[final_df["is_malicious"] == True]
