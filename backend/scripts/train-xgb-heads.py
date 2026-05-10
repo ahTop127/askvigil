@@ -26,6 +26,7 @@ from app.models.open_data import OpenDataSet, PhishingURL
 # DATASET PREPARATION
 # ======================================================================
 
+
 class StratifiedDataset:
     """
     Mirrors PyTorch logic but optimized for tree-based estimators.
@@ -56,8 +57,10 @@ class StratifiedDataset:
                 c_len = len(str(raw_val)) if raw_val else 0
 
             # 3. Categorize into standard bins
-            if c_len <= short_max: return "short"
-            if c_len <= med_max: return "medium"
+            if c_len <= short_max:
+                return "short"
+            if c_len <= med_max:
+                return "medium"
             return "long"
 
         def bucketize(records, is_hazard):
@@ -127,6 +130,7 @@ class StratifiedDataset:
 # TRAINING & EXPORT SEQUENCE
 # ======================================================================
 
+
 async def train_and_export(
     mode="text",
     label_col="label",
@@ -156,8 +160,12 @@ async def train_and_export(
     input_dim = base_dim + meta_dim
 
     # --- 2. Data Fetching ---
-    haz = await ModelClass.filter(**{f"{attr_name}__isnull": False, label_col: haz_val}).all()
-    safe = await ModelClass.filter(**{f"{attr_name}__isnull": False, label_col: safe_val}).all()
+    haz = await ModelClass.filter(
+        **{f"{attr_name}__isnull": False, label_col: haz_val}
+    ).all()
+    safe = await ModelClass.filter(
+        **{f"{attr_name}__isnull": False, label_col: safe_val}
+    ).all()
 
     print(f"Hazard samples: {len(haz)}")
     print(f"Safe samples:   {len(safe)}")
@@ -168,21 +176,32 @@ async def train_and_export(
 
     # --- 3. Dataset Preparation ---
     dataset = StratifiedDataset(
-        haz, safe, attr_name=attr_name, text_attr_name=text_attr,
-        short_max=s_max, med_max=m_max, use_metadata=use_metadata,
+        haz,
+        safe,
+        attr_name=attr_name,
+        text_attr_name=text_attr,
+        short_max=s_max,
+        med_max=m_max,
+        use_metadata=use_metadata,
     )
 
     X = dataset.X
     y = dataset.y
 
     # --- 4. Strict Data Isolation (Train / ES / Cal / Test) ---
-    # XGB early stopping and Platt calibration CANNOT share data, or the 
+    # XGB early stopping and Platt calibration CANNOT share data, or the
     # calibration will overfit to the early-stopping bias.
-    X_train, X_temp, y_train, y_temp = train_test_split(X, y, test_size=0.30, stratify=y, random_state=42)
-    
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        X, y, test_size=0.30, stratify=y, random_state=42
+    )
+
     # Split remaining 30% into 3 equal chunks (10% Early Stop, 10% Calibrate, 10% Final Test)
-    X_val_es, X_temp2, y_val_es, y_temp2 = train_test_split(X_temp, y_temp, test_size=0.66, stratify=y_temp, random_state=42)
-    X_val_cal, X_test, y_val_cal, y_test = train_test_split(X_temp2, y_temp2, test_size=0.50, stratify=y_temp2, random_state=42)
+    X_val_es, X_temp2, y_val_es, y_temp2 = train_test_split(
+        X_temp, y_temp, test_size=0.66, stratify=y_temp, random_state=42
+    )
+    X_val_cal, X_test, y_val_cal, y_test = train_test_split(
+        X_temp2, y_temp2, test_size=0.50, stratify=y_temp2, random_state=42
+    )
 
     print(f"Train (Gradient):   {len(X_train)}")
     print(f"Val (Early Stop):   {len(X_val_es)}")
@@ -196,12 +215,12 @@ async def train_and_export(
             "objective": "binary:logistic",
             "eval_metric": "logloss",
             "n_estimators": 1000,
-            "max_depth": 8,                # Deeper for URL structural logic
-            "learning_rate": 0.03,         # Faster convergence for dense data
-            "subsample": 0.8,              # Use more data per tree
-            "colsample_bytree": 0.8,       # See more embedding dims
-            "reg_lambda": 3.0,             # Softer penalty
-            "min_child_weight": 5,         # Catch smaller malicious patterns
+            "max_depth": 8,  # Deeper for URL structural logic
+            "learning_rate": 0.03,  # Faster convergence for dense data
+            "subsample": 0.8,  # Use more data per tree
+            "colsample_bytree": 0.8,  # See more embedding dims
+            "reg_lambda": 3.0,  # Softer penalty
+            "min_child_weight": 5,  # Catch smaller malicious patterns
             "tree_method": "hist",
             "random_state": 42,
             "n_jobs": 4,
@@ -213,12 +232,12 @@ async def train_and_export(
             "objective": "binary:logistic",
             "eval_metric": "logloss",
             "n_estimators": 1000,
-            "max_depth": 4,                # Shallower to prevent memorization
-            "learning_rate": 0.01,         # Slow, deliberate learning
+            "max_depth": 4,  # Shallower to prevent memorization
+            "learning_rate": 0.01,  # Slow, deliberate learning
             "subsample": 0.7,
             "colsample_bytree": 0.5,
-            "reg_lambda": 10.0,            # Heavy L2 penalty
-            "min_child_weight": 15,        # Require broad patterns
+            "reg_lambda": 10.0,  # Heavy L2 penalty
+            "min_child_weight": 15,  # Require broad patterns
             "tree_method": "hist",
             "random_state": 42,
             "n_jobs": 4,
@@ -228,12 +247,8 @@ async def train_and_export(
     # Use this for the actual training with Early Stopping
     base_model = XGBClassifier(**params, early_stopping_rounds=es_rounds)
 
-    print(f"--- Training Base Model with Early Stopping ---")
-    base_model.fit(
-        X_train, y_train,
-        eval_set=[(X_val_es, y_val_es)],
-        verbose=200
-    )
+    print("--- Training Base Model with Early Stopping ---")
+    base_model.fit(X_train, y_train, eval_set=[(X_val_es, y_val_es)], verbose=200)
 
     # --- 6. Platt Scaling (Probability Calibration) ---
     cal_method = "sigmoid" if mode == "text" else "isotonic"
@@ -241,7 +256,7 @@ async def train_and_export(
     frozen_clf = FrozenEstimator(base_model)
     calibrated_model = CalibratedClassifierCV(
         estimator=frozen_clf,
-        method=cal_method, # Prioritize nuance on text, and F1 on url
+        method=cal_method,  # Prioritize nuance on text, and F1 on url
     )
     # This will now work because cal_base doesn't have early_stopping_rounds set in __init__
     calibrated_model.fit(X_val_cal, y_val_cal)
@@ -251,18 +266,24 @@ async def train_and_export(
     preds = (probs >= 0.5).astype(int)
 
     print("\n--- [FINAL REPORT] PERFORMANCE ON UNSEEN TEST SET ---")
-    print(classification_report(y_test, preds, target_names=[str(safe_val), str(haz_val)]))
-    
+    print(
+        classification_report(y_test, preds, target_names=[str(safe_val), str(haz_val)])
+    )
+
     print("--- CONFUSION MATRIX ---")
     print(confusion_matrix(y_test, preds))
-    
+
     print("--- ROC AUC ---")
     print(f"{roc_auc_score(y_test, probs):.6f}")
 
     extreme_count = np.sum((probs > 0.99) | (probs < 0.01))
     print("--- RAC CONFIDENCE ANALYSIS ---")
-    print(f"Extreme Predictions (>99% or <1%): {extreme_count} ({extreme_count / len(probs):.2%})")
-    print(f"Average RAC Calibration Confidence: {np.mean(np.abs(probs - 0.5) + 0.5):.4f}")
+    print(
+        f"Extreme Predictions (>99% or <1%): {extreme_count} ({extreme_count / len(probs):.2%})"
+    )
+    print(
+        f"Average RAC Calibration Confidence: {np.mean(np.abs(probs - 0.5) + 0.5):.4f}"
+    )
 
     # --- 8. Dual Export (XAI + Pipeline) ---
     export_dir = settings.TEXT_MODEL_PATH if mode == "text" else settings.URL_MODEL_PATH
@@ -270,14 +291,14 @@ async def train_and_export(
 
     # A. Export Raw Booster for SHAP Explainer (Native JSON)
     base_model.save_model(export_dir / "xgboost_base_xai.json")
-    
+
     # B. Export Calibrated Model for RAC Pipeline Inference (Joblib)
     joblib_path = export_dir / "calibrated_classifier.joblib"
     joblib.dump(calibrated_model, joblib_path)
 
     print(f"\nSUCCESS: {mode.upper()} Dual-Export Complete.")
-    print(f"  -> XAI Model:      xgboost_base_xai.json")
-    print(f"  -> Pipeline Model: calibrated_classifier.joblib")
+    print("  -> XAI Model:      xgboost_base_xai.json")
+    print("  -> Pipeline Model: calibrated_classifier.joblib")
 
 
 # ======================================================================
@@ -285,21 +306,22 @@ async def train_and_export(
 # ======================================================================
 async def main():
     await train_and_export(
-        mode="text", 
-        label_col="label", 
-        haz_val="spam", 
-        safe_val="ham", 
-        attr_name="text_embedding"
+        mode="text",
+        label_col="label",
+        haz_val="spam",
+        safe_val="ham",
+        attr_name="text_embedding",
     )
-    
+
     await train_and_export(
-        mode="url", 
-        label_col="is_malicious", 
-        haz_val=True, 
-        safe_val=False, 
+        mode="url",
+        label_col="is_malicious",
+        haz_val=True,
+        safe_val=False,
         attr_name="url_embedding",
-        use_metadata=True
+        use_metadata=True,
     )
+
 
 if __name__ == "__main__":
     asyncio.run(main())

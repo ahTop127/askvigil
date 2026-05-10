@@ -370,6 +370,7 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text"):
     final_result = np.array(batch_embeddings)
     return final_result[0] if is_single else final_result
 
+
 # async def scan_url(raw_url: str):
 #     resolved_url, resolved_successfully = await safe_resolve_redirect(raw_url)
 
@@ -988,24 +989,29 @@ async def scan_unified_text(raw_text: str):
 
     # 4. Global Dynamic Fusion (Instead of Max-Pooling)
     fusion_items = []
-    
+
     if results["text_analysis"]:
         risk = results["text_analysis"]["risk_score"]
         conf = probability_confidence(risk)
-        fusion_items.append((risk, conf, 1.0)) # Base weight 1.0
+        fusion_items.append((risk, conf, 1.0))  # Base weight 1.0
 
     for u_res in results["url_analysis"]:
         risk = u_res["risk_score"]
         conf = probability_confidence(risk)
-        fusion_items.append((risk, conf, 1.0)) # Base weight 1.0
+        fusion_items.append((risk, conf, 1.0))  # Base weight 1.0
 
     if fusion_items:
         total_eff = sum(base * conf for _, conf, base in fusion_items)
         if total_eff > 1e-9:
-            final_risk = sum(risk * (base * conf) for risk, conf, base in fusion_items) / total_eff
+            final_risk = (
+                sum(risk * (base * conf) for risk, conf, base in fusion_items)
+                / total_eff
+            )
         else:
-            final_risk = sum(risk * base for risk, conf, base in fusion_items) / sum(base for _, _, base in fusion_items)
-            
+            final_risk = sum(risk * base for risk, conf, base in fusion_items) / sum(
+                base for _, _, base in fusion_items
+            )
+
         results["overall_risk_score"] = round(final_risk, 4)
 
     return results
@@ -1173,8 +1179,6 @@ def calculate_advanced_metadata(url: str) -> np.ndarray:
 #     return 0.0
 
 
-
-
 def label_to_risk(label: str) -> float:
     """
     Convert historical labels into binary risk.
@@ -1204,6 +1208,7 @@ def probability_confidence(p: float) -> float:
     p = max(0.0, min(1.0, float(p)))
     return 2.0 * abs(p - 0.5)
 
+
 def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dict:
     """
     Compute distance-weighted retrieval signal.
@@ -1215,17 +1220,30 @@ def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dic
     """
     if not top_matches:
         return {
-            "retrieval_risk": 0.0, "semantic_risk": 0.0, "lexical_risk": 0.0,
-            "semantic_confidence": 0.0, "lexical_confidence": 0.0
+            "retrieval_risk": 0.0,
+            "semantic_risk": 0.0,
+            "lexical_risk": 0.0,
+            "semantic_confidence": 0.0,
+            "lexical_confidence": 0.0,
         }
 
     # 1. Semantic Voting
-    sem_sims = [max(0.0, min(1.0, float(m.get("semantic_score", 0.0)))) for m in top_matches]
-    sem_weights = [w / (sum(math.exp(s) for s in sem_sims) + 1e-9) for w in (math.exp(s) for s in sem_sims)]
+    sem_sims = [
+        max(0.0, min(1.0, float(m.get("semantic_score", 0.0)))) for m in top_matches
+    ]
+    sem_weights = [
+        w / (sum(math.exp(s) for s in sem_sims) + 1e-9)
+        for w in (math.exp(s) for s in sem_sims)
+    ]
 
     # 2. Lexical Voting
-    lex_sims = [max(0.0, min(1.0, float(m.get("lexical_score_norm", 0.0)))) for m in top_matches]
-    lex_weights = [w / (sum(math.exp(s) for s in lex_sims) + 1e-9) for w in (math.exp(s) for s in lex_sims)]
+    lex_sims = [
+        max(0.0, min(1.0, float(m.get("lexical_score_norm", 0.0)))) for m in top_matches
+    ]
+    lex_weights = [
+        w / (sum(math.exp(s) for s in lex_sims) + 1e-9)
+        for w in (math.exp(s) for s in lex_sims)
+    ]
 
     semantic_risk = 0.0
     lexical_risk = 0.0
@@ -1234,14 +1252,14 @@ def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dic
         label_risk = label_to_risk(match.get("label", ""))
         semantic_risk += s_weight * label_risk
         lexical_risk += l_weight * label_risk
-        
+
         match["semantic_weight"] = round(s_weight, 4)
         match["lexical_weight"] = round(l_weight, 4)
         match["historical_risk"] = label_risk
 
     # 3. Dynamic Fusion (Shift from 0.7/0.3 base ratio)
     sem_conf = probability_confidence(semantic_risk)
-    
+
     # If lexical found absolutely no text overlap, it must abstain entirely (confidence = 0)
     lex_conf = probability_confidence(lexical_risk) if max(lex_sims) > 0.0 else 0.0
 
@@ -1267,7 +1285,7 @@ def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dic
         "semantic_risk": max(0.0, min(1.0, semantic_risk)),
         "lexical_risk": max(0.0, min(1.0, lexical_risk)),
         "semantic_confidence": sem_conf,
-        "lexical_confidence": lex_conf
+        "lexical_confidence": lex_conf,
     }
 
 
@@ -1295,13 +1313,13 @@ async def scan_text(text: str):
     # ------------------------------------------------------------------
     input_data = vector.reshape(1, -1).astype(np.float32)
     session = MODEL_REGISTRY["text_classifier"]["session"]
- 
+
     # XGB head
     output = await asyncio.to_thread(
         session.predict_proba,
         input_data,
     )
-    classifier_score = float(output[0][1]) # XGB has hazard = 1
+    classifier_score = float(output[0][1])  # XGB has hazard = 1
     classifier_score = max(0.0, min(1.0, classifier_score))
 
     # # MLP head
@@ -1356,8 +1374,8 @@ async def scan_text(text: str):
     # ------------------------------------------------------------------
     classifier_confidence = probability_confidence(classifier_score)
     retrieval_confidence = probability_confidence(retrieval_risk)
-    
-    # Treat the rule_boost as a probability. 
+
+    # Treat the rule_boost as a probability.
     # If rule_boost is 0, confidence is 1.0 (it is mathematically certain no keywords exist).
     # This automatically lowers the score if no indicators are found
     rules_score = rule_boost
@@ -1372,7 +1390,7 @@ async def scan_text(text: str):
         # Adrian: replaced final_risk_score += 0.20 with rules_score = 1.0
         # to maintain parity with the dynamic fusion. Equivalent to
         # "Rules detected scam with max confidence"
-        rules_score = 1.0 # Maximum severity!
+        rules_score = 1.0  # Maximum severity!
     # elif (
     #     scam_classification["predicted_type"] == "Phishing"
     #     and scam_classification["confidence_level"] == "high"
@@ -1386,7 +1404,6 @@ async def scan_text(text: str):
     #     and rule_boost > 0
     # ):
     #     rules_score = 1.0 # Maximum severity!
-
 
     rules_confidence = probability_confidence(rules_score)
 
@@ -1402,23 +1419,23 @@ async def scan_text(text: str):
     effective_rules_weight = base_rules_weight * rules_confidence
 
     total_weight = (
-        effective_classifier_weight + 
-        effective_retrieval_weight + 
-        effective_rules_weight
+        effective_classifier_weight
+        + effective_retrieval_weight
+        + effective_rules_weight
     )
 
     if total_weight > 1e-9:
         final_risk_score = (
-            (classifier_score * effective_classifier_weight) +
-            (retrieval_risk * effective_retrieval_weight) +
-            (rules_score * effective_rules_weight)
+            (classifier_score * effective_classifier_weight)
+            + (retrieval_risk * effective_retrieval_weight)
+            + (rules_score * effective_rules_weight)
         ) / total_weight
     else:
         # All sources are maximally uncertain
         final_risk_score = (
-            base_classifier_weight * classifier_score +
-            base_retrieval_weight * retrieval_risk +
-            base_rules_weight * rules_score
+            base_classifier_weight * classifier_score
+            + base_retrieval_weight * retrieval_risk
+            + base_rules_weight * rules_score
         )
 
     # ------------------------------------------------------------------
@@ -1458,7 +1475,6 @@ async def scan_text(text: str):
         "scam_type": scam_classification,
         "immediate_guidance": immediate_guidance,
         "input text": text,
-
         "model_output": {
             "spam_score": round(model_score, 4),
             "ham_score": round(ham_score, 4),
@@ -1467,7 +1483,6 @@ async def scan_text(text: str):
             "rule_boost": round(rule_boost, 4),
             "matched_indicators": matched_indicators,
         },
-
         # --- RAC PIPELINE DEEP LOGS ---
         "sub_scores": {
             "classifier_head": round(classifier_score, 4),
@@ -1499,6 +1514,7 @@ async def scan_text(text: str):
             "top_matches": top_matches,
         },
     }
+
 
 async def scan_url(raw_url: str):
     """
@@ -1598,7 +1614,7 @@ async def scan_url(raw_url: str):
         combined_input,
     )
     # Extract probability of the hazard class (index 1)
-    classifier_score = float(output[0][1]) # XGB has hazard = 1
+    classifier_score = float(output[0][1])  # XGB has hazard = 1
     classifier_score = max(0.0, min(1.0, classifier_score))
 
     # # For MLP head
@@ -1623,6 +1639,7 @@ async def scan_url(raw_url: str):
         k=20,
     )
     import json
+
     print("JSON dumps after top matches")
     print(json.dumps(top_matches, default=str, indent=2))
     # ------------------------------------------------------------------
@@ -1645,16 +1662,10 @@ async def scan_url(raw_url: str):
     base_classifier_weight = 0.40
     base_retrieval_weight = 0.60
 
-    effective_classifier_weight = (
-        base_classifier_weight * classifier_confidence
-    )
-    effective_retrieval_weight = (
-        base_retrieval_weight * retrieval_confidence
-    )
+    effective_classifier_weight = base_classifier_weight * classifier_confidence
+    effective_retrieval_weight = base_retrieval_weight * retrieval_confidence
 
-    total_weight = (
-        effective_classifier_weight + effective_retrieval_weight
-    )
+    total_weight = effective_classifier_weight + effective_retrieval_weight
 
     if total_weight > 1e-9:
         final_risk_score = (
@@ -1695,66 +1706,88 @@ async def scan_url(raw_url: str):
     # ------------------------------------------------------------------
     return {
         # --- TOP LEVEL DECISION ---
-        "risk_score": round(final_risk_score, 4),    # Final blended probability (0.0 = Safe, 1.0 = Malicious)
-        "decision": decision,                        # Threshold action: 'clear', 'audit', or 'flagged'
-
+        "risk_score": round(
+            final_risk_score, 4
+        ),  # Final blended probability (0.0 = Safe, 1.0 = Malicious)
+        "decision": decision,  # Threshold action: 'clear', 'audit', or 'flagged'
         # --- URL RESOLUTION ---
-        "resolved_url": resolved_url,                # The final destination URL after following safe redirects
-        "resolved_successfully": resolved_successfully, # True if we could reach the end of the redirect chain without hitting an SSRF block
-
+        "resolved_url": resolved_url,  # The final destination URL after following safe redirects
+        "resolved_successfully": resolved_successfully,  # True if we could reach the end of the redirect chain without hitting an SSRF block
         # --- STRUCTURAL METADATA (Heuristics) ---
-        "meta_vector": meta_vector.tolist(),         # Raw values of the 8 structural heuristics
+        "meta_vector": meta_vector.tolist(),  # Raw values of the 8 structural heuristics
         "meta_labels": [
-            "Path Ratio", "TLD Tier", "Entropy", "Dot Count", 
-            "Digit Ratio", "Special Chars", "Subdomain Flag", "Path Depth",
+            "Path Ratio",
+            "TLD Tier",
+            "Entropy",
+            "Dot Count",
+            "Digit Ratio",
+            "Special Chars",
+            "Subdomain Flag",
+            "Path Depth",
         ],
-
         # --- STRUCTURAL DIAGNOSTICS ---
-        "meta_risk_score": round(meta_risk_score, 4), # Simple average of the structural heuristic vector
-        "dissonance": round(dissonance, 4),           # Difference between Deep ML score and Heuristic score. High dissonance (>0.5) triggers an 'audit'
-
+        "meta_risk_score": round(
+            meta_risk_score, 4
+        ),  # Simple average of the structural heuristic vector
+        "dissonance": round(
+            dissonance, 4
+        ),  # Difference between Deep ML score and Heuristic score. High dissonance (>0.5) triggers an 'audit'
         # --- INDEPENDENT BRAINS (Sub Scores) ---
         "sub_scores": {
             # 1. The Machine Learning Model
-            "classifier_head": round(classifier_score, 4), # Raw XGBoost prediction based on Embedding + Metadata
-
+            "classifier_head": round(
+                classifier_score, 4
+            ),  # Raw XGBoost prediction based on Embedding + Metadata
             # 2. The Database Search (Retrieval)
-            "retrieval_risk": round(retrieval_risk, 4),    # Combined risk based on historical URL neighbors found in the DB
+            "retrieval_risk": round(
+                retrieval_risk, 4
+            ),  # Combined risk based on historical URL neighbors found in the DB
             "retrieval_label": "hazard" if retrieval_risk >= 0.5 else "safe",
-            "retrieval_margin": round(abs(retrieval_risk - 0.5) * 2, 4), # Distance from uncertainty. 1.0 = highly certain, 0.0 = totally confused (50/50)
-            
+            "retrieval_margin": round(
+                abs(retrieval_risk - 0.5) * 2, 4
+            ),  # Distance from uncertainty. 1.0 = highly certain, 0.0 = totally confused (50/50)
             # 3. How the Database Search Voted
-            "semantic_vote": round(retrieval["semantic_risk"], 4), # >0.5 means neighbors with similar 'intent' were mostly scams
-            "lexical_vote": round(retrieval["lexical_risk"], 4),   # >0.5 means neighbors with similar 'exact characters' were mostly scams
+            "semantic_vote": round(
+                retrieval["semantic_risk"], 4
+            ),  # >0.5 means neighbors with similar 'intent' were mostly scams
+            "lexical_vote": round(
+                retrieval["lexical_risk"], 4
+            ),  # >0.5 means neighbors with similar 'exact characters' were mostly scams
         },
-
         # --- CONFIDENCE SCORING ---
         "confidence": {
-            "classifier": round(classifier_confidence, 4), # How sure the ML model is (low if score is near 0.5)
-            "retrieval": round(retrieval_confidence, 4),   # How sure the database search is (low if score is near 0.5)
+            "classifier": round(
+                classifier_confidence, 4
+            ),  # How sure the ML model is (low if score is near 0.5)
+            "retrieval": round(
+                retrieval_confidence, 4
+            ),  # How sure the database search is (low if score is near 0.5)
         },
-
         # --- DYNAMIC FUSION MATH ---
         # Shows exactly how much voting power each brain had in the final risk_score
         "fusion_weights": {
             "base": {
-                "classifier": base_classifier_weight, # Default voting power (40%)
-                "retrieval": base_retrieval_weight,   # Default voting power (60%)
+                "classifier": base_classifier_weight,  # Default voting power (40%)
+                "retrieval": base_retrieval_weight,  # Default voting power (60%)
             },
             "effective": {
-                "classifier": round(effective_classifier_weight, 6), # Actual voting power after penalizing for low confidence
-                "retrieval": round(effective_retrieval_weight, 6),   # Actual voting power after penalizing for low confidence
+                "classifier": round(
+                    effective_classifier_weight, 6
+                ),  # Actual voting power after penalizing for low confidence
+                "retrieval": round(
+                    effective_retrieval_weight, 6
+                ),  # Actual voting power after penalizing for low confidence
             },
         },
-
         # --- RAW EVIDENCE ---
         "evidence": {
             "retrieval_method": "HNSW (Semantic) + pg_trgm (Lexical) + Dynamic Fusion",
             "aggregation": "softmax(exp(similarity))",
-            "match_count": len(top_matches), # Usually 5 (the top 5 closest historical documents)
-            "top_matches": top_matches,      # The actual database rows to display to the user/analyst
+            "match_count": len(
+                top_matches
+            ),  # Usually 5 (the top 5 closest historical documents)
+            "top_matches": top_matches,  # The actual database rows to display to the user/analyst
         },
-
         # --- ORIGINAL INPUT ---
         "input_url": raw_url,
     }

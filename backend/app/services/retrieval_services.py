@@ -17,10 +17,11 @@ from tortoise import Tortoise
 from app.core.config import settings
 import re
 
+
 def prepare_text_for_lexical(query: str) -> str:
     """
     Strips common English stop words and structural noise.
-    This prevents Trigrams from matching irrelevant 'ham' emails 
+    This prevents Trigrams from matching irrelevant 'ham' emails
     just because they both use words like 'the', 'you', or 'and'.
     """
     if not isinstance(query, str) or not query.strip():
@@ -29,32 +30,93 @@ def prepare_text_for_lexical(query: str) -> str:
     # Hardcoded set of top English stop words + RAC structural noise
     # (Using a set provides O(1) lightning-fast lookups)
     stop_words = {
-        "a", "about", "all", "am", "an", "and", "any", "are", "as", "at", "be",
-        "been", "but", "by", "can", "could", "do", "did", "for", "from", "has",
-        "have", "had", "he", "her", "his", "how", "i", "if", "in", "is", "it",
-        "its", "me", "my", "not", "of", "on", "or", "our", "out", "so", "that",
-        "the", "their", "them", "then", "there", "these", "they", "this", "to",
-        "up", "us", "was", "we", "what", "when", "where", "which", "who", "will",
-        "with", "would", "you", "your", "yours",
+        "a",
+        "about",
+        "all",
+        "am",
+        "an",
+        "and",
+        "any",
+        "are",
+        "as",
+        "at",
+        "be",
+        "been",
+        "but",
+        "by",
+        "can",
+        "could",
+        "do",
+        "did",
+        "for",
+        "from",
+        "has",
+        "have",
+        "had",
+        "he",
+        "her",
+        "his",
+        "how",
+        "i",
+        "if",
+        "in",
+        "is",
+        "it",
+        "its",
+        "me",
+        "my",
+        "not",
+        "of",
+        "on",
+        "or",
+        "our",
+        "out",
+        "so",
+        "that",
+        "the",
+        "their",
+        "them",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "to",
+        "up",
+        "us",
+        "was",
+        "we",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "will",
+        "with",
+        "would",
+        "you",
+        "your",
+        "yours",
         # Legacy noise
-        "url", "0", "000"
+        "url",
+        "0",
+        "000",
     }
 
     tokens = [
-        token for token in query.split()
-        if token.strip().lower() not in stop_words
+        token for token in query.split() if token.strip().lower() not in stop_words
     ]
     return " ".join(tokens).strip()
 
 
 def prepare_url_for_lexical(url: str) -> str:
     """
-    Converts a URL into a token-friendly text representation and 
+    Converts a URL into a token-friendly text representation and
     strips 'URL Stop Words' (TLDs and boilerplate) to maximize Trigram accuracy.
     """
     if not isinstance(url, str) or not url.strip():
         return ""
-    
+
     def standardize_url(url: str) -> str:
         url = url.strip().lower()
         clean = re.sub(r"^https?://", "", url)
@@ -63,24 +125,39 @@ def prepare_url_for_lexical(url: str) -> str:
 
     clean = standardize_url(url)
     clean = re.sub(r"^https://", "", clean)
-    clean = clean.replace("/", " ").replace(".", " ").replace("-", " ").replace("_", " ")
+    clean = (
+        clean.replace("/", " ").replace(".", " ").replace("-", " ").replace("_", " ")
+    )
     clean = re.sub(r"[^a-z0-9\s]", " ", clean)
-    
+
     # URL Boilerplate "Stop Words"
     url_stop_words = {
-        "com", "org", "net", "co", "us", "uk", "info", "biz",
-        "www", "html", "htm", "php", "asp", "aspx", "jsp", "index"
+        "com",
+        "org",
+        "net",
+        "co",
+        "us",
+        "uk",
+        "info",
+        "biz",
+        "www",
+        "html",
+        "htm",
+        "php",
+        "asp",
+        "aspx",
+        "jsp",
+        "index",
     }
 
-    tokens = [
-        token for token in clean.split()
-        if token.strip() not in url_stop_words
-    ]
-    
+    tokens = [token for token in clean.split() if token.strip() not in url_stop_words]
+
     return " ".join(tokens).strip()
 
 
-async def semantic_search(query_vector: list[float], source: str = "text", limit: int = 10):
+async def semantic_search(
+    query_vector: list[float], source: str = "text", limit: int = 10
+):
     """Pure semantic search."""
     conn = Tortoise.get_connection("default")
 
@@ -120,7 +197,11 @@ async def semantic_search(query_vector: list[float], source: str = "text", limit
     LIMIT $2;
     """
 
-    clean_vector = query_vector.flatten().tolist() if hasattr(query_vector, "tolist") else list(query_vector)
+    clean_vector = (
+        query_vector.flatten().tolist()
+        if hasattr(query_vector, "tolist")
+        else list(query_vector)
+    )
     return await conn.execute_query_dict(sql, [clean_vector, limit])
 
 
@@ -145,8 +226,12 @@ async def lexical_search(query_text: str, source: str = "text", limit: int = 10)
     }
 
     conf = source_map.get(source, source_map["text"])
-    
-    lexical_query = prepare_url_for_lexical(query_text) if source == "url" else prepare_text_for_lexical(query_text)
+
+    lexical_query = (
+        prepare_url_for_lexical(query_text)
+        if source == "url"
+        else prepare_text_for_lexical(query_text)
+    )
     if not lexical_query:
         lexical_query = query_text
 
@@ -165,7 +250,7 @@ async def lexical_search(query_text: str, source: str = "text", limit: int = 10)
     rows = await conn.execute_query_dict(sql, [lexical_query, limit])
 
     for row in rows:
-        # pg_trgm natively returns a float between 0.0 and 1.0! 
+        # pg_trgm natively returns a float between 0.0 and 1.0!
         # No BM25 normalizations/pivots required.
         row["lexical_score_norm"] = float(row.get("lexical_score_raw", 0.0))
 
@@ -214,7 +299,7 @@ async def hybrid_search_rrf(
             f"Dimension mismatch for source '{source}': "
             f"Expected {expected_dims}, got {actual_dims}"
         )
-        
+
     # Dedicated lexical query preprocessing
     if source == "url":
         lexical_query = prepare_url_for_lexical(query_text)
@@ -264,7 +349,11 @@ async def hybrid_search_rrf(
     LIMIT $3;
     """
 
-    clean_vector = query_vector.flatten().tolist() if hasattr(query_vector, "tolist") else list(query_vector)
+    clean_vector = (
+        query_vector.flatten().tolist()
+        if hasattr(query_vector, "tolist")
+        else list(query_vector)
+    )
     rows = await conn.execute_query_dict(sql, [clean_vector, lexical_query, limit])
 
     return rows

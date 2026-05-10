@@ -16,9 +16,9 @@ from app.scripts.generate_embeddings import generate_and_update_embeddings
 from app.scripts.generate_url_embeddings import generate_and_update_url_embeddings
 from rapidocr_onnxruntime import RapidOCR
 import cv2
-import multiprocessing
 import numpy as np
 import joblib
+
 
 async def sync_assets():
     if not settings.OCI_PAR_URL:
@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
         print(f"[MISSING MODEL] Text classifier model not loaded: {e}")
 
     # # MLP
-    # try: 
+    # try:
     #     MODEL_REGISTRY["text_classifier"] = {
     #         "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
     #     }
@@ -243,7 +243,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(generate_embeddings_sequentially())
 
     print("--- Server is LIVE. Background ingestion is running. ---")
-    cv2.setNumThreads(0) # Stop OpenCV thread competition    
+    cv2.setNumThreads(0)  # Stop OpenCV thread competition
     # Inside your lifespan try-block, after initializing RapidOCR:
     dummy_img = np.zeros((320, 320, 3), dtype=np.uint8)
     for _ in range(2):  # Run twice to ensure full graph optimization
@@ -297,7 +297,7 @@ async def ensure_architectural_integrity():
     Prevents 'UndefinedColumn' errors caused by stale Docker volumes.
     """
     conn = Tortoise.get_connection("default")
-    
+
     # 1. Extensions
     await conn.execute_script("""
         CREATE EXTENSION IF NOT EXISTS vector;

@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     @property
     def TEXT_CLASSIFIER_PATH(self) -> Path:
-        return self.TEXT_MODEL_PATH / "calibrated_classifier.joblib" # XGB
+        return self.TEXT_MODEL_PATH / "calibrated_classifier.joblib"  # XGB
         # return self.TEXT_MODEL_PATH / "classifier.onnx" # MLP
 
     @property
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     @property
     def URL_CLASSIFIER_PATH(self) -> Path:
-        return self.URL_MODEL_PATH / "calibrated_classifier.joblib" # XGB
+        return self.URL_MODEL_PATH / "calibrated_classifier.joblib"  # XGB
         # return self.URL_MODEL_PATH / "classifier.onnx" # MLP
 
     @property
