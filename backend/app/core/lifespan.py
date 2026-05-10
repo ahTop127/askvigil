@@ -18,7 +18,7 @@ from rapidocr_onnxruntime import RapidOCR
 import cv2
 import multiprocessing
 import numpy as np
-
+import joblib
 
 async def sync_assets():
     if not settings.OCI_PAR_URL:
@@ -82,7 +82,6 @@ async def lifespan(app: FastAPI):
     # Use 'CPUExecutionProvider' for ARM Neoverse N1 - ACL isn't actually better
 
     print("[Lifespan] Loading Quantized ONNX Models...")
-    # try:
     try:
         # Load Text Model (MiniLM)
         MODEL_REGISTRY["text"] = {
@@ -94,12 +93,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[MISSING MODEL] Text model not loaded: {e}")
 
+    # XGB
     try:
         MODEL_REGISTRY["text_classifier"] = {
-            "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
+            "session": joblib.load(settings.TEXT_CLASSIFIER_PATH)
         }
-    except Exception:
-        print("[MISSING MODEL] Text classifier model not loaded: {e}")
+    except Exception as e:
+        print(f"[MISSING MODEL] Text classifier model not loaded: {e}")
+
+    # # MLP
+    # try: 
+    #     MODEL_REGISTRY["text_classifier"] = {
+    #         "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
+    #     }
+    # except Exception as e:
+    #     print("[MISSING MODEL] Text classifier model not loaded: {e}")
 
     # Load URL Model (URLBert)
     try:
@@ -112,12 +120,21 @@ async def lifespan(app: FastAPI):
     except Exception:
         print("[MISSING MODEL] Url model not loaded: {e}")
 
+    # XGB
     try:
         MODEL_REGISTRY["url_classifier"] = {
-            "session": load_onnx_session(str(settings.URL_CLASSIFIER_PATH))
+            "session": joblib.load(settings.URL_CLASSIFIER_PATH)
         }
-    except Exception:
-        print("[MISSING MODEL] Url classifier model not loaded: {e}")
+    except Exception as e:
+        print(f"[MISSING MODEL] Text classifier model not loaded: {e}")
+
+    # MLP
+    # try:
+    #     MODEL_REGISTRY["url_classifier"] = {
+    #         "session": load_onnx_session(str(settings.URL_CLASSIFIER_PATH))
+    #     }
+    # except Exception as e:
+    #     print("[MISSING MODEL] Url classifier model not loaded: {e}")
 
     # --- OCR MODEL INITIALIZATION ---
     try:
@@ -226,9 +243,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(generate_embeddings_sequentially())
 
     print("--- Server is LIVE. Background ingestion is running. ---")
-    cv2.setNumThreads(0)  # Stop OpenCV thread competition
-    print(f"CPU Count: {multiprocessing.cpu_count()}")
-    print(f"Available Providers: {ort.get_available_providers()}")
+    cv2.setNumThreads(0) # Stop OpenCV thread competition    
     # Inside your lifespan try-block, after initializing RapidOCR:
     dummy_img = np.zeros((320, 320, 3), dtype=np.uint8)
     for _ in range(2):  # Run twice to ensure full graph optimization
@@ -282,199 +297,136 @@ async def ensure_architectural_integrity():
     Prevents 'UndefinedColumn' errors caused by stale Docker volumes.
     """
     conn = Tortoise.get_connection("default")
-
+    
     # 1. Extensions
-    await conn.execute_script("CREATE EXTENSION IF NOT EXISTS vector;")
+    await conn.execute_script("""
+        CREATE EXTENSION IF NOT EXISTS vector;
+        CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    """)
 
     # 2. Column & Index Patching
-    # We check each column individually to handle incremental updates to init.sql
     patch_sql = """
     DO $$ 
     BEGIN 
-        -- Ensure columns exist
+        -- ==========================================
+        -- PHASE 1: CLEANUP OLD TSVECTOR SYSTEM
+        -- ==========================================
+        
+        -- Drop old GIN indexes
+        DROP INDEX IF EXISTS idx_gin_lexical;
+        DROP INDEX IF EXISTS idx_gin_url_lexical;
+
+        -- Drop the massive generated text columns
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='text_search_vector') THEN
+            ALTER TABLE open_dataset DROP COLUMN text_search_vector;
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='url_search_vector') THEN
+            ALTER TABLE phishing_url DROP COLUMN url_search_vector;
+        END IF;
+
+        -- ==========================================
+        -- PHASE 2: ENSURE BASE COLUMNS EXIST
+        -- ==========================================
+        
+        -- open_dataset checks
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='source') THEN
             ALTER TABLE open_dataset ADD COLUMN source VARCHAR(50);
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='label') THEN
             ALTER TABLE open_dataset ADD COLUMN label VARCHAR(20);
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='category') THEN
             ALTER TABLE open_dataset ADD COLUMN category VARCHAR(100);
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='original_text') THEN
             ALTER TABLE open_dataset ADD COLUMN original_text TEXT;
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='text_embedding') THEN
             ALTER TABLE open_dataset ADD COLUMN text_embedding vector(384);
         END IF;
-
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='url_embedding') THEN
-            ALTER TABLE open_dataset ADD COLUMN url_embedding vector(768);
-        END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='has_url') THEN
             ALTER TABLE open_dataset ADD COLUMN has_url SMALLINT DEFAULT 0;
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='raw_length') THEN
             ALTER TABLE open_dataset ADD COLUMN raw_length INTEGER;
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='clean_length') THEN
             ALTER TABLE open_dataset ADD COLUMN clean_length INTEGER;
         END IF;
 
-        -- 1. Detection & Purge of Stale Config
-        IF EXISTS (
-            SELECT 1 FROM pg_constraint 
-            WHERE conname = 'open_dataset_clean_text_key'
-        ) THEN
-            ALTER TABLE open_dataset DROP CONSTRAINT open_dataset_clean_text_key;
-        END IF;
-
         -- Ensure embeddings are stored as vector
-        IF (SELECT data_type FROM information_schema.columns 
-            WHERE table_name='open_dataset' AND column_name='text_embedding') != 'USER-DEFINED' THEN
-            
-            -- This forces the column to become a vector(384)
-            ALTER TABLE open_dataset 
-            ALTER COLUMN text_embedding TYPE vector(384) 
-            USING text_embedding::vector(384);
+        IF (SELECT data_type FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='text_embedding') != 'USER-DEFINED' THEN
+            ALTER TABLE open_dataset ALTER COLUMN text_embedding TYPE vector(384) USING text_embedding::vector(384);
         END IF;
 
-        IF EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_name='open_dataset' AND column_name='text_search_vector'
-        ) THEN
-            IF (SELECT pg_get_expr(adbin, adrelid) 
-                FROM pg_attrdef 
-                JOIN pg_attribute ON pg_attrdef.adrelid = pg_attribute.attrelid AND pg_attrdef.adnum = pg_attribute.attnum
-                WHERE adrelid = 'open_dataset'::regclass AND attname = 'text_search_vector') LIKE '%english%' THEN
-                
-                DROP INDEX IF EXISTS idx_gin_lexical;
-                ALTER TABLE open_dataset DROP COLUMN text_search_vector;
-            END IF;
-        END IF;
-
-        -- 2. State Enforcement (Simple Config)
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='open_dataset' AND column_name='text_search_vector') THEN
-            ALTER TABLE open_dataset 
-            ADD COLUMN text_search_vector tsvector 
-            GENERATED ALWAYS AS (to_tsvector('simple', coalesce(clean_text, ''))) STORED;
-        END IF;
-
-        -- 3. Final Index Alignment
-        CREATE INDEX IF NOT EXISTS idx_hnsw_embeddings 
-            ON open_dataset USING hnsw (text_embedding vector_cosine_ops) 
-            WITH (m = 16, ef_construction = 64);
-
-        CREATE INDEX IF NOT EXISTS idx_gin_lexical 
-            ON open_dataset USING GIN (text_search_vector);
-
-        CREATE INDEX IF NOT EXISTS idx_open_dataset_metadata 
-            ON open_dataset (source, has_url, raw_length, clean_length);
-
-        -- Ensure phishing_url table exists (if not created by init.sql)
+        -- phishing_url checks
         CREATE TABLE IF NOT EXISTS phishing_url (id SERIAL PRIMARY KEY, original_url TEXT NOT NULL);        
 
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-               WHERE table_name='phishing_url' AND column_name='resolved_url') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='resolved_url') THEN
             ALTER TABLE phishing_url ADD COLUMN resolved_url TEXT;
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='source') THEN
             ALTER TABLE phishing_url ADD COLUMN source VARCHAR(50);
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='is_malicious') THEN
             ALTER TABLE phishing_url ADD COLUMN is_malicious BOOLEAN DEFAULT TRUE;
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='domain') THEN
             ALTER TABLE phishing_url ADD COLUMN domain VARCHAR(255);
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='path') THEN
             ALTER TABLE phishing_url ADD COLUMN path TEXT;
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='preview_title') THEN
             ALTER TABLE phishing_url ADD COLUMN preview_title VARCHAR(500);
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='raw_length') THEN
             ALTER TABLE phishing_url ADD COLUMN raw_length INTEGER;
         END IF;
-
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='clean_length') THEN
             ALTER TABLE phishing_url ADD COLUMN clean_length INTEGER;
         END IF;
-
-        -- Audit timestamps
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='created_at') THEN
-            ALTER TABLE phishing_url ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
-        END IF;
-
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='updated_at') THEN
-            ALTER TABLE phishing_url ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
-        END IF;
-
-        -- Ensure no unique constraint crashing db
-        IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'phishing_url_original_url_key') THEN
-            ALTER TABLE phishing_url DROP CONSTRAINT phishing_url_original_url_key;
-        END IF;
-
-        -- Ensure columns for phishing_url
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='url_embedding') THEN
             ALTER TABLE phishing_url ADD COLUMN url_embedding vector(768);
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='metadata_vector') THEN
             ALTER TABLE phishing_url ADD COLUMN metadata_vector vector(8);
         END IF;
-
-        -- 1. Check if the column exists AND if it's missing the fallback logic
-        -- We check the column definition in the system catalogs
-        IF EXISTS (
-            SELECT 1 FROM pg_attribute 
-            WHERE attrelid = 'phishing_url'::regclass 
-            AND attname = 'url_search_vector'
-        ) THEN
-            -- If the formula doesn't mention 'original_url', it's the old version. Drop it.
-            IF (SELECT pg_get_expr(adbin, adrelid) 
-                FROM pg_attrdef 
-                WHERE adrelid = 'phishing_url'::regclass 
-                AND adnum = (SELECT attnum FROM pg_attribute WHERE attrelid = 'phishing_url'::regclass AND attname = 'url_search_vector')
-            ) NOT LIKE '%original_url%' THEN
-                
-                ALTER TABLE phishing_url DROP COLUMN url_search_vector;
-            END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='created_at') THEN
+            ALTER TABLE phishing_url ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='updated_at') THEN
+            ALTER TABLE phishing_url ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
         END IF;
 
-        -- 2. Create (or Re-create) with the robust fallback logic
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='phishing_url' AND column_name='url_search_vector') THEN
-            ALTER TABLE phishing_url 
-            ADD COLUMN url_search_vector tsvector 
-            GENERATED ALWAYS AS (to_tsvector('simple', coalesce(preview_title, '')) || to_tsvector('simple', coalesce(resolved_url, original_url, ''))) STORED;
-            
-            CREATE INDEX IF NOT EXISTS idx_gin_url_lexical ON phishing_url USING GIN (url_search_vector);
-        END IF;
+        -- ==========================================
+        -- PHASE 3: APPLY NEW INDEXES (HNSW + TRIGRAM)
+        -- ==========================================
 
-        -- Final Index Alignment for phishing_url
+        -- open_dataset Indexes
+        CREATE INDEX IF NOT EXISTS idx_hnsw_embeddings 
+            ON open_dataset USING hnsw (text_embedding vector_cosine_ops) 
+            WITH (m = 16, ef_construction = 64);
+
+        CREATE INDEX IF NOT EXISTS idx_open_dataset_metadata 
+            ON open_dataset (source, has_url, raw_length, clean_length);
+
+        CREATE INDEX IF NOT EXISTS idx_trgm_clean_text 
+            ON open_dataset USING GIN (clean_text gin_trgm_ops);
+
+        -- phishing_url Indexes
         CREATE INDEX IF NOT EXISTS idx_hnsw_url_embeddings 
             ON phishing_url USING hnsw (url_embedding vector_cosine_ops) 
             WITH (m = 16, ef_construction = 64);
 
-        CREATE INDEX IF NOT EXISTS idx_gin_url_lexical 
-            ON phishing_url USING GIN (url_search_vector);
-
         CREATE INDEX IF NOT EXISTS idx_phishing_url_metadata 
             ON phishing_url (source, domain, is_malicious);
 
-        RAISE NOTICE 'Architectural integrity check complete.';
+        CREATE INDEX IF NOT EXISTS idx_trgm_url 
+            ON phishing_url USING GIN ((coalesce(resolved_url, original_url)) gin_trgm_ops);
+
+        RAISE NOTICE 'Architectural integrity check complete. Trigram system active.';
     END $$;
     """
 

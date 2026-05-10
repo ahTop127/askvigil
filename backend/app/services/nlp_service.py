@@ -370,94 +370,63 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text"):
     final_result = np.array(batch_embeddings)
     return final_result[0] if is_single else final_result
 
-
 # async def scan_url(raw_url: str):
-#     # 1. Safely resolve redirects, because phishers hide behind shorteners.
 #     resolved_url, resolved_successfully = await safe_resolve_redirect(raw_url)
 
-#     # 2. Decision Branch (URL MLP Classifier)
-#     vector = await get_onnx_embedding(resolved_url, mode="url")
+#     # 1. Feature Extraction (Stripped for integrity)
+#     stripped_url = standardize_url(resolved_url)
+#     vector = await get_onnx_embedding(stripped_url, mode="url")  # 768-dim
+#     meta_vector = calculate_advanced_metadata(resolved_url)  # 8-dim
 
-#     session = MODEL_REGISTRY["url_classifier"]["session"]
-#     output = await asyncio.to_thread(
-#         session.run, None, {"input": vector.reshape(1, -1)}
+#     # 2. Concat for MLP (776-dim total)
+#     combined_input = np.concatenate(
+#         (vector.reshape(1, -1), meta_vector.reshape(1, -1)), axis=1
 #     )
-#     risk_score = float(output[0][0][1])  # Hazard probability
 
-#     # 3. Evidence Branch (Historical Discovery)
-#     # We search using the RESOLVED vector to find similar malicious structures
-#     # We use source='url_dataset' to prevent searching text rows
+#     # 3. Execution
+#     session = MODEL_REGISTRY["url_classifier"]["session"]
+#     output = await asyncio.to_thread(session.run, None, {"input": combined_input})
+#     risk_score = float(output[0][0])  # Hazard probability
+
+#     # 4. Metacognitive Dissonance Check
+#     # Approximate risk from structural metadata (sum of normalized risk factors / 8)
+#     meta_risk_score = float(np.mean(meta_vector))
+#     dissonance = abs(risk_score - meta_risk_score)
+
+#     # 5. Decision Tree
+#     decision = "clear"
+#     if risk_score > 0.8:
+#         decision = "flagged"
+#     elif dissonance > 0.5:  # Model says safe, structure says dangerous (or vice versa)
+#         decision = "audit"
+
+#     # 6. Evidence Branch (Unchanged, uses vector)
 #     top_matches = await hybrid_search_rrf(
 #         resolved_url, vector, source="url", limit=5, k=20
 #     )
 
 #     return {
 #         "risk_score": round(risk_score, 4),
+#         "meta_vector": meta_vector.tolist(),  # Json serialize
+#         "meta_labels": [
+#             "Path Ratio",
+#             "TLD Tier",
+#             "Entropy",
+#             "Dot Count",
+#             "Digit Ratio",
+#             "Special Chars",
+#             "Subdomain Flag",
+#             "Path Depth",
+#         ],
+#         "dissonance": round(dissonance, 4),
 #         "resolved_url": resolved_url,
-#         "resolved_successfully": resolved_successfully,  # Flag raised here
-#         "decision": "flagged"
-#         if risk_score > 0.8
-#         else "clear",  # Higher threshold for URLs
+#         "resolved_successfully": resolved_successfully,
+#         "decision": decision,
 #         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
 #     }
 
 
-async def scan_url(raw_url: str):
-    resolved_url, resolved_successfully = await safe_resolve_redirect(raw_url)
-
-    # 1. Feature Extraction (Stripped for integrity)
-    stripped_url = standardize_url(resolved_url)
-    vector = await get_onnx_embedding(stripped_url, mode="url")  # 768-dim
-    meta_vector = calculate_advanced_metadata(resolved_url)  # 8-dim
-
-    # 2. Concat for MLP (776-dim total)
-    combined_input = np.concatenate(
-        (vector.reshape(1, -1), meta_vector.reshape(1, -1)), axis=1
-    )
-
-    # 3. Execution
-    session = MODEL_REGISTRY["url_classifier"]["session"]
-    output = await asyncio.to_thread(session.run, None, {"input": combined_input})
-    risk_score = float(output[0][0])  # Hazard probability
-
-    # 4. Metacognitive Dissonance Check
-    # Approximate risk from structural metadata (sum of normalized risk factors / 8)
-    meta_risk_score = float(np.mean(meta_vector))
-    dissonance = abs(risk_score - meta_risk_score)
-
-    # 5. Decision Tree
-    decision = "clear"
-    if risk_score > 0.8:
-        decision = "flagged"
-    elif dissonance > 0.5:  # Model says safe, structure says dangerous (or vice versa)
-        decision = "audit"
-
-    # 6. Evidence Branch (Unchanged, uses vector)
-    top_matches = await hybrid_search_rrf(
-        resolved_url, vector, source="url", limit=5, k=20
-    )
-
-    return {
-        "risk_score": round(risk_score, 4),
-        "meta_vector": meta_vector.tolist(),  # Json serialize
-        "meta_labels": [
-            "Path Ratio",
-            "TLD Tier",
-            "Entropy",
-            "Dot Count",
-            "Digit Ratio",
-            "Special Chars",
-            "Subdomain Flag",
-            "Path Depth",
-        ],
-        "dissonance": round(dissonance, 4),
-        "resolved_url": resolved_url,
-        "resolved_successfully": resolved_successfully,
-        "decision": decision,
-        "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
-    }
-
-
+# Ori Adrian
 # async def scan_text(text: str):
 #     # 1. Decision Branch (MLP)
 #     vector = await get_onnx_embedding(text, mode="text")
@@ -483,114 +452,114 @@ async def scan_url(raw_url: str):
 
 #     }
 
+# # Ori Jia Yee fork
+# async def scan_text(text: str):
+#     # 1. Decision Branch (MLP)
+#     vector = await get_onnx_embedding(text, mode="text")
 
-async def scan_text(text: str):
-    # 1. Decision Branch (MLP)
-    vector = await get_onnx_embedding(text, mode="text")
+#     # Run ONNX inference on raw 384-dim vector
+#     session = MODEL_REGISTRY["text_classifier"]["session"]
+#     # We use asyncio.to_thread to keep the event loop non-blocking
+#     output = await asyncio.to_thread(
+#         session.run, None, {"input": vector.reshape(1, -1)}
+#     )
+#     # raw mlp score
+#     # risk_score = float(output[0][0][0])
 
-    # Run ONNX inference on raw 384-dim vector
-    session = MODEL_REGISTRY["text_classifier"]["session"]
-    # We use asyncio.to_thread to keep the event loop non-blocking
-    output = await asyncio.to_thread(
-        session.run, None, {"input": vector.reshape(1, -1)}
-    )
-    # raw mlp score
-    # risk_score = float(output[0][0][0])
+#     # spam
+#     model_score = float(output[0][0])  # match training script update
+#     # harmless
+#     ham_score = 1 - model_score  # match training script update
 
-    # spam
-    model_score = float(output[0][0])  # match training script update
-    # harmless
-    ham_score = 1 - model_score  # match training script update
+#     # explainable AI branch#
+#     explanation_result = explain_text_risk(text)
+#     rule_boost = explanation_result["total_boost"]
+#     rule_risk_floor = explanation_result["risk_floor"]
+#     matched_indicators = explanation_result["matched_indicators"]
 
-    # explainable AI branch#
-    explanation_result = explain_text_risk(text)
-    rule_boost = explanation_result["total_boost"]
-    rule_risk_floor = explanation_result["risk_floor"]
-    matched_indicators = explanation_result["matched_indicators"]
+#     # if model says risky but no human-readable scam indicator found
+#     # redyce the score as its less explainable
+#     if rule_boost == 0 and model_score > 0.60:
+#         final_risk_score = model_score * 0.65
+#     else:
+#         # hybird prediction score
+#         final_risk_score = (model_score * 0.75) + (rule_boost * 0.25)
 
-    # if model says risky but no human-readable scam indicator found
-    # redyce the score as its less explainable
-    if rule_boost == 0 and model_score > 0.60:
-        final_risk_score = model_score * 0.65
-    else:
-        # hybird prediction score
-        final_risk_score = (model_score * 0.75) + (rule_boost * 0.25)
+#     # classification of scam type
+#     type_names, type_vectors = await get_scam_type_prototypes()
 
-    # classification of scam type
-    type_names, type_vectors = await get_scam_type_prototypes()
+#     scam_classification = await classify_scam_type(
+#         text=text,
+#         type_names=type_names,
+#         type_vectors=type_vectors,
+#     )
 
-    scam_classification = await classify_scam_type(
-        text=text,
-        type_names=type_names,
-        type_vectors=type_vectors,
-    )
+#     # apply scam-type safety floor - classifier to help
+#     # if classifier is very confident this is OTP Scam, keep it high risk
+#     if (
+#         scam_classification["predicted_type"] == "OTP Scam"
+#         and scam_classification["confidence_level"] == "high"
+#         and rule_boost > 0
+#     ):
+#         final_risk_score += 0.20
+#     # elif (
+#     #     scam_classification["predicted_type"] == "Phishing"
+#     #     and scam_classification["confidence_level"] == "high"
+#     #     and rule_boost > 0
+#     # ):
+#     #     final_risk_score += 0.20
 
-    # apply scam-type safety floor - classifier to help
-    # if classifier is very confident this is OTP Scam, keep it high risk
-    if (
-        scam_classification["predicted_type"] == "OTP Scam"
-        and scam_classification["confidence_level"] == "high"
-        and rule_boost > 0
-    ):
-        final_risk_score += 0.20
-    # elif (
-    #     scam_classification["predicted_type"] == "Phishing"
-    #     and scam_classification["confidence_level"] == "high"
-    #     and rule_boost > 0
-    # ):
-    #     final_risk_score += 0.20
+#     # elif (
+#     #     scam_classification["predicted_type"] == "Job Scam"
+#     #     and scam_classification["confidence_level"] == "high"
+#     #     and rule_boost > 0
+#     # ):
+#     #     final_risk_score += 0.20
 
-    # elif (
-    #     scam_classification["predicted_type"] == "Job Scam"
-    #     and scam_classification["confidence_level"] == "high"
-    #     and rule_boost > 0
-    # ):
-    #     final_risk_score += 0.20
+#     # avoid showing absolute 0% or 100% in UI
+#     final_risk_score = max(final_risk_score, 0.03)
+#     final_risk_score = min(final_risk_score, 0.97)
 
-    # avoid showing absolute 0% or 100% in UI
-    final_risk_score = max(final_risk_score, 0.03)
-    final_risk_score = min(final_risk_score, 0.97)
+#     if final_risk_score >= 0.75:
+#         decision = "flagged"
+#     elif final_risk_score >= 0.55:
+#         decision = "suspicious"
+#     else:
+#         decision = "clear"
 
-    if final_risk_score >= 0.75:
-        decision = "flagged"
-    elif final_risk_score >= 0.55:
-        decision = "suspicious"
-    else:
-        decision = "clear"
+#     # if evidence failed
+#     # try:
+#     #     top_matches = await hybrid_search_rrf(text, vector, "text", limit=5, k=20)
+#     #     evidence_error = None
+#     # except Exception as e:
+#     #     print(f"[scan_text] Evidence search failed: {e}")
+#     #     top_matches = []
+#     #     evidence_error = str(e)
 
-    # if evidence failed
-    # try:
-    #     top_matches = await hybrid_search_rrf(text, vector, "text", limit=5, k=20)
-    #     evidence_error = None
-    # except Exception as e:
-    #     print(f"[scan_text] Evidence search failed: {e}")
-    #     top_matches = []
-    #     evidence_error = str(e)
+#     # guidance based on the type of scam
+#     immediate_guidance = get_prevention_guidance(
+#         predicted_type=scam_classification["predicted_type"],
+#         decision=decision,
+#     )
 
-    # guidance based on the type of scam
-    immediate_guidance = get_prevention_guidance(
-        predicted_type=scam_classification["predicted_type"],
-        decision=decision,
-    )
+#     response = {
+#         "risk_score": round(final_risk_score, 4),
+#         "risk_score_percent": round(final_risk_score * 100),
+#         "decision": decision,
+#         "model_output": {
+#             "spam_score": round(model_score, 4),
+#             "ham_score": round(ham_score, 4),
+#         },
+#         "scam_type": scam_classification,
+#         "explainability": {
+#             "rule_boost": round(rule_boost, 4),
+#             "matched_indicators": matched_indicators,
+#         },
+#         "immediate_guidance": immediate_guidance,
+#         "input text": text,
+#     }
 
-    response = {
-        "risk_score": round(final_risk_score, 4),
-        "risk_score_percent": round(final_risk_score * 100),
-        "decision": decision,
-        "model_output": {
-            "spam_score": round(model_score, 4),
-            "ham_score": round(ham_score, 4),
-        },
-        "scam_type": scam_classification,
-        "explainability": {
-            "rule_boost": round(rule_boost, 4),
-            "matched_indicators": matched_indicators,
-        },
-        "immediate_guidance": immediate_guidance,
-        "input text": text,
-    }
-
-    return response
+#     return response
 
 
 # explainable Boosting: Simple keyword-based heuristic to explain WHY a text might be risky.
@@ -1014,13 +983,30 @@ async def scan_unified_text(raw_text: str):
 
     # 3. URL Decision (Independent Branch)
     for url in urls:
-        url_res = await scan_url(url)  # URLBert
+        url_res = await scan_url(url)
         results["url_analysis"].append(url_res)
 
-        # Simple Max-pooling: If a URL is high risk, it bumps the overall score
-        results["overall_risk_score"] = max(
-            results["overall_risk_score"], url_res["risk_score"]
-        )
+    # 4. Global Dynamic Fusion (Instead of Max-Pooling)
+    fusion_items = []
+    
+    if results["text_analysis"]:
+        risk = results["text_analysis"]["risk_score"]
+        conf = probability_confidence(risk)
+        fusion_items.append((risk, conf, 1.0)) # Base weight 1.0
+
+    for u_res in results["url_analysis"]:
+        risk = u_res["risk_score"]
+        conf = probability_confidence(risk)
+        fusion_items.append((risk, conf, 1.0)) # Base weight 1.0
+
+    if fusion_items:
+        total_eff = sum(base * conf for _, conf, base in fusion_items)
+        if total_eff > 1e-9:
+            final_risk = sum(risk * (base * conf) for risk, conf, base in fusion_items) / total_eff
+        else:
+            final_risk = sum(risk * base for risk, conf, base in fusion_items) / sum(base for _, _, base in fusion_items)
+            
+        results["overall_risk_score"] = round(final_risk, 4)
 
     return results
 
@@ -1185,3 +1171,590 @@ def calculate_advanced_metadata(url: str) -> np.ndarray:
 #             return 1.0
 
 #     return 0.0
+
+
+
+
+def label_to_risk(label: str) -> float:
+    """
+    Convert historical labels into binary risk.
+
+    Risk labels:
+        spam, scam, phishing, malicious -> 1.0
+        everything else -> 0.0
+    """
+    if not label:
+        return 0.0
+
+    risky_labels = {"spam", "scam", "phishing", "malicious", "fraud"}
+    return 1.0 if str(label).strip().lower() in risky_labels else 0.0
+
+
+def probability_confidence(p: float) -> float:
+    """
+    Confidence based on distance from uncertainty (0.5).
+
+    Formula:
+        confidence = 2 * abs(p - 0.5)
+
+    Properties:
+        p = 0.5 -> 0.0 (maximum uncertainty)
+        p = 0.0 or 1.0 -> 1.0 (maximum confidence)
+    """
+    p = max(0.0, min(1.0, float(p)))
+    return 2.0 * abs(p - 0.5)
+
+def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dict:
+    """
+    Compute distance-weighted retrieval signal.
+    Weighting:
+        w_i = exp(semantic_similarity_i) / sum_j exp(semantic_similarity_j)
+    Retrieval risk:
+        Sum(w_i * label_risk_i)
+    Also computes weighted semantic and lexical evidence.
+    """
+    if not top_matches:
+        return {
+            "retrieval_risk": 0.0, "semantic_risk": 0.0, "lexical_risk": 0.0,
+            "semantic_confidence": 0.0, "lexical_confidence": 0.0
+        }
+
+    # 1. Semantic Voting
+    sem_sims = [max(0.0, min(1.0, float(m.get("semantic_score", 0.0)))) for m in top_matches]
+    sem_weights = [w / (sum(math.exp(s) for s in sem_sims) + 1e-9) for w in (math.exp(s) for s in sem_sims)]
+
+    # 2. Lexical Voting
+    lex_sims = [max(0.0, min(1.0, float(m.get("lexical_score_norm", 0.0)))) for m in top_matches]
+    lex_weights = [w / (sum(math.exp(s) for s in lex_sims) + 1e-9) for w in (math.exp(s) for s in lex_sims)]
+
+    semantic_risk = 0.0
+    lexical_risk = 0.0
+
+    for match, s_weight, l_weight in zip(top_matches, sem_weights, lex_weights):
+        label_risk = label_to_risk(match.get("label", ""))
+        semantic_risk += s_weight * label_risk
+        lexical_risk += l_weight * label_risk
+        
+        match["semantic_weight"] = round(s_weight, 4)
+        match["lexical_weight"] = round(l_weight, 4)
+        match["historical_risk"] = label_risk
+
+    # 3. Dynamic Fusion (Shift from 0.7/0.3 base ratio)
+    sem_conf = probability_confidence(semantic_risk)
+    
+    # If lexical found absolutely no text overlap, it must abstain entirely (confidence = 0)
+    lex_conf = probability_confidence(lexical_risk) if max(lex_sims) > 0.0 else 0.0
+
+    # DYNAMIC BASE WEIGHTS
+    if mode == "url":
+        base_sem = 0.30
+        base_lex = 0.70
+    else:
+        base_sem = 0.70
+        base_lex = 0.30
+
+    eff_sem = base_sem * sem_conf
+    eff_lex = base_lex * lex_conf
+    total_eff = eff_sem + eff_lex
+
+    if total_eff > 1e-9:
+        retrieval_risk = (semantic_risk * eff_sem + lexical_risk * eff_lex) / total_eff
+    else:
+        retrieval_risk = base_sem * semantic_risk + base_lex * lexical_risk
+
+    return {
+        "retrieval_risk": max(0.0, min(1.0, retrieval_risk)),
+        "semantic_risk": max(0.0, min(1.0, semantic_risk)),
+        "lexical_risk": max(0.0, min(1.0, lexical_risk)),
+        "semantic_confidence": sem_conf,
+        "lexical_confidence": lex_conf
+    }
+
+
+async def scan_text(text: str):
+    """
+    Retrieval-Augmented Classification (RAC) Pipeline
+
+    Architecture:
+        1. Embed text using MiniLM.
+        2. Classifier head inference (MLP over 384-dim embedding).
+        3. Retrieve top-5 neighbors via HNSW + BM25 + RRF.
+        4. Compute distance-weighted retrieval risk.
+        5. Estimate confidence for classifier and retrieval.
+        6. Dynamically fuse both signals.
+        7. Return XAI-ready breakdown.
+    """
+
+    # ------------------------------------------------------------------
+    # 1. Embedding
+    # ------------------------------------------------------------------
+    vector = await get_onnx_embedding(text, mode="text")
+
+    # ------------------------------------------------------------------
+    # 2. Classifier Head
+    # ------------------------------------------------------------------
+    input_data = vector.reshape(1, -1).astype(np.float32)
+    session = MODEL_REGISTRY["text_classifier"]["session"]
+ 
+    # XGB head
+    output = await asyncio.to_thread(
+        session.predict_proba,
+        input_data,
+    )
+    classifier_score = float(output[0][1]) # XGB has hazard = 1
+    classifier_score = max(0.0, min(1.0, classifier_score))
+
+    # # MLP head
+    # output = await asyncio.to_thread(
+    #     session.run,
+    #     None,
+    #     {"input": input_data},
+    # )
+    # classifier_score = float(output[0][0]) # MLP has hazard = 0
+    # classifier_score = max(0.0, min(1.0, classifier_score))
+
+    # ------------------------------------------------------------------
+    # 3. Retrieval
+    # ------------------------------------------------------------------
+    top_matches = await hybrid_search_rrf(
+        query_text=text,
+        query_vector=vector,
+        source="text",
+        limit=10,
+        k=20,
+    )
+
+    # ------------------------------------------------------------------
+    # 4. Distance-Weighted Retrieval Aggregation
+    # ------------------------------------------------------------------
+    retrieval = compute_retrieval_signal(top_matches, mode="text")
+    retrieval_risk = retrieval["retrieval_risk"]
+
+    # ------------------------------------------------------------------
+    # 4.5 Explainable AI & Scam Classification
+    # ------------------------------------------------------------------
+    # spam/ham variables to match training script update
+    model_score = classifier_score
+    ham_score = 1.0 - model_score
+
+    # explainable AI branch#
+    explanation_result = explain_text_risk(text)
+    rule_boost = explanation_result["total_boost"]
+    rule_risk_floor = explanation_result["risk_floor"]
+    matched_indicators = explanation_result["matched_indicators"]
+
+    # classification of scam type
+    type_names, type_vectors = await get_scam_type_prototypes()
+    scam_classification = await classify_scam_type(
+        text=text,
+        type_names=type_names,
+        type_vectors=type_vectors,
+    )
+
+    # ------------------------------------------------------------------
+    # 5. Confidence Estimation (3-Way)
+    # ------------------------------------------------------------------
+    classifier_confidence = probability_confidence(classifier_score)
+    retrieval_confidence = probability_confidence(retrieval_risk)
+    
+    # Treat the rule_boost as a probability. 
+    # If rule_boost is 0, confidence is 1.0 (it is mathematically certain no keywords exist).
+    # This automatically lowers the score if no indicators are found
+    rules_score = rule_boost
+
+    # apply scam-type safety floor - classifier to help
+    # if classifier is very confident this is OTP Scam, keep it high risk
+    if (
+        scam_classification["predicted_type"] == "OTP Scam"
+        and scam_classification["confidence_level"] == "high"
+        and rule_boost > 0
+    ):
+        # Adrian: replaced final_risk_score += 0.20 with rules_score = 1.0
+        # to maintain parity with the dynamic fusion. Equivalent to
+        # "Rules detected scam with max confidence"
+        rules_score = 1.0 # Maximum severity!
+    # elif (
+    #     scam_classification["predicted_type"] == "Phishing"
+    #     and scam_classification["confidence_level"] == "high"
+    #     and rule_boost > 0
+    # ):
+    #     rules_score = 1.0 # Maximum severity!
+
+    # elif (
+    #     scam_classification["predicted_type"] == "Job Scam"
+    #     and scam_classification["confidence_level"] == "high"
+    #     and rule_boost > 0
+    # ):
+    #     rules_score = 1.0 # Maximum severity!
+
+
+    rules_confidence = probability_confidence(rules_score)
+
+    # ------------------------------------------------------------------
+    # 6. Dynamic Fusion (MLP + DB + Rules)
+    # ------------------------------------------------------------------
+    base_classifier_weight = 0.35
+    base_retrieval_weight = 0.40
+    base_rules_weight = 0.25  # 25% voting power for heuristic rules
+
+    effective_classifier_weight = base_classifier_weight * classifier_confidence
+    effective_retrieval_weight = base_retrieval_weight * retrieval_confidence
+    effective_rules_weight = base_rules_weight * rules_confidence
+
+    total_weight = (
+        effective_classifier_weight + 
+        effective_retrieval_weight + 
+        effective_rules_weight
+    )
+
+    if total_weight > 1e-9:
+        final_risk_score = (
+            (classifier_score * effective_classifier_weight) +
+            (retrieval_risk * effective_retrieval_weight) +
+            (rules_score * effective_rules_weight)
+        ) / total_weight
+    else:
+        # All sources are maximally uncertain
+        final_risk_score = (
+            base_classifier_weight * classifier_score +
+            base_retrieval_weight * retrieval_risk +
+            base_rules_weight * rules_score
+        )
+
+    # ------------------------------------------------------------------
+    # 6.5 Scam-Type Safety Floor & Caps
+    # ------------------------------------------------------------------
+    # Apply the risk floor from the matched indicators
+    final_risk_score = max(final_risk_score, rule_risk_floor)
+
+    # avoid showing absolute 0% or 100% in UI
+    final_risk_score = max(final_risk_score, 0.03)
+    final_risk_score = min(final_risk_score, 0.97)
+
+    # ------------------------------------------------------------------
+    # 7. Decision & Guidance
+    # ------------------------------------------------------------------
+    if final_risk_score >= 0.75:
+        decision = "flagged"
+    elif final_risk_score >= 0.55:
+        decision = "suspicious"
+    else:
+        decision = "clear"
+
+    # guidance based on the type of scam
+    immediate_guidance = get_prevention_guidance(
+        predicted_type=scam_classification["predicted_type"],
+        decision=decision,
+    )
+
+    # ------------------------------------------------------------------
+    # 8. Unified XAI Output (UI + RAC Logs)
+    # ------------------------------------------------------------------
+    return {
+        # --- CORE UI FIELDS ---
+        "risk_score": round(final_risk_score, 4),
+        "risk_score_percent": round(final_risk_score * 100),
+        "decision": decision,
+        "scam_type": scam_classification,
+        "immediate_guidance": immediate_guidance,
+        "input text": text,
+
+        "model_output": {
+            "spam_score": round(model_score, 4),
+            "ham_score": round(ham_score, 4),
+        },
+        "explainability": {
+            "rule_boost": round(rule_boost, 4),
+            "matched_indicators": matched_indicators,
+        },
+
+        # --- RAC PIPELINE DEEP LOGS ---
+        "sub_scores": {
+            "classifier_head": round(classifier_score, 4),
+            "retrieval_risk": round(retrieval_risk, 4),
+            "retrieval_label": "hazard" if retrieval_risk >= 0.5 else "safe",
+            "semantic_vote": round(retrieval["semantic_risk"], 4),
+            "lexical_vote": round(retrieval["lexical_risk"], 4),
+        },
+        "confidence": {
+            "classifier": round(classifier_confidence, 4),
+            "retrieval": round(retrieval_confidence, 4),
+            "rules": round(rules_confidence, 4),
+        },
+        "fusion_weights": {
+            "base": {
+                "classifier": base_classifier_weight,
+                "retrieval": base_retrieval_weight,
+                "rules": base_rules_weight,
+            },
+            "effective": {
+                "classifier": round(effective_classifier_weight, 6),
+                "retrieval": round(effective_retrieval_weight, 6),
+                "rules": round(effective_rules_weight, 6),
+            },
+        },
+        "evidence": {
+            "retrieval_method": "HNSW (Semantic) + pg_trgm (Lexical) + Dynamic Fusion",
+            "match_count": len(top_matches),
+            "top_matches": top_matches,
+        },
+    }
+
+async def scan_url(raw_url: str):
+    """
+    Retrieval-Augmented Classification (RAC) pipeline for URLs.
+
+    Architecture
+    ------------
+    1. Safe resolution
+       - Resolve redirects with SSRF protection.
+       - Analyze the final resolved URL if available.
+
+    2. Feature extraction
+       - URLBERT embedding (768-dim, L2 normalized).
+       - 8-dim structural metadata:
+         [path_ratio, tld_tier, entropy, dot_count, digit_ratio,
+          special_chars, subdomain_flag, path_depth]
+
+    3. Classifier head
+       - Concatenate embedding + metadata -> 776-dim.
+       - ONNX MLP outputs classifier_score.
+
+    4. Retrieval
+       - Hybrid HNSW + BM25 + RRF against phishing_url table.
+       - Returns top-5 nearest historical URLs with:
+         semantic_score, lexical_score_norm, label.
+
+    5. Distance-weighted retrieval aggregation
+       - Uses compute_retrieval_signal(top_matches), identical to text RAC.
+       - Neighbor weights are softmax over semantic similarity:
+             w_i = exp(sim_i) / sum_j exp(sim_j)
+       - Produces:
+             retrieval_risk
+             semantic_score (weighted)
+             lexical_score (weighted)
+
+    6. Confidence estimation
+       - probability_confidence(p) = 2 * abs(p - 0.5)
+
+    7. Dynamic fusion
+       - Base weights:
+           classifier = 0.40
+           retrieval  = 0.60
+       - Effective weights:
+           base_weight * confidence
+       - Final score:
+           weighted average of classifier_score and retrieval_risk
+
+    8. Structural dissonance
+       - Compare final RAC score against mean(metadata).
+       - Large disagreement indicates unusual edge cases.
+
+    9. Decision logic
+       - flagged: final_risk_score > 0.80
+       - audit:   dissonance > 0.50
+       - clear:   otherwise
+
+    Notes
+    -----
+    - URLs often benefit more from lexical overlap than semantic similarity
+      because phishing URLs frequently reuse exact tokens, domains, and paths.
+    - The retrieval subsystem remains identical to the text pipeline so your
+      frontend XAI and ensemble logic stay consistent across modalities.
+    """
+
+    # ------------------------------------------------------------------
+    # 1. Safe Resolution (with SSRF protection)
+    # ------------------------------------------------------------------
+    resolved_url, resolved_successfully = await safe_resolve_redirect(raw_url)
+
+    # Canonicalized URL used for both embedding and retrieval
+    stripped_url = standardize_url(resolved_url)
+
+    # ------------------------------------------------------------------
+    # 2. Feature Extraction
+    # ------------------------------------------------------------------
+    # URLBERT embedding (768-dim, already L2-normalized by get_onnx_embedding)
+    vector = await get_onnx_embedding(stripped_url, mode="url")
+
+    # 8 structural features
+    meta_vector = calculate_advanced_metadata(resolved_url)
+
+    # ------------------------------------------------------------------
+    # 3. Classifier Head (Embedding + Metadata)
+    # ------------------------------------------------------------------
+    # Concatenate to form 776-dim input
+    combined_input = np.concatenate(
+        (vector.reshape(1, -1), meta_vector.reshape(1, -1)),
+        axis=1,
+    ).astype(np.float32)
+
+    session = MODEL_REGISTRY["url_classifier"]["session"]
+
+    # For XGB head
+    # predict_proba returns [[prob_safe, prob_hazard]]
+    output = await asyncio.to_thread(
+        session.predict_proba,
+        combined_input,
+    )
+    # Extract probability of the hazard class (index 1)
+    classifier_score = float(output[0][1]) # XGB has hazard = 1
+    classifier_score = max(0.0, min(1.0, classifier_score))
+
+    # # For MLP head
+    # output = await asyncio.to_thread(
+    #     session.run,
+    #     None,
+    #     {"input": combined_input},
+    # )
+    # classifier_score = float(output[0][0]) # MLP has hazard = 0
+    # classifier_score = max(0.0, min(1.0, classifier_score))
+
+    # ------------------------------------------------------------------
+    # 4. Retrieval (Hybrid HNSW + BM25 + RRF)
+    # ------------------------------------------------------------------
+    # Important: retrieval uses ONLY the URL embedding, not metadata.
+    # This keeps the vector space aligned with what is stored in pgvector.
+    top_matches = await hybrid_search_rrf(
+        query_text=stripped_url,
+        query_vector=vector,
+        source="url",
+        limit=10,
+        k=20,
+    )
+    import json
+    print("JSON dumps after top matches")
+    print(json.dumps(top_matches, default=str, indent=2))
+    # ------------------------------------------------------------------
+    # 5. Distance-Weighted Retrieval Aggregation
+    # ------------------------------------------------------------------
+    # Reuses the same helper as the text pipeline.
+    retrieval = compute_retrieval_signal(top_matches, mode="url")
+    retrieval_risk = retrieval["retrieval_risk"]
+
+    # ------------------------------------------------------------------
+    # 6. Confidence Estimation
+    # ------------------------------------------------------------------
+    classifier_confidence = probability_confidence(classifier_score)
+    retrieval_confidence = probability_confidence(retrieval_risk)
+
+    # ------------------------------------------------------------------
+    # 7. Dynamic Fusion
+    # ------------------------------------------------------------------
+    # Same architecture as scan_text.
+    base_classifier_weight = 0.40
+    base_retrieval_weight = 0.60
+
+    effective_classifier_weight = (
+        base_classifier_weight * classifier_confidence
+    )
+    effective_retrieval_weight = (
+        base_retrieval_weight * retrieval_confidence
+    )
+
+    total_weight = (
+        effective_classifier_weight + effective_retrieval_weight
+    )
+
+    if total_weight > 1e-9:
+        final_risk_score = (
+            classifier_score * effective_classifier_weight
+            + retrieval_risk * effective_retrieval_weight
+        ) / total_weight
+    else:
+        # Both sources are maximally uncertain (~0.5).
+        final_risk_score = (
+            base_classifier_weight * classifier_score
+            + base_retrieval_weight * retrieval_risk
+        )
+
+    final_risk_score = max(0.0, min(1.0, float(final_risk_score)))
+
+    # ------------------------------------------------------------------
+    # 8. Structural Dissonance Check
+    # ------------------------------------------------------------------
+    # Compare the final RAC score against a simple structural prior.
+    meta_risk_score = float(np.mean(meta_vector))
+    dissonance = abs(final_risk_score - meta_risk_score)
+
+    # ------------------------------------------------------------------
+    # 9. Decision Logic
+    # ------------------------------------------------------------------
+    decision = "clear"
+
+    # High-confidence malicious URL
+    if final_risk_score > 0.80:
+        decision = "flagged"
+
+    # Significant disagreement between RAC and structural heuristics
+    elif dissonance > 0.50:
+        decision = "audit"
+
+    # ------------------------------------------------------------------
+    # 10. XAI Output (Explainable AI)
+    # ------------------------------------------------------------------
+    return {
+        # --- TOP LEVEL DECISION ---
+        "risk_score": round(final_risk_score, 4),    # Final blended probability (0.0 = Safe, 1.0 = Malicious)
+        "decision": decision,                        # Threshold action: 'clear', 'audit', or 'flagged'
+
+        # --- URL RESOLUTION ---
+        "resolved_url": resolved_url,                # The final destination URL after following safe redirects
+        "resolved_successfully": resolved_successfully, # True if we could reach the end of the redirect chain without hitting an SSRF block
+
+        # --- STRUCTURAL METADATA (Heuristics) ---
+        "meta_vector": meta_vector.tolist(),         # Raw values of the 8 structural heuristics
+        "meta_labels": [
+            "Path Ratio", "TLD Tier", "Entropy", "Dot Count", 
+            "Digit Ratio", "Special Chars", "Subdomain Flag", "Path Depth",
+        ],
+
+        # --- STRUCTURAL DIAGNOSTICS ---
+        "meta_risk_score": round(meta_risk_score, 4), # Simple average of the structural heuristic vector
+        "dissonance": round(dissonance, 4),           # Difference between Deep ML score and Heuristic score. High dissonance (>0.5) triggers an 'audit'
+
+        # --- INDEPENDENT BRAINS (Sub Scores) ---
+        "sub_scores": {
+            # 1. The Machine Learning Model
+            "classifier_head": round(classifier_score, 4), # Raw XGBoost prediction based on Embedding + Metadata
+
+            # 2. The Database Search (Retrieval)
+            "retrieval_risk": round(retrieval_risk, 4),    # Combined risk based on historical URL neighbors found in the DB
+            "retrieval_label": "hazard" if retrieval_risk >= 0.5 else "safe",
+            "retrieval_margin": round(abs(retrieval_risk - 0.5) * 2, 4), # Distance from uncertainty. 1.0 = highly certain, 0.0 = totally confused (50/50)
+            
+            # 3. How the Database Search Voted
+            "semantic_vote": round(retrieval["semantic_risk"], 4), # >0.5 means neighbors with similar 'intent' were mostly scams
+            "lexical_vote": round(retrieval["lexical_risk"], 4),   # >0.5 means neighbors with similar 'exact characters' were mostly scams
+        },
+
+        # --- CONFIDENCE SCORING ---
+        "confidence": {
+            "classifier": round(classifier_confidence, 4), # How sure the ML model is (low if score is near 0.5)
+            "retrieval": round(retrieval_confidence, 4),   # How sure the database search is (low if score is near 0.5)
+        },
+
+        # --- DYNAMIC FUSION MATH ---
+        # Shows exactly how much voting power each brain had in the final risk_score
+        "fusion_weights": {
+            "base": {
+                "classifier": base_classifier_weight, # Default voting power (40%)
+                "retrieval": base_retrieval_weight,   # Default voting power (60%)
+            },
+            "effective": {
+                "classifier": round(effective_classifier_weight, 6), # Actual voting power after penalizing for low confidence
+                "retrieval": round(effective_retrieval_weight, 6),   # Actual voting power after penalizing for low confidence
+            },
+        },
+
+        # --- RAW EVIDENCE ---
+        "evidence": {
+            "retrieval_method": "HNSW (Semantic) + pg_trgm (Lexical) + Dynamic Fusion",
+            "aggregation": "softmax(exp(similarity))",
+            "match_count": len(top_matches), # Usually 5 (the top 5 closest historical documents)
+            "top_matches": top_matches,      # The actual database rows to display to the user/analyst
+        },
+
+        # --- ORIGINAL INPUT ---
+        "input_url": raw_url,
+    }

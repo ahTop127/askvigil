@@ -47,7 +47,8 @@ class Settings(BaseSettings):
 
     @property
     def TEXT_CLASSIFIER_PATH(self) -> Path:
-        return self.TEXT_MODEL_PATH / "classifier.onnx"
+        return self.TEXT_MODEL_PATH / "calibrated_classifier.joblib" # XGB
+        # return self.TEXT_MODEL_PATH / "classifier.onnx" # MLP
 
     @property
     def URL_MODEL_PATH(self) -> Path:
@@ -55,7 +56,8 @@ class Settings(BaseSettings):
 
     @property
     def URL_CLASSIFIER_PATH(self) -> Path:
-        return self.URL_MODEL_PATH / "classifier.onnx"
+        return self.URL_MODEL_PATH / "calibrated_classifier.joblib" # XGB
+        # return self.URL_MODEL_PATH / "classifier.onnx" # MLP
 
     @property
     def OCR_MODEL_DIR(self) -> Path:
@@ -81,10 +83,6 @@ class Settings(BaseSettings):
     def OCR_KEYS_PATH(self) -> str:
         # This is the character dictionary (keys)
         return self.OCR_MODEL_DIR / "ppocr_keys.txt"
-
-    @property
-    def MAX_POSSIBLE_RRF(self) -> float:
-        return 2.0 / (self.RRF_CONSTANT + 1)
 
     # Pydantic Config. Dynamically specify the env file to be loaded
     model_config = SettingsConfigDict(env_file=env_file_name, extra="ignore")

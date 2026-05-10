@@ -1,5 +1,6 @@
 -- This runs EXACTLY ONCE when the database container is first created.
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Text dataset
 CREATE TABLE IF NOT EXISTS open_dataset (
@@ -12,9 +13,7 @@ CREATE TABLE IF NOT EXISTS open_dataset (
     text_embedding vector(384),
     has_url SMALLINT DEFAULT 0,
     raw_length INTEGER,
-    clean_length INTEGER,
-    -- Automated Lexical Index
-    text_search_vector tsvector GENERATED ALWAYS AS (to_tsvector('simple', clean_text)) STORED
+    clean_length INTEGER,    
 );
 
 
@@ -23,9 +22,9 @@ CREATE INDEX IF NOT EXISTS idx_hnsw_embeddings
 ON open_dataset USING hnsw (text_embedding vector_cosine_ops) 
 WITH (m = 16, ef_construction = 64);
 
--- GIN for Lexical Search
-CREATE INDEX IF NOT EXISTS idx_gin_lexical ON open_dataset USING GIN (text_search_vector);
-
+-- Gin Trigram Index for Lexical Search
+CREATE INDEX IF NOT EXISTS idx_trgm_clean_text 
+ON open_dataset USING GIN (clean_text gin_trgm_ops);
 
 -- URL dataset
 CREATE TABLE IF NOT EXISTS phishing_url (
@@ -43,10 +42,6 @@ CREATE TABLE IF NOT EXISTS phishing_url (
     metadata_vector vector(8),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    url_search_vector tsvector GENERATED ALWAYS AS (
-        to_tsvector('simple', coalesce(preview_title, '')) || 
-        to_tsvector('simple', coalesce(resolved_url, original_url, ''))
-    ) STORED
 );
 
 -- HNSW for URL Semantic Search
@@ -54,9 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_hnsw_url_embeddings
 ON phishing_url USING hnsw (url_embedding vector_cosine_ops) 
 WITH (m = 16, ef_construction = 64);
 
--- GIN for URL Lexical Search
-CREATE INDEX IF NOT EXISTS idx_gin_url_lexical ON phishing_url USING GIN (url_search_vector);
-
+-- GIN Trigram Index for URL Lexical Search
+CREATE INDEX IF NOT EXISTS idx_trgm_url 
+ON phishing_url USING GIN (coalesce(resolved_url, original_url) gin_trgm_ops);
 
 -- -- Expert Anchors Table
 -- CREATE TABLE IF NOT EXISTS centroid_anchors (
