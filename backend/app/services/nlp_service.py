@@ -310,7 +310,9 @@ def mean_pooling(model_output, attention_mask):
     )
 
 
-async def get_onnx_embedding(input_data: str | list[str], mode: str = "text", return_xai: bool = False):
+async def get_onnx_embedding(
+    input_data: str | list[str], mode: str = "text", return_xai: bool = False
+):
     config = MODEL_REGISTRY[mode]
     tokenizer = config["tokenizer"]
     session = config["session"]
@@ -320,7 +322,7 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text", re
     texts = [input_data] if is_single else input_data
     batch_embeddings = []
     # XAI variables (only populated if return_xai is True and is_single is True)
-    xai_dict = {}   
+    xai_dict = {}
 
     for text in texts:
         # 1. Sandwich Truncation
@@ -338,7 +340,7 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text", re
             max_length=512,
             stride=stride_val,
             return_overflowing_tokens=True,
-            return_offsets_mapping=return_xai, # Required for XAI
+            return_offsets_mapping=return_xai,  # Required for XAI
             return_tensors="np",
         )
 
@@ -360,7 +362,9 @@ async def get_onnx_embedding(input_data: str | list[str], mode: str = "text", re
             # --- XAI EXTRACTION (Only grab the first window) ---
             if return_xai and i == 0:
                 # feature-extraction returns last_hidden_state as outputs[0]
-                xai_dict["unpooled_tokens"] = outputs[0][0] # Shape: (Seq_Len, 384 or 768)
+                xai_dict["unpooled_tokens"] = outputs[0][
+                    0
+                ]  # Shape: (Seq_Len, 384 or 768)
                 xai_dict["input_ids"] = encoded["input_ids"][0]
                 xai_dict["offset_mapping"] = encoded["offset_mapping"][0]
 
@@ -1335,7 +1339,9 @@ async def scan_text(text: str):
     # ------------------------------------------------------------------
     # 1. Embedding
     # ------------------------------------------------------------------
-    vector, xai_ingredients = await get_onnx_embedding(text, mode="text", return_xai=True)
+    vector, xai_ingredients = await get_onnx_embedding(
+        text, mode="text", return_xai=True
+    )
 
     # ------------------------------------------------------------------
     # 2. Classifier Head
@@ -1528,35 +1534,35 @@ async def scan_text(text: str):
         top_match = top_matches[0]
         # 1. Run the XGBoost predictive ablation
         xgb_deltas = compute_loo_deltas(
-            unpooled_tokens=xai_ingredients["unpooled_tokens"], 
-            xgb_model=MODEL_REGISTRY["text_classifier"]["session"]
+            unpooled_tokens=xai_ingredients["unpooled_tokens"],
+            xgb_model=MODEL_REGISTRY["text_classifier"]["session"],
         )
-        
-        # 2. Safe Database Extraction 
+
+        # 2. Safe Database Extraction
         doc_embedding_raw = top_match.get("embedding")
-        
+
         if doc_embedding_raw is not None:
             # THE FIX: Parse the PostgreSQL string back into a Python list
             if isinstance(doc_embedding_raw, str):
                 parsed_list = json.loads(doc_embedding_raw)
             else:
                 parsed_list = doc_embedding_raw
-                
+
             doc_embedding = np.array(parsed_list, dtype=np.float32)
         else:
             # If no embeddings, return dummy array to avoid crash
             dim = xai_ingredients["unpooled_tokens"].shape[1]
             doc_embedding = np.zeros(dim, dtype=np.float32)
-            
+
         # 3. Assemble the Payload
         xai_payload = generate_text_explanation(
-            raw_text=text, # Use request.text if in scan_text()
+            raw_text=text,  # Use request.text if in scan_text()
             offset_mapping=xai_ingredients["offset_mapping"],
             input_ids=xai_ingredients["input_ids"],
             unpooled_tokens=xai_ingredients["unpooled_tokens"],
             doc_embedding=doc_embedding,
-            doc_text=top_match.get("clean_text", ""), # <-- PASS THE RAW TEXT HERE
-            xgb_deltas=xgb_deltas
+            doc_text=top_match.get("clean_text", ""),  # <-- PASS THE RAW TEXT HERE
+            xgb_deltas=xgb_deltas,
         )
     return {
         # --- CORE UI FIELDS ---
@@ -1602,12 +1608,26 @@ async def scan_text(text: str):
         # --- Explainability ---
         "explainability": {
             "fusion_breakdown": {
-                "effective_xgb_weight": round(effective_classifier_weight / total_weight, 4) if total_weight > 0 else 0,
-                "effective_db_weight": round(effective_retrieval_weight / total_weight, 4) if total_weight > 0 else 0,
-                "effective_rules_weight": round(effective_rules_weight / total_weight, 4) if total_weight > 0 else 0, # <-- ADD THIS
-                "db_hallucination_silenced": True if retrieval_grounding < 0.1 else False
+                "effective_xgb_weight": round(
+                    effective_classifier_weight / total_weight, 4
+                )
+                if total_weight > 0
+                else 0,
+                "effective_db_weight": round(
+                    effective_retrieval_weight / total_weight, 4
+                )
+                if total_weight > 0
+                else 0,
+                "effective_rules_weight": round(
+                    effective_rules_weight / total_weight, 4
+                )
+                if total_weight > 0
+                else 0,  # <-- ADD THIS
+                "db_hallucination_silenced": True
+                if retrieval_grounding < 0.1
+                else False,
             },
-            "token_heatmap": xai_payload
+            "token_heatmap": xai_payload,
         },
         "evidence": {
             "retrieval_method": "HNSW (Semantic) + pg_trgm (Lexical) + Dynamic Fusion",
@@ -1692,7 +1712,9 @@ async def scan_url(raw_url: str):
     # 2. Feature Extraction
     # ------------------------------------------------------------------
     # URLBERT embedding (768-dim, already L2-normalized by get_onnx_embedding)
-    vector, xai_ingredients = await get_onnx_embedding(stripped_url, mode="url", return_xai=True)
+    vector, xai_ingredients = await get_onnx_embedding(
+        stripped_url, mode="url", return_xai=True
+    )
 
     # 8 structural features
     meta_vector = calculate_advanced_metadata(resolved_url)
@@ -1730,19 +1752,23 @@ async def scan_url(raw_url: str):
     # ------------------------------------------------------------------
     # 3.5 XGBoost Feature Contributions (Metadata)
     # ------------------------------------------------------------------
-    # Extract the underlying Booster from the Sklearn CalibratedClassifierCV 
+    # Extract the underlying Booster from the Sklearn CalibratedClassifierCV
     # (Assuming it's calibrated. If it's a raw XGBClassifier, use session.get_booster())
     try:
-        booster = session.estimator.get_booster() if hasattr(session, "estimator") else session.get_booster()
-        
+        booster = (
+            session.estimator.get_booster()
+            if hasattr(session, "estimator")
+            else session.get_booster()
+        )
+
         # pred_contribs requires a native DMatrix
         dmat = __import__("xgboost").DMatrix(combined_input)
         contribs = booster.predict(dmat, pred_contribs=True)[0]
-        
+
         # contribs shape: (777,) -> 768 embeddings + 8 metadata + 1 bias
         # Slice the 8 metadata features (Indices 768 to 775)
         meta_shap_values = contribs[-9:-1].tolist()
-    except Exception as e:
+    except Exception:
         # Graceful fallback if the Sklearn wrapper obscures the booster
         meta_shap_values = [0.0] * 8
 
@@ -1751,12 +1777,21 @@ async def scan_url(raw_url: str):
         {
             "feature": label,
             "raw_value": round(float(val), 4),
-            "xgb_contribution": round(float(shap), 4) # Positive = pushed towards scam
+            "xgb_contribution": round(float(shap), 4),  # Positive = pushed towards scam
         }
         for label, val, shap in zip(
-            ["Path Ratio", "TLD Tier", "Entropy", "Dot Count", "Digit Ratio", "Special Chars", "Subdomain Flag", "Path Depth"],
+            [
+                "Path Ratio",
+                "TLD Tier",
+                "Entropy",
+                "Dot Count",
+                "Digit Ratio",
+                "Special Chars",
+                "Subdomain Flag",
+                "Path Depth",
+            ],
             meta_vector,
-            meta_shap_values
+            meta_shap_values,
         )
     ]
 
@@ -1864,36 +1899,36 @@ async def scan_url(raw_url: str):
         top_match = top_matches[0]
         # 1. Run the XGBoost predictive ablation
         xgb_deltas = compute_loo_deltas(
-            unpooled_tokens=xai_ingredients["unpooled_tokens"], 
-            xgb_model=MODEL_REGISTRY["url_classifier"]["session"], 
-            meta_vector=meta_vector 
+            unpooled_tokens=xai_ingredients["unpooled_tokens"],
+            xgb_model=MODEL_REGISTRY["url_classifier"]["session"],
+            meta_vector=meta_vector,
         )
-        
-        # 2. Safe Database Extraction 
+
+        # 2. Safe Database Extraction
         doc_embedding_raw = top_match.get("embedding")
-        
+
         if doc_embedding_raw is not None:
             # THE FIX: Parse the PostgreSQL string back into a Python list
             if isinstance(doc_embedding_raw, str):
                 parsed_list = json.loads(doc_embedding_raw)
             else:
                 parsed_list = doc_embedding_raw
-                
+
             doc_embedding = np.array(parsed_list, dtype=np.float32)
         else:
             # If no embeddings, return dummy array to avoid crash
             dim = xai_ingredients["unpooled_tokens"].shape[1]
             doc_embedding = np.zeros(dim, dtype=np.float32)
-            
+
         # 3. Assemble the Payload
         xai_payload = generate_text_explanation(
-            raw_text=stripped_url, # Use request.text if in scan_text()
+            raw_text=stripped_url,  # Use request.text if in scan_text()
             offset_mapping=xai_ingredients["offset_mapping"],
             input_ids=xai_ingredients["input_ids"],
             unpooled_tokens=xai_ingredients["unpooled_tokens"],
             doc_embedding=doc_embedding,
-            doc_text=top_match.get("clean_text", ""), # <-- PASS THE RAW TEXT HERE
-            xgb_deltas=xgb_deltas
+            doc_text=top_match.get("clean_text", ""),  # <-- PASS THE RAW TEXT HERE
+            xgb_deltas=xgb_deltas,
         )
     return {
         # --- TOP LEVEL DECISION ---
@@ -1974,11 +2009,21 @@ async def scan_url(raw_url: str):
         "explainability": {
             "meta_explanation": meta_explanation,
             "fusion_breakdown": {
-                "effective_xgb_weight": round(effective_classifier_weight / total_weight, 4) if total_weight > 0 else 0,
-                "effective_db_weight": round(effective_retrieval_weight / total_weight, 4) if total_weight > 0 else 0,
-                "db_hallucination_silenced": True if retrieval_grounding < 0.1 else False
+                "effective_xgb_weight": round(
+                    effective_classifier_weight / total_weight, 4
+                )
+                if total_weight > 0
+                else 0,
+                "effective_db_weight": round(
+                    effective_retrieval_weight / total_weight, 4
+                )
+                if total_weight > 0
+                else 0,
+                "db_hallucination_silenced": True
+                if retrieval_grounding < 0.1
+                else False,
             },
-            "token_heatmap": xai_payload
+            "token_heatmap": xai_payload,
         },
         # --- RAW EVIDENCE ---
         "evidence": {

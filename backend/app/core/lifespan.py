@@ -247,16 +247,17 @@ async def lifespan(app: FastAPI):
     cv2.setNumThreads(0)  # Stop OpenCV thread competition
 
     # Warm up to avoid slow first inference
-    await warm_up_engines() 
-    
+    await warm_up_engines()
+
     yield
     # Shutdown logic
     MODEL_REGISTRY.clear()
     print("Models unloaded.")
 
+
 async def warm_up_engines():
     """
-    Prevents the 5-second 'Cold Start' by pre-allocating ONNX tensors 
+    Prevents the 5-second 'Cold Start' by pre-allocating ONNX tensors
     and triggering the C++ backends before the first user request.
     """
     print("[INIT] Warming up Inference Engines on ARM64...")
@@ -270,23 +271,26 @@ async def warm_up_engines():
     # 2. Saturate the XGBoost Classifier
     # XGBoost boosters often lazy-load tree structures on the first few passes
     dummy_input_text = np.zeros((1, 384), dtype=np.float32)
-    dummy_input_url = np.zeros((1, 776), dtype=np.float32) # Embedding + Metadata
-    
+    dummy_input_url = np.zeros((1, 776), dtype=np.float32)  # Embedding + Metadata
+
     for i in range(3):
         MODEL_REGISTRY["text_classifier"]["session"].predict_proba(dummy_input_text)
         MODEL_REGISTRY["url_classifier"]["session"].predict_proba(dummy_input_url)
     print("[WARMUP] Classifiers saturated.")
 
     # 3. Saturate the OCR (The Heaviest Lift)
-    # RapidOCR actually has THREE internal models (Det, Rec, Cls). 
+    # RapidOCR actually has THREE internal models (Det, Rec, Cls).
     # It takes several passes to stabilize the memory pool for all three.
-    dummy_img = np.zeros((640, 640, 3), dtype=np.uint8) # Use 640x640 to trigger real padding logic
-    for i in range(5): # OCR is finicky, give it 5 passes
+    dummy_img = np.zeros(
+        (640, 640, 3), dtype=np.uint8
+    )  # Use 640x640 to trigger real padding logic
+    for i in range(5):  # OCR is finicky, give it 5 passes
         MODEL_REGISTRY["ocr_rapid"](dummy_img)
         MODEL_REGISTRY["ocr_enhanced"](dummy_img)
     print("[WARMUP] OCR saturated.")
     print("[INIT] System is HOT. All caches primed.")
-    
+
+
 def load_onnx_session(model_path: str):
     """Encapsulated loader with ARM-specific optimizations."""
     options = ort.SessionOptions()
@@ -346,14 +350,18 @@ async def ensure_architectural_integrity():
     """)
 
     # 3. Quick Check
-    result = await conn.execute_query_dict("SELECT MAX(version) as v FROM schema_version")
-    db_version = result[0]['v'] or 0
+    result = await conn.execute_query_dict(
+        "SELECT MAX(version) as v FROM schema_version"
+    )
+    db_version = result[0]["v"] or 0
 
     if db_version >= CURRENT_SCHEMA_VERSION:
-        return # Instant exit if we're up to date
+        return  # Instant exit if we're up to date
 
     # 4. Migrations
-    print(f"[DB MIGRATION] Migrating database from v{db_version} to v{CURRENT_SCHEMA_VERSION}...")
+    print(
+        f"[DB MIGRATION] Migrating database from v{db_version} to v{CURRENT_SCHEMA_VERSION}..."
+    )
 
     # 4. Column & Index Patching (Slow and heavy)
     patch_sql = """
@@ -484,7 +492,9 @@ async def ensure_architectural_integrity():
     try:
         await conn.execute_script(patch_sql)
         # 4. Mark as complete
-        await conn.execute_script(f"INSERT INTO schema_version (version) VALUES ({CURRENT_SCHEMA_VERSION});")
+        await conn.execute_script(
+            f"INSERT INTO schema_version (version) VALUES ({CURRENT_SCHEMA_VERSION});"
+        )
         print(f"Schema synchronization to v{CURRENT_SCHEMA_VERSION} successful.")
     except Exception as e:
         print(f"Schema sync failed: {str(e)}")

@@ -27,7 +27,7 @@ def export_and_quantize(task_name: str, model_id: str):
         model_name_or_path=model_id,
         output=output_dir,
         task="feature-extraction",
-        # Feature-extraction natively outputs 'last_hidden_state', 
+        # Feature-extraction natively outputs 'last_hidden_state',
         # which is all we need for XAI.
         no_post_process=True,
     )
@@ -36,7 +36,7 @@ def export_and_quantize(task_name: str, model_id: str):
     print(f"[{task_name}] Saving Tokenizer files...")
     tokenizer = AutoTokenizer.from_pretrained(
         model_id,
-        use_fast=True,           # For offset_mapping during inference
+        use_fast=True,  # For offset_mapping during inference
         fix_mistral_regex=True,  # Silences regex warning
     )
     tokenizer.save_pretrained(output_dir)
