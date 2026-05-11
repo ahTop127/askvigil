@@ -124,7 +124,7 @@ async def import_csv_to_db():
         )
 
         # Temporary Debug within your for-loop
-        if len(instances) > 49990 or len(instances) < 5:
+        if (len(records) - len(instances)) < 5 or len(instances) < 5:
             print(
                 f"DEBUG: URL: {raw_url} | Meta Type: {type(meta_list)} | Content: {meta_list}"
             )

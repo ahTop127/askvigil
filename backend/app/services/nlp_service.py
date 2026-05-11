@@ -1055,11 +1055,24 @@ def standardize_text(text: str, label: str = None) -> str:
     # If it's spam, we assume it's a 'Big Number' (000). If ham, a 'Small Number' (0).
     placeholder = " 000 " if label == "spam" else " 0 "
     text = re.sub(r"(?i)escape(number|long|url)", placeholder, text)
-
+    
     # 8. Standard Numeric Masking (Shape-Preserving for modern text)
     # This maintains parity between legacy placeholders and real numbers.'
     text = re.sub(r"\d{3,}", " 000 ", text)
     text = re.sub(r"\d{1,2}", " 0 ", text)
+
+    # FIXME: Sequential regex cannibalizes 3+ digit masks (outputs ' 0 0 '). 
+    # Left as-is to maintain training parity, as this is a near-harmless bug.
+    # The fix:
+    # 8. Standard Numeric Masking (Single-Pass Shape-Preserving)
+    # Replaces numbers >= 3 digits with ' 000 ', and 1-2 digits with ' 0 '
+    # Uses a lambda to prevent sequential regex cannibalization.
+    # text = re.sub(
+    #     r"\d+", 
+    #     lambda m: " 000 " if len(m.group(0)) >= 3 else " 0 ", 
+    #     text
+    # )    
+
 
     # 9. Formatting
     text = re.sub(r"\s+", " ", text).strip()
@@ -1373,39 +1386,63 @@ async def scan_text(text: str):
     # 5. Confidence Estimation (3-Way)
     # ------------------------------------------------------------------
     classifier_confidence = probability_confidence(classifier_score)
-    retrieval_confidence = probability_confidence(retrieval_risk)
+
+    # 1. Decisiveness (Linear): Is the retrieval vote clear or 50/50?
+    retrieval_decisiveness = probability_confidence(retrieval_risk)
+
+    # 2. Grounding based on INTENT OVERLAP (Linear base):
+    # Raw structural similarity of the best match [0.0 to 1.0]
+    # We use the semantic score because natural language relies on paraphrasing.
+    top_semantic_score = top_matches[0].get("semantic_score", 0.0) if top_matches else 0.0
+    
+    # Cosine similarity can technically be negative, so we clamp it to 0.0 at the floor.
+    retrieval_grounding = max(0.0, min(1.0, float(top_semantic_score)))
+    
+    # 3. Normalized Confidence: Weighted Geometric Mean (Cube Root of D * G^2)
+    # This preserves the non-linear penalty for weak structural matches 
+    # without unfairly decaying the confidence of strong matches.
+    if retrieval_decisiveness == 0.0 or retrieval_grounding == 0.0:
+        retrieval_confidence = 0.0
+    else:
+        product = retrieval_decisiveness * (retrieval_grounding ** 2)
+        retrieval_confidence = math.pow(product, 1.0 / 3.0)
 
     # Treat the rule_boost as a probability.
     # If rule_boost is 0, confidence is 1.0 (it is mathematically certain no keywords exist).
     # This automatically lowers the score if no indicators are found
     rules_score = rule_boost
+    if rules_score == 0:
+        # Adrian: The rules found nothing. It must abstain, NOT vote "Safe".
+        # A confidence of 0 removes it from the denominator.
+        rules_confidence = 0.0
+    else:
+        # Adrian: The rules found something malicious. Let it vote with confidence.
 
-    # apply scam-type safety floor - classifier to help
-    # if classifier is very confident this is OTP Scam, keep it high risk
-    if (
-        scam_classification["predicted_type"] == "OTP Scam"
-        and scam_classification["confidence_level"] == "high"
-        and rule_boost > 0
-    ):
-        # Adrian: replaced final_risk_score += 0.20 with rules_score = 1.0
-        # to maintain parity with the dynamic fusion. Equivalent to
-        # "Rules detected scam with max confidence"
-        rules_score = 1.0  # Maximum severity!
-    # elif (
-    #     scam_classification["predicted_type"] == "Phishing"
-    #     and scam_classification["confidence_level"] == "high"
-    #     and rule_boost > 0
-    # ):
-    #     rules_score = 1.0 # Maximum severity!
+        # apply scam-type safety floor - classifier to help
+        # if classifier is very confident this is OTP Scam, keep it high risk
+        if (
+            scam_classification["predicted_type"] == "OTP Scam"
+            and scam_classification["confidence_level"] == "high"
+        ):
+            # Adrian: replaced final_risk_score += 0.20 with rules_score = 1.0
+            # to maintain parity with the dynamic fusion. Equivalent to
+            # "Rules detected scam with max confidence"
+            rules_score = 1.0  # Maximum severity!
+        # elif (
+        #     scam_classification["predicted_type"] == "Phishing"
+        #     and scam_classification["confidence_level"] == "high"
+        #     and rule_boost > 0
+        # ):
+        #     rules_score = 1.0 # Maximum severity!
 
-    # elif (
-    #     scam_classification["predicted_type"] == "Job Scam"
-    #     and scam_classification["confidence_level"] == "high"
-    #     and rule_boost > 0
-    # ):
-    #     rules_score = 1.0 # Maximum severity!
+        # elif (
+        #     scam_classification["predicted_type"] == "Job Scam"
+        #     and scam_classification["confidence_level"] == "high"
+        #     and rule_boost > 0
+        # ):
+        #     rules_score = 1.0 # Maximum severity!
 
-    rules_confidence = probability_confidence(rules_score)
+        rules_confidence = probability_confidence(rules_score)
 
     # ------------------------------------------------------------------
     # 6. Dynamic Fusion (MLP + DB + Rules)
@@ -1653,14 +1690,32 @@ async def scan_url(raw_url: str):
     # 6. Confidence Estimation
     # ------------------------------------------------------------------
     classifier_confidence = probability_confidence(classifier_score)
-    retrieval_confidence = probability_confidence(retrieval_risk)
+    
+    # 1. Decisiveness (Linear): Is the retrieval vote clear or 50/50?
+    retrieval_decisiveness = probability_confidence(retrieval_risk)
+
+    # 2. Grounding based on STRICT STRUCTURAL OVERLAP (Linear base):
+    # Raw structural similarity of the best match [0.0 to 1.0]
+    top_lexical_score = top_matches[0].get("lexical_score_raw", 0.0) if top_matches else 0.0
+    retrieval_grounding = max(0.0, min(1.0, float(top_lexical_score)))
+
+    # 3. Normalized Confidence: Weighted Geometric Mean (Cube Root of D * G^2)
+    # This preserves the non-linear penalty for weak structural matches 
+    # without unfairly decaying the confidence of strong matches.
+    if retrieval_decisiveness == 0.0 or retrieval_grounding == 0.0:
+        retrieval_confidence = 0.0
+    else:
+        product = retrieval_decisiveness * (retrieval_grounding ** 2)
+        retrieval_confidence = math.pow(product, 1.0 / 3.0)
 
     # ------------------------------------------------------------------
     # 7. Dynamic Fusion
     # ------------------------------------------------------------------
-    # Same architecture as scan_text.
-    base_classifier_weight = 0.40
-    base_retrieval_weight = 0.60
+    # Base weights set to 50/50. 
+    # Because of the grounding factor, Retrieval will only utilize its 
+    # 50% voting power if it finds a near-perfect structural match.
+    base_classifier_weight = 0.50
+    base_retrieval_weight = 0.50
 
     effective_classifier_weight = base_classifier_weight * classifier_confidence
     effective_retrieval_weight = base_retrieval_weight * retrieval_confidence
@@ -1673,7 +1728,7 @@ async def scan_url(raw_url: str):
             + retrieval_risk * effective_retrieval_weight
         ) / total_weight
     else:
-        # Both sources are maximally uncertain (~0.5).
+        # Both sources are maximally uncertain or ungrounded.
         final_risk_score = (
             base_classifier_weight * classifier_score
             + base_retrieval_weight * retrieval_risk
