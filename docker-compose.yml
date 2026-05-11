@@ -5,6 +5,7 @@ services:
     ports:
       - "127.0.0.1:5432:5432" # Securely bind to the server's internal localhost only
     restart: always
+    shm_size: '1gb'
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -53,7 +54,7 @@ services:
       - ./migrations:/app/migrations
     environment:
       ENVIRONMENT: prod
-      OMP_NUM_THREADS: 4  # Force each process to use only 1 core
+      OMP_NUM_THREADS: 4
       MKL_NUM_THREADS: 4
       OMP_THREAD_LIMIT: 4
       ONNXRUNTIME_INTRA_OP_NUM_THREADS: 4

@@ -172,7 +172,7 @@ async def semantic_search(
             "vector_col": "url_embedding",
             "display_cols": """
                 COALESCE(o.resolved_url, o.original_url) AS clean_text,
-                CASE WHEN o.is_malicious THEN 'malicious' ELSE 'safe' END AS label
+                CASE WHEN o.is_malicious THEN 'hazard' ELSE 'safe' END AS label
             """,
         },
     }
@@ -220,7 +220,7 @@ async def lexical_search(query_text: str, source: str = "text", limit: int = 10)
             "compare_col": "COALESCE(o.resolved_url, o.original_url)",
             "display_cols": """
                 COALESCE(o.resolved_url, o.original_url) AS clean_text,
-                CASE WHEN o.is_malicious THEN 'malicious' ELSE 'safe' END AS label
+                CASE WHEN o.is_malicious THEN 'hazard' ELSE 'safe' END AS label
             """,
         },
     }
@@ -285,7 +285,7 @@ async def hybrid_search_rrf(
             "compare_col": "COALESCE(o.resolved_url, o.original_url)",
             "display_cols": """
                 COALESCE(o.resolved_url, o.original_url) AS clean_text,
-                CASE WHEN o.is_malicious THEN 'malicious' ELSE 'safe' END AS label
+                CASE WHEN o.is_malicious THEN 'hazard' ELSE 'safe' END AS label
             """,
         },
     }
@@ -317,7 +317,8 @@ async def hybrid_search_rrf(
             o.id,
             (1.0 - (o.{conf["vector_col"]} <=> $1::float8[]::vector)) AS semantic_score,
             {conf["compare_col"]} AS raw_compare_text,
-            {conf["display_cols"]}
+            {conf["display_cols"]},
+            o.{conf["vector_col"]} AS embedding -- Pull the raw vector
         FROM {conf["table"]} o
         ORDER BY o.{conf["vector_col"]} <=> $1::float8[]::vector
         LIMIT 1000 -- Fetch top 1000 conceptual matches
@@ -330,7 +331,8 @@ async def hybrid_search_rrf(
             similarity(raw_compare_text, $2) AS lexical_score_raw,
             ROW_NUMBER() OVER (ORDER BY similarity(raw_compare_text, $2) DESC) as lexical_rank,
             clean_text,
-            label
+            label,
+            embedding -- Pass through
         FROM semantic_candidates
     )
     SELECT
@@ -343,7 +345,8 @@ async def hybrid_search_rrf(
         lexical_score_raw,
         lexical_score_raw AS lexical_score_norm, -- Trigrams are natively 0.0 to 1.0!
         clean_text,
-        label
+        label,
+        embedding::text -- Cast vector to text to avoid asyncpg decoding errors
     FROM scored_candidates
     ORDER BY rrf_score DESC
     LIMIT $3;
