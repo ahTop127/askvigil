@@ -1260,13 +1260,17 @@ def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dic
             "lexical_confidence": 0.0,
         }
     # 1. Semantic Voting
-    sem_sims = [max(0.0, min(1.0, float(m.get("semantic_score", 0.0)))) for m in top_matches]
+    sem_sims = [
+        max(0.0, min(1.0, float(m.get("semantic_score", 0.0)))) for m in top_matches
+    ]
     sem_exps = [math.exp(s) for s in sem_sims]
     sem_exp_sum = sum(sem_exps) + 1e-9
     sem_weights = [w / sem_exp_sum for w in sem_exps]
 
     # 2. Lexical Voting
-    lex_sims = [max(0.0, min(1.0, float(m.get("lexical_score_norm", 0.0)))) for m in top_matches]
+    lex_sims = [
+        max(0.0, min(1.0, float(m.get("lexical_score_norm", 0.0)))) for m in top_matches
+    ]
     lex_exps = [math.exp(s) for s in lex_sims]
     lex_exp_sum = sum(lex_exps) + 1e-9
     lex_weights = [w / lex_exp_sum for w in lex_exps]
@@ -1537,7 +1541,7 @@ async def scan_text(text: str):
         if doc_embedding_raw is not None:
             # Parse the PostgreSQL string back into a Python list
             if isinstance(doc_embedding_raw, str):
-                # orjson returns bytes, so we encode/decode if necessary, 
+                # orjson returns bytes, so we encode/decode if necessary,
                 # but it handles large float arrays 5x-10x faster than standard json.
                 parsed_list = orjson.loads(doc_embedding_raw)
             # if isinstance(doc_embedding_raw, str):
@@ -1906,7 +1910,7 @@ async def scan_url(raw_url: str):
         if doc_embedding_raw is not None:
             # Parse the PostgreSQL string back into a Python list
             if isinstance(doc_embedding_raw, str):
-                # orjson returns bytes, so we encode/decode if necessary, 
+                # orjson returns bytes, so we encode/decode if necessary,
                 # but it handles large float arrays 5x-10x faster than standard json.
                 parsed_list = orjson.loads(doc_embedding_raw)
             # if isinstance(doc_embedding_raw, str):
