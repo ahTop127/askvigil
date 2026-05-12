@@ -1607,7 +1607,7 @@ async def scan_text(text: str):
             },
         },
         # --- Explainability ---
-        "explainability": {
+        "weightage_explainability": {
             "fusion_breakdown": {
                 "effective_xgb_weight": round(
                     effective_classifier_weight / total_weight, 4
