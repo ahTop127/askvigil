@@ -1,6 +1,7 @@
 import uuid
 from app.models.session import UserSession
 
+
 async def get_or_create_session_from_cookie(
     session_id: str | None,
 ) -> UserSession:

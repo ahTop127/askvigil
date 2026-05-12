@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.endpoints import detection, learning, session_api, scam_cases, qr_detection, stats
+from app.api.endpoints import detection, learning, session_api, scam_cases, stats
 
 api_router = APIRouter()
 

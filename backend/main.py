@@ -17,7 +17,7 @@ origin_regex = r"https?://(localhost|localhost:\d+|.*\.?askvigil\.duckdns\.org)"
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=origin_regex,  # Use this instead of allow_origins
-    allow_credentials=True, # Allow the front end to carry cookies
+    allow_credentials=True,  # Allow the front end to carry cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )

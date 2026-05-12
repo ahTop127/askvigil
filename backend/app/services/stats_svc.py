@@ -1,7 +1,6 @@
 from datetime import datetime, time, timezone, timedelta
 from decimal import Decimal
 from typing import Literal
-from tortoise.functions import Sum
 
 from app.models.scam import InputType, DetectionLog
 from app.models.session import UserSession
@@ -10,6 +9,7 @@ from app.models.session import UserSession
 def today_start_utc() -> datetime:
     now = datetime.now(timezone.utc)
     return datetime.combine(now.date(), time.min, tzinfo=timezone.utc)
+
 
 def _risk_match(
     score: Decimal | float | int | None,
@@ -25,6 +25,7 @@ def _risk_match(
     if risk_level == "medium":
         return 40 <= s < 70
     return 0 <= s < 40  # low
+
 
 # Static statistics
 async def get_public_stats() -> dict:
@@ -48,7 +49,7 @@ async def get_public_stats() -> dict:
     }
 
 
-'''
+"""
     Detect the trend line chart
 
     Based on 'detection_logs.created_at' :
@@ -57,7 +58,9 @@ async def get_public_stats() -> dict:
     Trends of different input types: text, image, url, qr (users can choose the type)
     
     Users can see how much suspicious content the system has recently identified, which also reflects the system's activity level.
-'''
+"""
+
+
 async def get_detection_trend(
     days: Literal[7, 30],
     risk_level: Literal["all", "low", "medium", "high"],

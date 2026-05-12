@@ -96,7 +96,7 @@ def _extract_url_rows_for_qr_input(result: dict) -> list[dict]:
 
 def build_detection_log_rows(
     *,
-    input_type: str,   # 必须是 text/image/url/qr 之一
+    input_type: str,  # 必须是 text/image/url/qr 之一
     result: dict,
     raw_text: str | None = None,
 ) -> list[dict]:

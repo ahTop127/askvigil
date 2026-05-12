@@ -22,9 +22,11 @@ def today_start_utc() -> datetime:
     now = datetime.now(timezone.utc)
     return datetime.combine(now.date(), time.min, tzinfo=timezone.utc)
 
+
 @router.get("/public", response_model=PublicStatsOut)
 async def get_public_stats():
     return await stats_svc.get_public_stats()
+
 
 @router.get("/detection-trend", response_model=DetectionTrendOut)
 async def get_detection_trend(
