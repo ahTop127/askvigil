@@ -72,11 +72,12 @@ services:
       - "8000"
     deploy:
       resources:
-        limits:
-          cpus: '2.5'      # Never let the backend take more than 2 cores
+        limits:          
           memory: 16G       # Primary need for RAM
+          # No cpu limit here - let it burst to 4.0 if others are idle
         reservations: # Guarantees this amount is always available
           memory: 8G
+          cpus: '2.0'  # Guaranteed minimum
 
   # 3. The React Frontend
   frontend:

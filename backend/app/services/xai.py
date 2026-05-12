@@ -88,7 +88,7 @@ def generate_text_explanation(
 
         token_text = raw_text[start_char:end_char]
 
-        # THE FIX 2: Strip whitespace for accurate length checking
+        # Strip whitespace for accurate length checking
         clean_token = token_text.strip()
 
         # --- IN-MEMORY LEXICAL CHECK ---

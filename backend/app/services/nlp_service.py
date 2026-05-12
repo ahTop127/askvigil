@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from typing import List
 import math
 from collections import Counter
-import json
+import orjson
 
 from app.core.registry import MODEL_REGISTRY
 from app.services.retrieval_services import hybrid_search_rrf
@@ -1259,24 +1259,17 @@ def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dic
             "semantic_confidence": 0.0,
             "lexical_confidence": 0.0,
         }
-
     # 1. Semantic Voting
-    sem_sims = [
-        max(0.0, min(1.0, float(m.get("semantic_score", 0.0)))) for m in top_matches
-    ]
-    sem_weights = [
-        w / (sum(math.exp(s) for s in sem_sims) + 1e-9)
-        for w in (math.exp(s) for s in sem_sims)
-    ]
+    sem_sims = [max(0.0, min(1.0, float(m.get("semantic_score", 0.0)))) for m in top_matches]
+    sem_exps = [math.exp(s) for s in sem_sims]
+    sem_exp_sum = sum(sem_exps) + 1e-9
+    sem_weights = [w / sem_exp_sum for w in sem_exps]
 
     # 2. Lexical Voting
-    lex_sims = [
-        max(0.0, min(1.0, float(m.get("lexical_score_norm", 0.0)))) for m in top_matches
-    ]
-    lex_weights = [
-        w / (sum(math.exp(s) for s in lex_sims) + 1e-9)
-        for w in (math.exp(s) for s in lex_sims)
-    ]
+    lex_sims = [max(0.0, min(1.0, float(m.get("lexical_score_norm", 0.0)))) for m in top_matches]
+    lex_exps = [math.exp(s) for s in lex_sims]
+    lex_exp_sum = sum(lex_exps) + 1e-9
+    lex_weights = [w / lex_exp_sum for w in lex_exps]
 
     semantic_risk = 0.0
     lexical_risk = 0.0
@@ -1329,7 +1322,7 @@ async def scan_text(text: str):
     Architecture:
         1. Embed text using MiniLM.
         2. Classifier head inference (MLP over 384-dim embedding).
-        3. Retrieve top-5 neighbors via HNSW + BM25 + RRF.
+        3. Retrieve top-10 neighbors via HNSW + hybrid RRF.
         4. Compute distance-weighted retrieval risk.
         5. Estimate confidence for classifier and retrieval.
         6. Dynamically fuse both signals.
@@ -1542,9 +1535,13 @@ async def scan_text(text: str):
         doc_embedding_raw = top_match.get("embedding")
 
         if doc_embedding_raw is not None:
-            # THE FIX: Parse the PostgreSQL string back into a Python list
+            # Parse the PostgreSQL string back into a Python list
             if isinstance(doc_embedding_raw, str):
-                parsed_list = json.loads(doc_embedding_raw)
+                # orjson returns bytes, so we encode/decode if necessary, 
+                # but it handles large float arrays 5x-10x faster than standard json.
+                parsed_list = orjson.loads(doc_embedding_raw)
+            # if isinstance(doc_embedding_raw, str):
+            #     parsed_list = json.loads(doc_embedding_raw)
             else:
                 parsed_list = doc_embedding_raw
 
@@ -1622,7 +1619,7 @@ async def scan_text(text: str):
                     effective_rules_weight / total_weight, 4
                 )
                 if total_weight > 0
-                else 0,  # <-- ADD THIS
+                else 0,
                 "db_hallucination_silenced": True
                 if retrieval_grounding < 0.1
                 else False,
@@ -1658,7 +1655,7 @@ async def scan_url(raw_url: str):
        - ONNX MLP outputs classifier_score.
 
     4. Retrieval
-       - Hybrid HNSW + BM25 + RRF against phishing_url table.
+       - Hybrid HNSW + pg_trgm + RRF against phishing_url table.
        - Returns top-5 nearest historical URLs with:
          semantic_score, lexical_score_norm, label.
 
@@ -1796,7 +1793,7 @@ async def scan_url(raw_url: str):
     ]
 
     # ------------------------------------------------------------------
-    # 4. Retrieval (Hybrid HNSW + BM25 + RRF)
+    # 4. Retrieval (HNSW + Hybrid RRF)
     # ------------------------------------------------------------------
     # Important: retrieval uses ONLY the URL embedding, not metadata.
     # This keeps the vector space aligned with what is stored in pgvector.
@@ -1807,10 +1804,9 @@ async def scan_url(raw_url: str):
         limit=10,
         k=20,
     )
-    import json
 
-    print("JSON dumps after top matches")
-    print(json.dumps(top_matches, default=str, indent=2))
+    # print("JSON dumps after top matches")
+    # print(json.dumps(top_matches, default=str, indent=2))
     # ------------------------------------------------------------------
     # 5. Distance-Weighted Retrieval Aggregation
     # ------------------------------------------------------------------
@@ -1908,9 +1904,13 @@ async def scan_url(raw_url: str):
         doc_embedding_raw = top_match.get("embedding")
 
         if doc_embedding_raw is not None:
-            # THE FIX: Parse the PostgreSQL string back into a Python list
+            # Parse the PostgreSQL string back into a Python list
             if isinstance(doc_embedding_raw, str):
-                parsed_list = json.loads(doc_embedding_raw)
+                # orjson returns bytes, so we encode/decode if necessary, 
+                # but it handles large float arrays 5x-10x faster than standard json.
+                parsed_list = orjson.loads(doc_embedding_raw)
+            # if isinstance(doc_embedding_raw, str):
+            #     parsed_list = json.loads(doc_embedding_raw)
             else:
                 parsed_list = doc_embedding_raw
 

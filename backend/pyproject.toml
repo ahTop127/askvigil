@@ -28,6 +28,7 @@ dependencies = [
     "vt-py>=0.22.0",
     "python-whois>=0.9.6",
     "xgboost>=3.2.0",
+    "orjson>=3.11.9",
 ]
 
 [tool.aerich]
