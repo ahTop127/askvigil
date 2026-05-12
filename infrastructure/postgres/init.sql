@@ -78,3 +78,31 @@ CREATE TABLE IF NOT EXISTS scam_cases (
 CREATE INDEX IF NOT EXISTS idx_scam_cases_scam_type ON scam_cases(scam_type);
 CREATE INDEX IF NOT EXISTS idx_scam_cases_platform ON scam_cases(platform);
 CREATE INDEX IF NOT EXISTS idx_scam_cases_news_date ON scam_cases(news_date);
+
+-- Session table (DetectionLog Rely on it)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    session_id UUID PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_active_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Detection logs
+CREATE TABLE IF NOT EXISTS detection_logs (
+    id SERIAL PRIMARY KEY,
+    session_id UUID NULL
+        REFERENCES user_sessions(session_id)
+        ON DELETE SET NULL,
+    input_type VARCHAR(20) NOT NULL
+        CHECK (input_type IN ('text', 'image', 'url', 'qr')),
+    input_content TEXT NULL,
+    risk_score NUMERIC(5,2) NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index (for trend statistics and filtering)
+CREATE INDEX IF NOT EXISTS idx_detection_logs_created_at
+    ON detection_logs (created_at);
+CREATE INDEX IF NOT EXISTS idx_detection_logs_input_type
+    ON detection_logs (input_type);
+CREATE INDEX IF NOT EXISTS idx_detection_logs_session_id
+    ON detection_logs (session_id);
