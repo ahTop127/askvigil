@@ -12,6 +12,7 @@ def today_start_utc() -> datetime:
     now = datetime.now(timezone.utc)
     return datetime.combine(now.date(), time.min, tzinfo=timezone.utc)
 
+
 def _risk_match(
     score: Decimal | float | int | None,
     risk_level: Literal["all", "low", "medium", "high"],
@@ -26,6 +27,7 @@ def _risk_match(
     if risk_level == "medium":
         return 40 <= s < 70
     return 0 <= s < 40  # low
+
 
 # Static statistics
 async def get_public_stats() -> dict:
@@ -49,7 +51,7 @@ async def get_public_stats() -> dict:
     }
 
 
-'''
+"""
     Detect the trend line chart
 
     Based on 'detection_logs.created_at' :
@@ -58,7 +60,9 @@ async def get_public_stats() -> dict:
     Trends of different input types: text, image, url, qr (users can choose the type)
     
     Users can see how much suspicious content the system has recently identified, which also reflects the system's activity level.
-'''
+"""
+
+
 async def get_detection_trend(
     days: Literal[7, 30],
     risk_level: Literal["all", "low", "medium", "high"],
@@ -112,8 +116,9 @@ async def get_detection_trend(
         "points": [bucket[k] for k in sorted(bucket.keys())],
     }
 
+
 async def get_input_type_distribution() -> dict:
-    '''
+    """
     Input type distribution map
     Based on 'DetectionLog.input_type' :
     pie chart or bar chart can be made:
@@ -124,7 +129,7 @@ async def get_input_type_distribution() -> dict:
     - QR checks
 
     This is also intuitive for users: What methods do people most commonly use to detect fraud?
-    '''
+    """
     rows = await DetectionLog.all().values("input_type")
 
     text_count = 0
@@ -156,7 +161,7 @@ async def get_input_type_distribution() -> dict:
 
 
 async def get_risk_level_distribution() -> dict:
-    '''
+    """
     Distribution of risk levels
 
     Based on 'DetectionLog.risk_score' :
@@ -168,7 +173,7 @@ async def get_risk_level_distribution() -> dict:
     donut chart or stacked bar can be made.
 
     This is more meaningful than simply showing the average score, as users can know the proportion of risky content recently discovered by the platform.
-    '''
+    """
 
     rows = await DetectionLog.all().values("risk_score")
 
@@ -211,12 +216,13 @@ async def get_risk_level_distribution() -> dict:
         "total": total,
     }
 
+
 async def get_scam_type_ranking(top_n: int = 10) -> dict:
-    '''
+    """
     Scam Type ranking: Use Horizontal Bar Chart
 
     Using a horizontal bar chart is better than a pie chart because the names of fraud types are longer
-    '''
+    """
     total_cases = await ScamCase.all().count()
 
     rows = (
@@ -227,7 +233,9 @@ async def get_scam_type_ranking(top_n: int = 10) -> dict:
     )
 
     # 按数量倒序，再按类型名升序（数量相同稳定排序）
-    rows_sorted = sorted(rows, key=lambda x: (-int(x["case_count"]), str(x["scam_type"])))
+    rows_sorted = sorted(
+        rows, key=lambda x: (-int(x["case_count"]), str(x["scam_type"]))
+    )
 
     if top_n > 0:
         rows_sorted = rows_sorted[:top_n]
@@ -238,7 +246,6 @@ async def get_scam_type_ranking(top_n: int = 10) -> dict:
             "count": int(row["case_count"]),
             "rank": idx + 1,
         }
-
         for idx, row in enumerate(rows_sorted)
     ]
 
