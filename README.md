@@ -113,14 +113,10 @@ graph TD
     ```bash
     docker compose up --build
     ```
-    _Note: The first run will take 5-10 minutes to download the Multilingual MiniLM model and initialize the database._
+    _Note: The first run will take a while to download the AI models and initialize the database, and much longer to regenerate the database vector embeddings_
 4.  The Workflow
-    * **Editing Code:** Just edit any file in src/ (Frontend) or backend/. The app will auto-reload. You do NOT need to restart Docker.
-    * **New Libraries:** If you add something to requirements.txt or package.json, you must re-run:
-    ```bash
-    docker compose up --build
-    ```
-    * **Database:** The pgvector extension and embeddings table are pre-configured. Just start the containers and start querying.
+    * **Editing Code:** Run docker compose up --build to update the code.
+    * **Database:** The database schema is built to be self-healing. Just start the containers and start querying. Database embeddings generation, however, will take a long time if you haven't generated them before.
 
 5.  Production (Oracle Cloud)
     * **Deployment:** Simply git push origin main.
@@ -152,3 +148,31 @@ We are using **GitHub Actions** for "Hands-Off" deployment.
 Environment giving import errors after an update?  
 Run `docker compose down` followed by `docker compose up --build`.  
 If uv.lock died, you can delete it and run uv sync again to regenerate it.  
+
+
+
+## 🔍 Known Limitations & Future Roadmap
+
+### 1. Current Limitation: Intent-Blind Semantic Matching
+The current iteration uses a high-performance **Bi-Encoder (`paraphrase-multilingual-MiniLM-L12-v2`)** paired with a **Lexical engine (`pg_trgm`)**. 
+* **The Challenge:** In specific edge cases—primarily "Scam Warnings" or "Educational Content"—the system may produce a **Confident Hallucination (False Positive)**. This occurs because the retriever identifies high semantic similarity to scam templates but remains "intent-blind" to the context (e.g., a user warning a friend about a virus).
+* **The Trade-off:** We have prioritized **Deterministic Latency (<1.0s)** and **Edge-Ready Inference** over generative reasoning to ensure the system remains viable for real-time production environments.
+
+### 2. Future Work: SLM Intent Gating (V2.0 Blueprint)
+To resolve the semantic ambiguity between "Scam Content" and "Scam Discussion," we have developed a blueprint for a **Reasoning-Augmented Classification (RAC) Refinement** layer.
+
+#### **A. Probabilistic Intent Calibration**
+The proposed upgrade introduces a **Small Language Model (SLM)**—such as *Qwen2.5-0.5B*—acting as a Contextual Prior. This model extracts a **3-Bit Intent Vector** in parallel with retrieval:
+1. **Posture:** (Professional vs. Anonymous)
+2. **Pressure:** (Neutral vs. Coercive)
+3. **Instruction:** (Informational vs. Action-oriented)
+
+#### **B. Conformity-Scaled Fusion**
+Instead of a binary veto, we propose a **Non-Linear Conformity Score**:
+$$effective\_retrieval\_confidence = base\_retrieval\_confidence \times (1 - |risk - vibe|)^2$$
+This ensures that if the SLM detects a "Warning" vibe while the Database retrieves a "Scam" match, the retrieval weight is mathematically neutralized before hitting the XGBoost head.
+
+#### **C. Implementation Constraints**
+While this architecture is finalized, it was scoped out of the current MVP to avoid:
+* **Generative Latency Tax:** Avoiding the 300-600ms TTFT penalty inherent in LLM inference.
+* **Data Preparation Overhead:** Maintaining pipeline agility without the multi-hour inference requirements for retraining the XGBoost feature set.
