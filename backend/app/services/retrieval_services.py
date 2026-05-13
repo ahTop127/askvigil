@@ -172,7 +172,7 @@ async def semantic_search(
             "vector_col": "url_embedding",
             "display_cols": """
                 COALESCE(o.resolved_url, o.original_url) AS clean_text,
-                CASE WHEN o.is_malicious THEN 'hazard' ELSE 'safe' END AS label
+                CASE WHEN o.is_malicious THEN 'malicious' ELSE 'safe' END AS label
             """,
         },
     }
@@ -220,7 +220,7 @@ async def lexical_search(query_text: str, source: str = "text", limit: int = 10)
             "compare_col": "COALESCE(o.resolved_url, o.original_url)",
             "display_cols": """
                 COALESCE(o.resolved_url, o.original_url) AS clean_text,
-                CASE WHEN o.is_malicious THEN 'hazard' ELSE 'safe' END AS label
+                CASE WHEN o.is_malicious THEN 'malicious' ELSE 'safe' END AS label
             """,
         },
     }
@@ -285,7 +285,7 @@ async def hybrid_search_rrf(
             "compare_col": "COALESCE(o.resolved_url, o.original_url)",
             "display_cols": """
                 COALESCE(o.resolved_url, o.original_url) AS clean_text,
-                CASE WHEN o.is_malicious THEN 'hazard' ELSE 'safe' END AS label
+                CASE WHEN o.is_malicious THEN 'malicious' ELSE 'safe' END AS label
             """,
         },
     }

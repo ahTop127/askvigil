@@ -1217,13 +1217,13 @@ def label_to_risk(label: str) -> float:
     Convert historical labels into binary risk.
 
     Risk labels:
-        spam, scam, phishing, malicious -> 1.0
+        spam, scam, phishing, malicious, hazard -> 1.0
         everything else -> 0.0
     """
     if not label:
         return 0.0
 
-    risky_labels = {"spam", "scam", "phishing", "malicious", "fraud"}
+    risky_labels = {"spam", "scam", "phishing", "malicious", "fraud", "hazard"}
     return 1.0 if str(label).strip().lower() in risky_labels else 0.0
 
 
