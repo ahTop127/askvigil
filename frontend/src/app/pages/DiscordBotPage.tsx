@@ -22,7 +22,11 @@ export default function DiscordBotPage() {
     setOpen(true);
   }, []);
   const onSave = useCallback(() => {
-    window.open(DEFAULT_DISCORD_INTEGRATION_URL, "_blank", "noopener,noreferrer");
+    window.open(
+      DEFAULT_DISCORD_INTEGRATION_URL,
+      "_blank",
+      "noopener,noreferrer",
+    );
     setOpen(false);
   }, []);
 
@@ -72,87 +76,108 @@ export default function DiscordBotPage() {
                   Example: send in Discord → what you get back
                 </h2>
 
-              <div className="mt-5 rounded-xl bg-slate-50/90 p-5 md:p-6">
-                <p className="text-base leading-relaxed text-slate-800 md:text-[17px]">
-                  After integration, post suspicious content in a channel or DM. You only
-                  get analysis for messages{" "}
-                  <span className="font-semibold text-slate-900">you send</span> — nothing is
-                  scanned automatically across the whole server.
-                </p>
+                <div className="mt-5 rounded-xl bg-slate-50/90 p-5 md:p-6">
+                  <p className="text-base leading-relaxed text-slate-800 md:text-[17px]">
+                    After integration, post suspicious content in a channel or
+                    DM. You only get analysis for messages{" "}
+                    <span className="font-semibold text-slate-900">
+                      you send
+                    </span>{" "}
+                    — nothing is scanned automatically across the whole server.
+                  </p>
 
-                <div className="mt-6 rounded-xl bg-white px-4 py-4 md:px-5 md:py-5">
-                  <p className="text-base font-bold text-slate-900 md:text-[17px]">
-                    Sample message
-                  </p>
-                  <p className="mt-3 text-base leading-relaxed text-slate-800 md:text-[17px]">
-                    “Suspicious login detected. Verify your account and enter OTP here:
-                    http://secure-login-otp-check.com”
-                  </p>
+                  <div className="mt-6 rounded-xl bg-white px-4 py-4 md:px-5 md:py-5">
+                    <p className="text-base font-bold text-slate-900 md:text-[17px]">
+                      Sample message
+                    </p>
+                    <p className="mt-3 text-base leading-relaxed text-slate-800 md:text-[17px]">
+                      “Suspicious login detected. Verify your account and enter
+                      OTP here: http://secure-login-otp-check.com”
+                    </p>
+                  </div>
+
+                  <div className="mt-6">
+                    <p className="text-base font-bold text-slate-900 md:text-[17px]">
+                      What the bot returns (example)
+                    </p>
+                    <ul className="mt-3 space-y-2 text-base leading-relaxed text-slate-800 md:text-[17px]">
+                      <li>
+                        <span className="font-semibold text-slate-900">
+                          Risk score
+                        </span>{" "}
+                        — e.g.{" "}
+                        <span className="font-semibold text-slate-900">
+                          78 / 100
+                        </span>
+                      </li>
+                      <li>
+                        <span className="font-semibold text-slate-900">
+                          Risk level
+                        </span>{" "}
+                        — e.g.{" "}
+                        <span className="font-semibold text-slate-900">
+                          High
+                        </span>
+                      </li>
+                      <li>
+                        <span className="font-semibold text-slate-900">
+                          Scam type
+                        </span>{" "}
+                        — e.g.{" "}
+                        <span className="font-semibold text-slate-900">
+                          Phishing
+                        </span>
+                      </li>
+                      <li>
+                        <span className="font-semibold text-slate-900">
+                          Explanation
+                        </span>{" "}
+                        — why it looks risky
+                      </li>
+                      <li>
+                        <span className="font-semibold text-slate-900">
+                          Safety advice
+                        </span>{" "}
+                        — what to do next
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
-                <div className="mt-6">
-                  <p className="text-base font-bold text-slate-900 md:text-[17px]">
-                    What the bot returns (example)
+                <div className="mt-8">
+                  <p className="text-pretty text-2xl font-bold tracking-tight text-slate-900 md:text-[1.65rem] md:leading-snug lg:text-[1.85rem]">
+                    What you can send
                   </p>
-                  <ul className="mt-3 space-y-2 text-base leading-relaxed text-slate-800 md:text-[17px]">
-                    <li>
-                      <span className="font-semibold text-slate-900">Risk score</span> — e.g.{" "}
-                      <span className="font-semibold text-slate-900">78 / 100</span>
-                    </li>
-                    <li>
-                      <span className="font-semibold text-slate-900">Risk level</span> — e.g.{" "}
-                      <span className="font-semibold text-slate-900">High</span>
-                    </li>
-                    <li>
-                      <span className="font-semibold text-slate-900">Scam type</span> — e.g.{" "}
-                      <span className="font-semibold text-slate-900">Phishing</span>
-                    </li>
-                    <li>
-                      <span className="font-semibold text-slate-900">Explanation</span> — why
-                      it looks risky
-                    </li>
-                    <li>
-                      <span className="font-semibold text-slate-900">Safety advice</span> —
-                      what to do next
-                    </li>
-                  </ul>
+                  <div className="mt-5 grid gap-6 md:grid-cols-2 md:gap-x-10 md:gap-y-5">
+                    {[
+                      {
+                        title: "Text messages",
+                        desc: "Suspicious chat lines or pasted wording.",
+                      },
+                      {
+                        title: "URLs / links",
+                        desc: "A link you want checked for phishing or scam signals.",
+                      },
+                      {
+                        title: "QR code content",
+                        desc: "Decoded QR text, or an image of the QR code.",
+                      },
+                      {
+                        title: "Screenshots / images",
+                        desc: "Screenshots of messages, ads, or payment screens.",
+                      },
+                    ].map((item) => (
+                      <div key={item.title}>
+                        <p className="text-base font-bold text-slate-900 md:text-[17px]">
+                          {item.title}
+                        </p>
+                        <p className="mt-1 text-base leading-relaxed text-slate-800 md:text-[17px]">
+                          {item.desc}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <div className="mt-8">
-                <p className="text-pretty text-2xl font-bold tracking-tight text-slate-900 md:text-[1.65rem] md:leading-snug lg:text-[1.85rem]">
-                  What you can send
-                </p>
-                <div className="mt-5 grid gap-6 md:grid-cols-2 md:gap-x-10 md:gap-y-5">
-                  {[
-                    {
-                      title: "Text messages",
-                      desc: "Suspicious chat lines or pasted wording.",
-                    },
-                    {
-                      title: "URLs / links",
-                      desc: "A link you want checked for phishing or scam signals.",
-                    },
-                    {
-                      title: "QR code content",
-                      desc: "Decoded QR text, or an image of the QR code.",
-                    },
-                    {
-                      title: "Screenshots / images",
-                      desc: "Screenshots of messages, ads, or payment screens.",
-                    },
-                  ].map((item) => (
-                    <div key={item.title}>
-                      <p className="text-base font-bold text-slate-900 md:text-[17px]">
-                        {item.title}
-                      </p>
-                      <p className="mt-1 text-base leading-relaxed text-slate-800 md:text-[17px]">
-                        {item.desc}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
               </div>
 
               {/* Right: large round logo + title (container’s right side) */}
@@ -183,73 +208,73 @@ export default function DiscordBotPage() {
 
         {/* Bottom: flat sections — typography only, no card chrome (Notion-style) */}
         <section className="max-w-4xl space-y-14 md:space-y-16">
-            <section>
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
-                Overview
-              </h2>
-              <p className="mt-5 text-base leading-relaxed text-slate-800 md:text-[17px]">
-                After you connect Discord on AskVigil, you can send suspicious content
-                from Discord and receive the same risk score, risk level, scam type,
-                explanation, and safety advice as on this website.
-              </p>
-            </section>
+          <section>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+              Overview
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-slate-800 md:text-[17px]">
+              After you connect Discord on AskVigil, you can send suspicious
+              content from Discord and receive the same risk score, risk level,
+              scam type, explanation, and safety advice as on this website.
+            </p>
+          </section>
 
-            <section>
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
-                How to use
-              </h2>
-              <ol className="mt-6 space-y-4 text-slate-800">
-                {[
-                  "Click Add to AskVigil, review the dialog, then click Continue to open Discord.",
-                  "Complete the setup so AskVigil can reach the channel you choose.",
-                  "In Discord, send suspicious text, URLs, decoded QR content, or screenshots when you want a check.",
-                  "Read the detection result (score, risk level, scam type, explanation, and advice).",
-                ].map((line, idx) => (
-                  <li key={line} className="flex gap-3">
-                    <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white font-bold text-sm">
-                      {idx + 1}
-                    </span>
-                    <span className="leading-relaxed">{line}</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
+          <section>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+              How to use
+            </h2>
+            <ol className="mt-6 space-y-4 text-slate-800">
+              {[
+                "Click Add to AskVigil, review the dialog, then click Continue to open Discord.",
+                "Complete the setup so AskVigil can reach the channel you choose.",
+                "In Discord, send suspicious text, URLs, decoded QR content, or screenshots when you want a check.",
+                "Read the detection result (score, risk level, scam type, explanation, and advice).",
+              ].map((line, idx) => (
+                <li key={line} className="flex gap-3">
+                  <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-white font-bold text-sm">
+                    {idx + 1}
+                  </span>
+                  <span className="leading-relaxed">{line}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
 
-            <section>
-              <h2 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
-                Privacy reminder
-              </h2>
-              <ul className="mt-6 space-y-3 text-base leading-relaxed text-slate-800 md:text-[17px]">
-                <li className="flex gap-2">
-                  <span aria-hidden className="mt-0.5">
-                    •
-                  </span>
-                  <span>
-                    AskVigil only checks content you actively send. It does not
-                    automatically monitor all Discord messages.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span aria-hidden className="mt-0.5">
-                    •
-                  </span>
-                  <span>
-                    Do not send passwords, banking details, OTP/TAC codes,
-                    identification numbers, or other sensitive personal
-                    information.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span aria-hidden className="mt-0.5">
-                    •
-                  </span>
-                  <span>
-                    AskVigil results are a support tool, not a 100% guarantee.
-                    Always verify through official channels.
-                  </span>
-                </li>
-              </ul>
-            </section>
+          <section>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+              Privacy reminder
+            </h2>
+            <ul className="mt-6 space-y-3 text-base leading-relaxed text-slate-800 md:text-[17px]">
+              <li className="flex gap-2">
+                <span aria-hidden className="mt-0.5">
+                  •
+                </span>
+                <span>
+                  AskVigil only checks content you actively send. It does not
+                  automatically monitor all Discord messages.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span aria-hidden className="mt-0.5">
+                  •
+                </span>
+                <span>
+                  Do not send passwords, banking details, OTP/TAC codes,
+                  identification numbers, or other sensitive personal
+                  information.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span aria-hidden className="mt-0.5">
+                  •
+                </span>
+                <span>
+                  AskVigil results are a support tool, not a 100% guarantee.
+                  Always verify through official channels.
+                </span>
+              </li>
+            </ul>
+          </section>
         </section>
       </main>
 
@@ -260,8 +285,8 @@ export default function DiscordBotPage() {
               Add Discord to AskVigil
             </DialogTitle>
             <DialogDescription>
-              Review the configuration requirements before connecting Discord to your
-              AskVigil account.
+              Review the configuration requirements before connecting Discord to
+              your AskVigil account.
             </DialogDescription>
           </DialogHeader>
 
@@ -271,8 +296,8 @@ export default function DiscordBotPage() {
                 Discord integration link
               </p>
               <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                Official AskVigil Discord install link (read-only; you can select and
-                copy if needed).
+                Official AskVigil Discord install link (read-only; you can
+                select and copy if needed).
               </p>
               <div
                 id="discord-integration-link"
@@ -309,8 +334,8 @@ export default function DiscordBotPage() {
                     •
                   </span>
                   <span>
-                    Click Continue to open the official link in your browser and finish
-                    authorization on Discord.
+                    Click Continue to open the official link in your browser and
+                    finish authorization on Discord.
                   </span>
                 </li>
               </ul>
@@ -340,4 +365,3 @@ export default function DiscordBotPage() {
     </div>
   );
 }
-

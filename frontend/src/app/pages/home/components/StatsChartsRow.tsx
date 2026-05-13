@@ -96,17 +96,19 @@ function InputTypeDonut() {
     fetchInputTypeDistribution()
       .then((d) => ok && setData(d))
       .catch(() => ok && setErr(true));
-    return () => { ok = false; };
+    return () => {
+      ok = false;
+    };
   }, []);
 
   if (err) return <MiniError />;
   if (!data) return <MiniSkeleton />;
 
   const slices = [
-    { name: "Text",  value: data.text_count  },
+    { name: "Text", value: data.text_count },
     { name: "Image", value: data.image_count },
-    { name: "URL",   value: data.url_count   },
-    { name: "QR",    value: data.qr_count    },
+    { name: "URL", value: data.url_count },
+    { name: "QR", value: data.qr_count },
   ].filter((s) => s.value > 0);
 
   return (
@@ -125,7 +127,11 @@ function InputTypeDonut() {
             animationDuration={700}
           >
             {slices.map((s) => (
-              <Cell key={s.name} fill={INPUT_COLORS[s.name]} stroke="transparent" />
+              <Cell
+                key={s.name}
+                fill={INPUT_COLORS[s.name]}
+                stroke="transparent"
+              />
             ))}
           </Pie>
           <Tooltip
@@ -165,9 +171,9 @@ function InputTypeDonut() {
 
 /* ── 2. Risk Level Distribution (donut) ── */
 const RISK_COLORS: Record<string, string> = {
-  High:    "#EF4444",
-  Medium:  "#F59E0B",
-  Low:     "#10B981",
+  High: "#EF4444",
+  Medium: "#F59E0B",
+  Low: "#10B981",
   Unknown: "#6B7280",
 };
 
@@ -180,16 +186,18 @@ function RiskLevelDonut() {
     fetchRiskLevelDistribution()
       .then((d) => ok && setData(d))
       .catch(() => ok && setErr(true));
-    return () => { ok = false; };
+    return () => {
+      ok = false;
+    };
   }, []);
 
   if (err) return <MiniError />;
   if (!data) return <MiniSkeleton />;
 
   const slices = [
-    { name: "High",    value: data.high_count    },
-    { name: "Medium",  value: data.medium_count  },
-    { name: "Low",     value: data.low_count     },
+    { name: "High", value: data.high_count },
+    { name: "Medium", value: data.medium_count },
+    { name: "Low", value: data.low_count },
     { name: "Unknown", value: data.unknown_count },
   ].filter((s) => s.value > 0);
 
@@ -209,7 +217,11 @@ function RiskLevelDonut() {
             animationDuration={700}
           >
             {slices.map((s) => (
-              <Cell key={s.name} fill={RISK_COLORS[s.name]} stroke="transparent" />
+              <Cell
+                key={s.name}
+                fill={RISK_COLORS[s.name]}
+                stroke="transparent"
+              />
             ))}
           </Pie>
           <Tooltip
@@ -257,7 +269,9 @@ function ScanTypeBar() {
     fetchScanTypeRanking(3)
       .then((d) => ok && setData(d))
       .catch(() => ok && setErr(true));
-    return () => { ok = false; };
+    return () => {
+      ok = false;
+    };
   }, []);
 
   if (err) return <MiniError />;
@@ -276,10 +290,7 @@ function ScanTypeBar() {
           layout="vertical"
           margin={{ top: 0, right: 20, left: 4, bottom: 0 }}
         >
-          <CartesianGrid
-            horizontal={false}
-            stroke="rgba(255,255,255,0.04)"
-          />
+          <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.04)" />
           <XAxis
             type="number"
             tick={{ fill: "#64748b", fontSize: 10 }}

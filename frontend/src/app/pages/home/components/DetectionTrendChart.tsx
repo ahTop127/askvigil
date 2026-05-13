@@ -19,20 +19,25 @@ import {
 
 /* ── palette ── */
 const SERIES = [
-  { key: "total_count", label: "Total", color: "#6366F1", gradient: "grad-total" },
-  { key: "text",        label: "Text",  color: "#10B981", gradient: "grad-text"  },
-  { key: "url",         label: "URL",   color: "#F59E0B", gradient: "grad-url"   },
-  { key: "image",       label: "Image", color: "#3B82F6", gradient: "grad-image" },
-  { key: "qr",          label: "QR",    color: "#EC4899", gradient: "grad-qr"    },
+  {
+    key: "total_count",
+    label: "Total",
+    color: "#6366F1",
+    gradient: "grad-total",
+  },
+  { key: "text", label: "Text", color: "#10B981", gradient: "grad-text" },
+  { key: "url", label: "URL", color: "#F59E0B", gradient: "grad-url" },
+  { key: "image", label: "Image", color: "#3B82F6", gradient: "grad-image" },
+  { key: "qr", label: "QR", color: "#EC4899", gradient: "grad-qr" },
 ] as const;
 
 type SeriesKey = (typeof SERIES)[number]["key"];
 
 const RISK_OPTIONS: { value: TrendRiskLevel; label: string }[] = [
-  { value: "all",    label: "All" },
-  { value: "high",   label: "High" },
+  { value: "all", label: "All" },
+  { value: "high", label: "High" },
   { value: "medium", label: "Medium" },
-  { value: "low",    label: "Low" },
+  { value: "low", label: "Low" },
 ];
 
 /* ── helpers ── */
@@ -97,11 +102,11 @@ function Skeleton() {
 
 /* ── main component ── */
 export const DetectionTrendChart = memo(function DetectionTrendChart() {
-  const [days, setDays]           = useState<TrendDays>(7);
-  const [risk, setRisk]           = useState<TrendRiskLevel>("all");
-  const [points, setPoints]       = useState<TrendPoint[]>([]);
-  const [status, setStatus]       = useState<"loading" | "ok" | "error">("loading");
-  const [visible, setVisible]     = useState<Set<SeriesKey>>(
+  const [days, setDays] = useState<TrendDays>(7);
+  const [risk, setRisk] = useState<TrendRiskLevel>("all");
+  const [points, setPoints] = useState<TrendPoint[]>([]);
+  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [visible, setVisible] = useState<Set<SeriesKey>>(
     new Set(["total_count"]),
   );
 
@@ -111,16 +116,16 @@ export const DetectionTrendChart = memo(function DetectionTrendChart() {
     fetchDetectionTrend(days, risk)
       .then((res) => {
         if (!cancelled) {
-          setPoints(
-            res.points.map((p) => ({ ...p, date: shortDate(p.date) })),
-          );
+          setPoints(res.points.map((p) => ({ ...p, date: shortDate(p.date) })));
           setStatus("ok");
         }
       })
       .catch(() => {
         if (!cancelled) setStatus("error");
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [days, risk]);
 
   function toggleSeries(key: SeriesKey) {
@@ -208,7 +213,11 @@ export const DetectionTrendChart = memo(function DetectionTrendChart() {
                   ? "border-transparent text-white"
                   : "border-white/10 bg-white/5 text-slate-500 hover:text-slate-300"
               }`}
-              style={on ? { background: s.color + "33", borderColor: s.color + "55" } : {}}
+              style={
+                on
+                  ? { background: s.color + "33", borderColor: s.color + "55" }
+                  : {}
+              }
             >
               <span
                 className="inline-block h-2 w-2 rounded-full"
@@ -265,8 +274,16 @@ export const DetectionTrendChart = memo(function DetectionTrendChart() {
                         x2="0"
                         y2="1"
                       >
-                        <stop offset="5%"  stopColor={s.color} stopOpacity={0.35} />
-                        <stop offset="95%" stopColor={s.color} stopOpacity={0.0}  />
+                        <stop
+                          offset="5%"
+                          stopColor={s.color}
+                          stopOpacity={0.35}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={s.color}
+                          stopOpacity={0.0}
+                        />
                       </linearGradient>
                     ))}
                   </defs>

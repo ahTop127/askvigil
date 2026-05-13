@@ -44,9 +44,7 @@ export function fetchDetectionTrend(
     risk_level,
   });
   input_types.forEach((t) => qs.append("input_types", t));
-  return getJson(
-    `/v1/stats/detection-trend?${qs.toString()}`,
-  );
+  return getJson(`/v1/stats/detection-trend?${qs.toString()}`);
 }
 
 /* ── Input Type Distribution ── */
@@ -88,6 +86,8 @@ export type ScanTypeRankingResponse = {
 };
 
 /** GET /api/v1/stats/scam-type-ranking — `top_n` in 1…50 (e.g. 3 for top 3). */
-export function fetchScanTypeRanking(top_n = 3): Promise<ScanTypeRankingResponse> {
+export function fetchScanTypeRanking(
+  top_n = 3,
+): Promise<ScanTypeRankingResponse> {
   return getJson(`/v1/stats/scam-type-ranking?top_n=${top_n}`);
 }
