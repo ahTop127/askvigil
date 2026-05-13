@@ -3,6 +3,7 @@ import { APP_CONFIG } from "@lib/config/app";
 import { logger } from "@lib/utils/logger";
 import { isValidUrl } from "@lib/utils/validation";
 import { buildUrlMetaHighlights } from "@lib/utils/urlMetaFeatures";
+import { ensureSessionId } from "@lib/api/session";
 
 /**
  * POST /api/v1/detection/scan — multipart `text` and/or `file`.
@@ -13,20 +14,26 @@ export async function detectScam(
 ): Promise<ScamDetectionResult> {
   logger.info("detectScam called", { type: input.type });
   try {
+    /** Resolve session_id before building FormData so every scan carries the id. */
+    const sessionId = await ensureSessionId();
+
     const formData = new FormData();
-    if (input.type === "qr") {
-      formData.append("input_type", "qr");
-    }
+    const inputType = resolveInputType(input);
+    formData.append("input_type", inputType);
     if (typeof input.content === "string") {
       formData.append("text", input.content);
     } else {
       formData.append("file", input.content);
+    }
+    if (sessionId) {
+      formData.append("session_id", sessionId);
     }
 
     const endpoint = `${APP_CONFIG.api.baseUrl.replace(/\/$/, "")}/v1/detection/scan`;
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { Accept: "application/json" },
+      credentials: "include",
       body: formData,
     });
 
@@ -45,6 +52,15 @@ export async function detectScam(
     logger.error("detectScam failed", e instanceof Error ? e : undefined);
     throw e instanceof Error ? e : new Error("Detection failed");
   }
+}
+
+function resolveInputType(
+  input: ScamDetectionInput,
+): "text" | "image" | "url" | "qr" {
+  if (input.type === "qr") return "qr";
+  if (input.type === "image") return "image";
+  if (input.submissionChannel === "url_tab") return "url";
+  return "text";
 }
 
 /** URL tab sends `type: "text"`; derive displayed link from a lone URL string. */

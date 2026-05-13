@@ -1,11 +1,55 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { CheckCircle } from "lucide-react";
+import { fetchPublicStats, type PublicStats } from "@lib/api/publicStats";
+import { AnalyticsCarousel } from "./AnalyticsCarousel";
+
+function formatStatValue(n: number): string {
+  return n.toLocaleString("en-MY");
+}
 
 /**
  * Social proof metrics grid beside marketing copy.
+ * Numbers from GET /api/v1/stats/public when available.
  */
 export const StatisticsSection = memo(function StatisticsSection() {
+  const [stats, setStats] = useState<PublicStats | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ok" | "error">(
+    "loading",
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPublicStats()
+      .then((data) => {
+        if (!cancelled) {
+          setStats(data);
+          setLoadState("ok");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoadState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const display = (n: number | undefined) => {
+    if (loadState === "loading") {
+      return (
+        <span
+          className="inline-block h-10 min-w-[5ch] animate-pulse rounded-md bg-gray-200/90 align-middle"
+          aria-hidden
+        />
+      );
+    }
+    if (loadState === "error" || n === undefined) {
+      return "—";
+    }
+    return formatStatValue(n);
+  };
+
   return (
     <section className="py-20 bg-gradient-to-br from-[#F5F7F9] to-white">
       <div className="max-w-7xl mx-auto px-4">
@@ -42,7 +86,11 @@ export const StatisticsSection = memo(function StatisticsSection() {
             </div>
           </motion.div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div
+            className="grid grid-cols-2 gap-4"
+            aria-busy={loadState === "loading"}
+            aria-live="polite"
+          >
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -51,8 +99,8 @@ export const StatisticsSection = memo(function StatisticsSection() {
               className="bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-shadow"
             >
               <div className="text-sm text-gray-500 mb-3">Users Protected</div>
-              <div className="text-4xl font-bold text-[#213034] mb-1">
-                12,500+
+              <div className="text-4xl font-bold text-[#213034] mb-1 tabular-nums">
+                {display(stats?.users_protected)}
               </div>
             </motion.div>
 
@@ -64,7 +112,9 @@ export const StatisticsSection = memo(function StatisticsSection() {
               className="bg-gradient-to-br from-[#FFF4E6] to-[#FFF8F0] rounded-2xl p-6 border border-orange-200 hover:shadow-lg transition-shadow"
             >
               <div className="text-sm text-gray-500 mb-3">Checks Daily</div>
-              <div className="text-4xl font-bold text-[#213034] mb-1">2K+</div>
+              <div className="text-4xl font-bold text-[#213034] mb-1 tabular-nums">
+                {display(stats?.checks_daily)}
+              </div>
             </motion.div>
 
             <motion.div
@@ -75,8 +125,8 @@ export const StatisticsSection = memo(function StatisticsSection() {
               className="bg-gradient-to-br from-[#F0F9F6] to-[#F5FBF8] rounded-2xl p-6 border border-emerald-200 hover:shadow-lg transition-shadow"
             >
               <div className="text-sm text-gray-500 mb-3">Links Analysed</div>
-              <div className="text-4xl font-bold text-[#213034] mb-1">
-                5,00+
+              <div className="text-4xl font-bold text-[#213034] mb-1 tabular-nums">
+                {display(stats?.links_analysed)}
               </div>
             </motion.div>
 
@@ -87,11 +137,16 @@ export const StatisticsSection = memo(function StatisticsSection() {
               transition={{ duration: 0.5, delay: 0.4 }}
               className="bg-white rounded-2xl p-6 border border-gray-200 hover:shadow-lg transition-shadow"
             >
-              <div className="text-sm text-gray-500 mb-3">Scams Detected</div>
-              <div className="text-4xl font-bold text-[#213034] mb-1">98%</div>
+              <div className="text-sm text-gray-500 mb-3">Total Checks</div>
+              <div className="text-4xl font-bold text-[#213034] mb-1 tabular-nums">
+                {display(stats?.total_checks)}
+              </div>
             </motion.div>
           </div>
         </div>
+
+        {/* 4-panel analytics carousel */}
+        <AnalyticsCarousel />
       </div>
     </section>
   );

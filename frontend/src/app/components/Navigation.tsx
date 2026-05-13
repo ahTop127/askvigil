@@ -26,6 +26,9 @@ export function Navigation() {
     if (path === "/cases") {
       return location.pathname.startsWith("/cases");
     }
+    if (path === "/discord-bot") {
+      return location.pathname.startsWith("/discord-bot");
+    }
     return location.pathname === path;
   };
 
@@ -111,6 +114,16 @@ export function Navigation() {
               }`}
             >
               Scam Feed
+            </button>
+            <button
+              onClick={() => navigate("/discord-bot")}
+              className={`transition-colors px-3 py-1 rounded-md ${
+                isActive("/discord-bot")
+                  ? "text-primary font-semibold bg-primary/15"
+                  : "text-foreground/80 hover:text-foreground"
+              }`}
+            >
+              Discord Integration
             </button>
           </nav>
         </div>
