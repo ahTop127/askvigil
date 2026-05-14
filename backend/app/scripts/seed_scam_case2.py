@@ -56,7 +56,7 @@ STATIC_SCAM_CASES = [
     },
     {
         "title": "Fake Tax Refund Scam",
-        "content": "Many Malaysians have reportedly received phishing emails claiming to offer income tax refunds from trusted institutions such as banks and government-related organisations. The scam emails instructed recipients to submit their personal information in order to process the supposed tax refund. Victims were asked to complete a \"security verification\" step by downloading an attachment or clicking a provided link.",
+        "content": 'Many Malaysians have reportedly received phishing emails claiming to offer income tax refunds from trusted institutions such as banks and government-related organisations. The scam emails instructed recipients to submit their personal information in order to process the supposed tax refund. Victims were asked to complete a "security verification" step by downloading an attachment or clicking a provided link.',
         "scam_type": "suspicious_link",
         "platform": "email",
         "news_date": date(2016, 10, 19),
@@ -72,7 +72,6 @@ STATIC_SCAM_CASES = [
         "source": "SAYS",
         "url_link": "https://says.com/my/news/free-tesco-vouchers-gsc-tickets-7eleven-coupons-airasia-flights-hoax",
     },
-
     # --- Phishing Scams ---
     {
         "title": "Fake LHDN Phone Scam",
@@ -92,7 +91,6 @@ STATIC_SCAM_CASES = [
         "source": "SAYS",
         "url_link": "https://says.com/my/news/malaysian-loses-rm-30000-over-bank-fraud-security",
     },
-
     # --- OTP Scams ---
     {
         "title": "WhatsApp Verification Code Scam",
