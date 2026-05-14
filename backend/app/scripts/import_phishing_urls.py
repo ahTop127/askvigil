@@ -38,7 +38,12 @@ async def import_csv_to_db():
     await Tortoise.init(config=TORTOISE_ORM)
 
     # 假设你把清洗好的 CSV 也放在 resources 文件夹下
-    # csv_path = os.path.join(project_root, "resources", "askvigil_50k_stratified.csv")
+    # csv_path = os.path.join(
+    #     project_root, "resources", "askvigil_master_url_dataset.csv"
+    # )
+    csv_path = os.path.join(
+        project_root, "resources", "askvigil_master_url_dataset_small.csv"
+    )
     # Use the computed property from your BaseSettings
     csv_path = settings.PHISH_CSV
 
@@ -124,7 +129,7 @@ async def import_csv_to_db():
         )
 
         # Temporary Debug within your for-loop
-        if (len(records) - len(instances)) < 5 or len(instances) < 5:
+        if len(instances) > 49990 or len(instances) < 5:
             print(
                 f"DEBUG: URL: {raw_url} | Meta Type: {type(meta_list)} | Content: {meta_list}"
             )

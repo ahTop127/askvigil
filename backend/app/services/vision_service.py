@@ -11,6 +11,8 @@ from app.core.registry import MODEL_REGISTRY
 # from rapidocr_onnxruntime import RapidOCR
 import logging
 
+import hashlib
+
 # RapidOCR uses ONNX INT8 by default if models are provided,
 # but the standard package is already 5-10x faster than EasyOCR.
 # engine = RapidOCR(det_db_thresh=0.2, det_db_box_thresh=0.4)
@@ -75,6 +77,12 @@ def detect_qr_codes(image_file: UploadFile) -> list[str]:
     image_file.file.seek(0)
     file_bytes = image_file.file.read()
     image_file.file.seek(0)
+
+    print("QR filename:", image_file.filename)
+    print("QR content_type:", image_file.content_type)
+    print("QR bytes length:", len(file_bytes))
+    print("QR sha256:", hashlib.sha256(file_bytes).hexdigest())
+
     if not file_bytes:
         raise ValueError("Uploaded image is empty.")
 

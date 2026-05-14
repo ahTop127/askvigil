@@ -116,8 +116,10 @@ async def _handle_qr_flow(qr_file: UploadFile):
           "url_analysis": [...],
         }
     """
+    print("_handle_qr_flow .......")
     # 1) Decode QR in threadpool (OpenCV is sync CPU work)
     qr_items = await run_in_threadpool(vision_service.detect_qr_codes, qr_file)
+    print("QR decoded items:", qr_items)
     # qr_items expected format:
     # [
     #   {"decoded_content": "...", "urls": ["https://..."]},
