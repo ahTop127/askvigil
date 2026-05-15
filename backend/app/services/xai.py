@@ -45,8 +45,17 @@ def generate_text_explanation(
     doc_embedding: np.ndarray,
     doc_text: str,
     xgb_deltas: np.ndarray,
+    mode: str = "text"
 ) -> list:
     """Zips the ML tensors into a JSON-friendly array. Lexical match is calculated in-memory."""
+    # Define normalization constants
+    # norm_scale: the XGB delta that equals 100% heat (e.g., 0.10 = 10% shift)
+    # sem_bounds: (floor, divisor) to map similarity to 0.0 - 1.0
+    config = {
+        "text": {"norm_scale": 0.10, "sem_bounds": (0.3, 0.4)}, # 0.3->0.7 range
+        "url":  {"norm_scale": 0.15, "sem_bounds": (0.2, 0.5)}  # 0.2->0.7 range
+    }.get(mode, "text")
+
     explanation_array = []
     # ---------------------------------------------------------
     # Normalization and mean-Centering to break the Anisotropy Cone
@@ -98,6 +107,17 @@ def generate_text_explanation(
         if len(clean_token) > 3:
             is_lexical = clean_token.lower() in doc_text_lower
 
+        # --- CALCULATE NORMALIZED UI SIGNALS ---
+        raw_xgb = float(xgb_deltas[idx])
+        raw_sem = float(semantic_scores[idx])
+
+        # Map delta norm scale to 1.0 intensity (Calibrated for Platt Scaling)
+        norm_xgb = min(abs(raw_xgb) / config["norm_scale"], 1.0)
+
+        # Map semantic similarity (e.g., 0.3 to 0.7) to a 0.0 to 1.0 scale
+        floor, divisor = config["sem_bounds"]
+        norm_sem = max(0.0, min((raw_sem - floor) / divisor, 1.0))
+
         explanation_array.append(
             {
                 "token_text": token_text,
@@ -106,6 +126,11 @@ def generate_text_explanation(
                 "xgb_predictive_delta": round(float(xgb_deltas[idx]), 4),
                 "semantic_similarity": round(float(semantic_scores[idx]), 4),
                 "is_lexical_match": is_lexical,
+                # Simplified signals for the Frontend
+                "ui_signals": {
+                    "norm_xgb": round(norm_xgb, 4),
+                    "norm_semantic": round(norm_sem, 4),
+                }
             }
         )
     return explanation_array
