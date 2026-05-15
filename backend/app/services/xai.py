@@ -45,15 +45,15 @@ def generate_text_explanation(
     doc_embedding: np.ndarray,
     doc_text: str,
     xgb_deltas: np.ndarray,
-    mode: str = "text"
+    mode: str = "text",
 ) -> list:
     """Zips the ML tensors into a JSON-friendly array. Lexical match is calculated in-memory."""
     # Define normalization constants
     # norm_scale: the XGB delta that equals 100% heat (e.g., 0.10 = 10% shift)
     # sem_bounds: (floor, divisor) to map similarity to 0.0 - 1.0
     config = {
-        "text": {"norm_scale": 0.10, "sem_bounds": (0.3, 0.4)}, # 0.3->0.7 range
-        "url":  {"norm_scale": 0.15, "sem_bounds": (0.2, 0.5)}  # 0.2->0.7 range
+        "text": {"norm_scale": 0.10, "sem_bounds": (0.3, 0.4)},  # 0.3->0.7 range
+        "url": {"norm_scale": 0.15, "sem_bounds": (0.2, 0.5)},  # 0.2->0.7 range
     }.get(mode, "text")
 
     explanation_array = []
@@ -130,7 +130,7 @@ def generate_text_explanation(
                 "ui_signals": {
                     "norm_xgb": round(norm_xgb, 4),
                     "norm_semantic": round(norm_sem, 4),
-                }
+                },
             }
         )
     return explanation_array

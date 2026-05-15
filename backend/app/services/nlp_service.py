@@ -1564,7 +1564,7 @@ async def scan_text(text: str):
             doc_embedding=doc_embedding,
             doc_text=top_match.get("clean_text", ""),  # <-- PASS THE RAW TEXT HERE
             xgb_deltas=xgb_deltas,
-            mode="text"
+            mode="text",
         )
     return {
         # --- CORE UI FIELDS ---
@@ -1934,7 +1934,7 @@ async def scan_url(raw_url: str):
             doc_embedding=doc_embedding,
             doc_text=top_match.get("clean_text", ""),  # <-- PASS THE RAW TEXT HERE
             xgb_deltas=xgb_deltas,
-            mode="url"
+            mode="url",
         )
     return {
         # --- TOP LEVEL DECISION ---
