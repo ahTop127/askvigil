@@ -15,22 +15,23 @@ from app.core.registry import MODEL_REGISTRY
 from app.services.retrieval_services import hybrid_search_rrf
 from app.services.xai import compute_loo_deltas, generate_text_explanation
 
+import logging
+logger = logging.getLogger(__name__)
 ###########################################################################
-# parameters
-MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# Parameters
 
-# thereshold (anything below we will treat it as uncertain)
+# Threshold (Anything below we will treat as uncertain)
 UNKNOWN_THRESHOLD = 0.50
-# how far is it from the second type so we can have the confidence level
+# How far is it from the next type so we can have confidence
 MIN_MARGIN = 0.08
 MIN_RULE_REQUIRED_THRESHOLD = 0.60
 
-# extra points for strong keywords
+# Extra points for strong keywords
 RULE_BOOST = 0.12
 STRONG_RULE_BOOST = 0.20
 
 ###########################################################################
-# scam prototypes vector
+# Scam prototypes vector
 SCAM_TYPES = {
     "Phishing": [
         "A fake bank or financial service message saying the account is blocked, suspended, locked, frozen, or restricted.",
@@ -55,10 +56,10 @@ SCAM_TYPES = {
     ],
 }
 
-# regex patterns for each type of scam
+# Regex patterns for each type of scam
 KEYWORD_RULES = {
     "Phishing": [
-        # bank / finance brands
+        # Bank / Finance brands
         r"\bmaybank\b",
         r"\bcimb\b",
         r"\brhb\b",
@@ -73,7 +74,7 @@ KEYWORD_RULES = {
         r"\bgrabpay\b",
         r"\bduitnow\b",
         r"\bbank\b",
-        # account threat
+        # Account Threat
         r"account.*blocked",
         r"account.*suspended",
         r"account.*locked",
@@ -104,13 +105,13 @@ KEYWORD_RULES = {
         r"\brecruit(?:ing|ment)?\b",
         r"\bvacancy\b",
         r"\bposition\b",
-        # student-targeted job scams
+        # Student-targeted job scams
         r"university students?",
         r"college students?",
         r"students?\s+wanted",
         r"hiring.*students?",
         r"students?.*hiring",
-        # money / salary patterns
+        # Money / Salary patterns
         r"\bsalary\b",
         r"\bcommission\b",
         r"\bincome\b",
@@ -127,7 +128,7 @@ KEYWORD_RULES = {
         r"quick.*cash",
         r"instant.*income",
         r"earn.*(quick|fast|easy)",
-        # common job scam wording
+        # Common job scam wording
         r"daily.*income",
         r"online task",
         r"\btask\b",
@@ -139,7 +140,7 @@ KEYWORD_RULES = {
         r"like.*video",
         r"review.*product",
         r"rating.*task",
-        # platform-based recruitment
+        # Platform-based recruitment
         r"telegram.*job",
         r"whatsapp.*job",
         r"contact.*whatsapp",
@@ -156,7 +157,7 @@ KEYWORD_RULES = {
         r"security code",
         r"authentication code",
         r"authori[sz]ation code",
-        # asking user to reveal code
+        # Asking user to reveal code
         r"send.*code",
         r"share.*code",
         r"forward.*code",
@@ -177,8 +178,8 @@ SCAM_TYPE_NAMES = None
 SCAM_TYPE_VECTORS = None
 
 
-# preprocess the text before detection
 def clean_text(text):
+    """Preprocess the text before detection"""
     text = str(text).lower()
 
     text = re.sub(r"http\S+|www\.\S+", " URL ", text)  # we replace links with URL
@@ -188,11 +189,11 @@ def clean_text(text):
     return text
 
 
-# build semantic prototypes
 def build_type_embeddings(model):
+    """Build semantic prototypes"""
     type_names = []
     type_vectors = []
-    # for each scam type we will build the prototype
+    # For each scam type, we will build the prototype
     for scam_type, descriptions in SCAM_TYPES.items():
         description_embeddings = model.encode(
             descriptions,
@@ -200,13 +201,13 @@ def build_type_embeddings(model):
             normalize_embeddings=True,
         )
 
-        prototype = np.mean(description_embeddings, axis=0)  # average all descriptions
-        # normzalization - text has varying length so we wanna normalize and only compare in the direcito wise
+        prototype = np.mean(description_embeddings, axis=0)  # Average all descriptions
+        # Normzalization - text has varying length, so we want to normalize and only compare in the direction wise
         prototype = prototype / np.linalg.norm(prototype)
 
         type_names.append(scam_type)
         type_vectors.append(prototype)
-    # covert list of vectors to matrix
+    # Convert list of vectors to matrix
     type_vectors = np.vstack(type_vectors)
 
     return type_names, type_vectors
@@ -220,8 +221,8 @@ extractor = URLExtract(extract_email=False, cache_dns=False)
 extractor.update_when_older = 168  # hours in a week
 
 
-# load it first so it wouldnt need to constantly load
 async def build_type_embeddings():
+    """Load it first so it wouldn't need to constantly load"""
     type_names = []
     type_vectors = []
 
@@ -268,6 +269,7 @@ async def is_internal_ip(hostname: str) -> bool:
 
 
 async def safe_resolve_redirect(url: str) -> tuple[str, bool]:
+    """Resolve urls to their final destination safely. Max 5 redirects or 5s."""
     hostname = urlparse(url).hostname
     if not hostname or await is_internal_ip(hostname):
         return url, False
@@ -297,7 +299,7 @@ async def safe_resolve_redirect(url: str) -> tuple[str, bool]:
 
     except Exception as e:
         # This catches our SSRF error, timeouts, and dead links
-        print(f"[SafeResolve] Security block or resolution error: {str(e)}")
+        logger.info(f"[SafeResolve] Security block or resolution error: {str(e)}")
         return url, False
 
 
@@ -313,6 +315,33 @@ def mean_pooling(model_output, attention_mask):
 async def get_onnx_embedding(
     input_data: str | list[str], mode: str = "text", return_xai: bool = False
 ):
+    """Generates L2-normalized embeddings using an ONNX runtime session.
+
+    Handles long texts gracefully via 'sandwich truncation' (taking the first and
+    last 2000 characters) followed by a sliding window/strided tokenization approach.
+    Multiple window embeddings for a single text are aggregated using global max-pooling.
+
+    Args:
+        input_data: A single string or a list of strings to embed.
+        mode: The model configuration key to use from `MODEL_REGISTRY`
+            (e.g., "text" or "url"). Defaults to "text".
+        return_xai: If True, returns the unpooled tokens, input IDs, and
+            offset mappings for explainable AI analysis. Only supported for single
+            string inputs. Defaults to False.
+
+    Returns:
+        If return_xai is False:
+            A numpy array of embeddings. Shape is (dim,) for a single string or
+            (batch_size, dim) for a list of strings.
+        If return_xai is True:
+            A tuple of (embeddings, xai_dict).
+
+    Raises:
+        ValueError: If return_xai is requested for a batch (list) of inputs.
+    """
+    if return_xai and not isinstance(input_data, str):
+        raise ValueError("XAI data extraction is only supported for single string inputs.")
+    
     config = MODEL_REGISTRY[mode]
     tokenizer = config["tokenizer"]
     session = config["session"]
@@ -391,201 +420,8 @@ async def get_onnx_embedding(
         return final_result, xai_dict
     return final_result
 
-
-# async def scan_url(raw_url: str):
-#     resolved_url, resolved_successfully = await safe_resolve_redirect(raw_url)
-
-#     # 1. Feature Extraction (Stripped for integrity)
-#     stripped_url = standardize_url(resolved_url)
-#     vector = await get_onnx_embedding(stripped_url, mode="url")  # 768-dim
-#     meta_vector = calculate_advanced_metadata(resolved_url)  # 8-dim
-
-#     # 2. Concat for MLP (776-dim total)
-#     combined_input = np.concatenate(
-#         (vector.reshape(1, -1), meta_vector.reshape(1, -1)), axis=1
-#     )
-
-#     # 3. Execution
-#     session = MODEL_REGISTRY["url_classifier"]["session"]
-#     output = await asyncio.to_thread(session.run, None, {"input": combined_input})
-#     risk_score = float(output[0][0])  # Hazard probability
-
-#     # 4. Metacognitive Dissonance Check
-#     # Approximate risk from structural metadata (sum of normalized risk factors / 8)
-#     meta_risk_score = float(np.mean(meta_vector))
-#     dissonance = abs(risk_score - meta_risk_score)
-
-#     # 5. Decision Tree
-#     decision = "clear"
-#     if risk_score > 0.8:
-#         decision = "flagged"
-#     elif dissonance > 0.5:  # Model says safe, structure says dangerous (or vice versa)
-#         decision = "audit"
-
-#     # 6. Evidence Branch (Unchanged, uses vector)
-#     top_matches = await hybrid_search_rrf(
-#         resolved_url, vector, source="url", limit=5, k=20
-#     )
-
-#     return {
-#         "risk_score": round(risk_score, 4),
-#         "meta_vector": meta_vector.tolist(),  # Json serialize
-#         "meta_labels": [
-#             "Path Ratio",
-#             "TLD Tier",
-#             "Entropy",
-#             "Dot Count",
-#             "Digit Ratio",
-#             "Special Chars",
-#             "Subdomain Flag",
-#             "Path Depth",
-#         ],
-#         "dissonance": round(dissonance, 4),
-#         "resolved_url": resolved_url,
-#         "resolved_successfully": resolved_successfully,
-#         "decision": decision,
-#         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
-#     }
-
-
-# Ori Adrian
-# async def scan_text(text: str):
-#     # 1. Decision Branch (MLP)
-#     vector = await get_onnx_embedding(text, mode="text")
-
-#     # Run ONNX inference on raw 384-dim vector
-#     session = MODEL_REGISTRY["text_classifier"]["session"]
-#     # We use asyncio.to_thread to keep the event loop non-blocking
-#     output = await asyncio.to_thread(
-#         session.run, None, {"input": vector.reshape(1, -1)}
-#     )
-#     risk_score = float(output[0][0])
-
-#     # 2. Evidence Branch (HNSW + BM25)
-#     # k=20 handles the RRF decay curve standardly without manual squaring
-#     top_matches = await hybrid_search_rrf(text, vector, "text", limit=5, k=20)
-
-#     # 3. Merged Response
-#     return {
-#         "risk_score": round(risk_score, 4),
-#         "decision": "flagged" if risk_score > 0.75 else "clear",
-#         "evidence": {"match_count": len(top_matches), "top_matches": top_matches},
-#         "input text": text,
-
-#     }
-
-# # Ori Jia Yee fork
-# async def scan_text(text: str):
-#     # 1. Decision Branch (MLP)
-#     vector = await get_onnx_embedding(text, mode="text")
-
-#     # Run ONNX inference on raw 384-dim vector
-#     session = MODEL_REGISTRY["text_classifier"]["session"]
-#     # We use asyncio.to_thread to keep the event loop non-blocking
-#     output = await asyncio.to_thread(
-#         session.run, None, {"input": vector.reshape(1, -1)}
-#     )
-#     # raw mlp score
-#     # risk_score = float(output[0][0][0])
-
-#     # spam
-#     model_score = float(output[0][0])  # match training script update
-#     # harmless
-#     ham_score = 1 - model_score  # match training script update
-
-#     # explainable AI branch#
-#     explanation_result = explain_text_risk(text)
-#     rule_boost = explanation_result["total_boost"]
-#     rule_risk_floor = explanation_result["risk_floor"]
-#     matched_indicators = explanation_result["matched_indicators"]
-
-#     # if model says risky but no human-readable scam indicator found
-#     # redyce the score as its less explainable
-#     if rule_boost == 0 and model_score > 0.60:
-#         final_risk_score = model_score * 0.65
-#     else:
-#         # hybird prediction score
-#         final_risk_score = (model_score * 0.75) + (rule_boost * 0.25)
-
-#     # classification of scam type
-#     type_names, type_vectors = await get_scam_type_prototypes()
-
-#     scam_classification = await classify_scam_type(
-#         text=text,
-#         type_names=type_names,
-#         type_vectors=type_vectors,
-#     )
-
-#     # apply scam-type safety floor - classifier to help
-#     # if classifier is very confident this is OTP Scam, keep it high risk
-#     if (
-#         scam_classification["predicted_type"] == "OTP Scam"
-#         and scam_classification["confidence_level"] == "high"
-#         and rule_boost > 0
-#     ):
-#         final_risk_score += 0.20
-#     # elif (
-#     #     scam_classification["predicted_type"] == "Phishing"
-#     #     and scam_classification["confidence_level"] == "high"
-#     #     and rule_boost > 0
-#     # ):
-#     #     final_risk_score += 0.20
-
-#     # elif (
-#     #     scam_classification["predicted_type"] == "Job Scam"
-#     #     and scam_classification["confidence_level"] == "high"
-#     #     and rule_boost > 0
-#     # ):
-#     #     final_risk_score += 0.20
-
-#     # avoid showing absolute 0% or 100% in UI
-#     final_risk_score = max(final_risk_score, 0.03)
-#     final_risk_score = min(final_risk_score, 0.97)
-
-#     if final_risk_score >= 0.75:
-#         decision = "flagged"
-#     elif final_risk_score >= 0.55:
-#         decision = "suspicious"
-#     else:
-#         decision = "clear"
-
-#     # if evidence failed
-#     # try:
-#     #     top_matches = await hybrid_search_rrf(text, vector, "text", limit=5, k=20)
-#     #     evidence_error = None
-#     # except Exception as e:
-#     #     print(f"[scan_text] Evidence search failed: {e}")
-#     #     top_matches = []
-#     #     evidence_error = str(e)
-
-#     # guidance based on the type of scam
-#     immediate_guidance = get_prevention_guidance(
-#         predicted_type=scam_classification["predicted_type"],
-#         decision=decision,
-#     )
-
-#     response = {
-#         "risk_score": round(final_risk_score, 4),
-#         "risk_score_percent": round(final_risk_score * 100),
-#         "decision": decision,
-#         "model_output": {
-#             "spam_score": round(model_score, 4),
-#             "ham_score": round(ham_score, 4),
-#         },
-#         "scam_type": scam_classification,
-#         "explainability": {
-#             "rule_boost": round(rule_boost, 4),
-#             "matched_indicators": matched_indicators,
-#         },
-#         "immediate_guidance": immediate_guidance,
-#         "input text": text,
-#     }
-
-#     return response
-
-
-# explainable Boosting: Simple keyword-based heuristic to explain WHY a text might be risky.
 def explain_text_risk(text: str):
+    """Explainable Boosting: Simple keyword-based heuristic to explain why a text might be risky."""
     text_lower = text.lower()
     patterns = [
         {
@@ -756,8 +592,8 @@ def explain_text_risk(text: str):
     }
 
 
-# format the explainations better
 def format_terms(terms: List[str]) -> str:
+    """Format the explanations"""
     quoted_terms = [f"'{term}'" for term in terms]
 
     if len(quoted_terms) == 1:
@@ -769,7 +605,6 @@ def format_terms(terms: List[str]) -> str:
     return ", ".join(quoted_terms[:-1]) + f", and {quoted_terms[-1]}"
 
 
-# find the terms
 def find_terms(text_lower: str, terms: List[str]) -> List[str]:
     matched = []
 
@@ -781,82 +616,82 @@ def find_terms(text_lower: str, terms: List[str]) -> List[str]:
     return matched
 
 
-# rule boosting for further accuracy
 def get_rule_boosts(cleaned_text, type_names):
-    # create lists and initial values for each type of the scams
+    """Rule boosting for further accuracy"""
+    # Create lists and initial values for each type of the scams
     boosts = {scam_type: 0 for scam_type in type_names}
     matched_rules = {scam_type: [] for scam_type in type_names}
 
-    # now we will go through the scam rules and then see how many it matches
+    # Now we will go through the scam rules and then see how many it matches
     for scam_type, patterns in KEYWORD_RULES.items():
-        # skip rule which is not in the scam type
+        # Skip rule which is not in the scam type
         if scam_type not in boosts:
             continue
 
         match_count = 0
-        # now perform a regex search pattern
+        # Now perform a regex search pattern
         for pattern in patterns:
             if re.search(pattern, cleaned_text):
                 match_count += 1
                 matched_rules[scam_type].append(pattern)  # keyword
 
-        # if we only match 1, we will add a small boost
+        # If we only match 1, we will add a small boost
         if match_count == 1:
             boosts[scam_type] += RULE_BOOST
-        # matches more than 2, we add a larger boost
+        # If it matches more than 2, we add a larger boost
         elif match_count >= 2:
             boosts[scam_type] += STRONG_RULE_BOOST
 
     return boosts, matched_rules
 
 
-# now is the classification
 async def classify_scam_type(text, type_names, type_vectors):
-    # clean the test first
+    """Classification of keyword-matched scam type"""
+    # Clean the test first
     cleaned = clean_text(text)
 
-    # convert the input to embeddings
+    # Convert the input to embeddings
     text_embedding = await get_onnx_embedding(
         cleaned,
         mode="text",
     )
 
-    # compare the input vector with each type of prototype via dot product
+    # Compare the input vector with each type of prototype via dot product
     semantic_scores = np.dot(type_vectors, text_embedding)
 
-    # get the rule boost
+    # Get the rule boost
     boosts, matched_rules = get_rule_boosts(cleaned, type_names)
 
     final_scores = []
-    # for each of the scam
+    # For each of the scam
     for i, scam_type in enumerate(type_names):
-        # semantic score
+        # Semantic score
         score = float(semantic_scores[i])
-        # rule boost
+        # Rule boost
         score += boosts.get(scam_type, 0.0)
         final_scores.append(score)
 
-    # converts final score into array
+    # Converts final score into array
     final_scores = np.array(final_scores)
-    # sort them from the highest score to lowest
+    # Sort them from the highest score to lowest
     ranked_indices = np.argsort(final_scores)[::-1]
 
-    # gets the first and second best scores
+    # Gets the first and second best scores
     best_idx = ranked_indices[0]
     second_idx = ranked_indices[1]
 
-    # gets their name
+    # Gets their name
     best_type = type_names[best_idx]
     second_type = type_names[second_idx]
 
-    # convert score into float
+    # Convert score into float
     best_score = float(final_scores[best_idx])
     second_score = float(final_scores[second_idx])
 
-    # how confident are we (first compared to second)
+    # How confident are we (first compared to second)
     margin = best_score - second_score
 
-    # if the score is below the thereshold, we are unsure
+    # If the score is below the thereshold, we are unsure
     if best_score < UNKNOWN_THRESHOLD:
         predicted_type = "Not Recognized By Known Type"
         confidence_level = "low"
@@ -867,36 +702,22 @@ async def classify_scam_type(text, type_names, type_vectors):
         predicted_type = "Not Recognized By Known Type"
         confidence_level = "low"
 
-    # if its lower than our margin, its medium confidence
+    # If its lower than our margin, its medium confidence
     elif margin < MIN_MARGIN:
         predicted_type = best_type
         confidence_level = "medium"
-    # high confidence
+    # High confidence
     else:
         predicted_type = best_type
         confidence_level = "high"
-
-    # top_scores = {}
-
-    # now we are creating the scores for each type of scam
-    # for idx in ranked_indices:
-    #     scam_type = type_names[idx]
-    #     top_scores[scam_type] = {
-    #         "semantic_score": round(float(semantic_scores[idx]), 4),
-    #         "rule_boost": round(float(boosts.get(scam_type, 0.0)), 4),
-    #         "final_score": round(float(final_scores[idx]), 4),
-    #         "matched_rules": matched_rules.get(scam_type, []),
-    #     }
-
     return {
         "predicted_type": predicted_type,
         "confidence_level": confidence_level,
     }
 
-
-# providing prevention guidance
+ 
 def get_prevention_guidance(predicted_type: str, decision: str):
-    # if decision clear
+    """Providing scam prevention guidance"""
     if decision == "clear":
         return {
             "title": "No immediate scam action needed",
@@ -1187,31 +1008,6 @@ def calculate_advanced_metadata(url: str) -> np.ndarray:
         dtype=np.float32,
     )
 
-
-# import Levenshtein  # pip install python-Levenshtein
-
-# def get_typo_score(domain: str) -> float:
-#     """
-#     Checks if a domain is a 'near-miss' for a high-value target.
-#     Returns 1.0 if it's a suspicious match, 0.0 otherwise.
-#     """
-#     # Just the top targets—no need for a massive list
-#     targets = ["google", "paypal", "microsoft", "apple", "amazon", "netflix", "facebook"]
-
-#     # Strip TLD for comparison (e.g., 'paypa1' from 'paypa1.com')
-#     main_part = domain.split('.')[0].lower()
-
-#     for target in targets:
-#         distance = Levenshtein.distance(main_part, target)
-
-#         # A distance of 1 or 2 is the "Sweet Spot" for typosquatting
-#         # e.g., 'g00gle' (dist 2), 'paypa1' (dist 1)
-#         if 0 < distance <= 2:
-#             return 1.0
-
-#     return 0.0
-
-
 def label_to_risk(label: str) -> float:
     """
     Convert historical labels into binary risk.
@@ -1293,7 +1089,7 @@ def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dic
     # If lexical found absolutely no text overlap, it must abstain entirely (confidence = 0)
     lex_conf = probability_confidence(lexical_risk) if max(lex_sims) > 0.0 else 0.0
 
-    # DYNAMIC BASE WEIGHTS
+    # Dynamic base weights: Text makes more sense with semantic, urls with lexical
     if mode == "url":
         base_sem = 0.30
         base_lex = 0.70
@@ -1321,16 +1117,22 @@ def compute_retrieval_signal(top_matches: list[dict], mode: str = "text") -> dic
 
 async def scan_text(text: str):
     """
-    Retrieval-Augmented Classification (RAC) Pipeline
+    Retrieval-Augmented Classification (RAC) pipeline for text messages.
 
-    Architecture:
-        1. Embed text using MiniLM.
-        2. Classifier head inference (MLP over 384-dim embedding).
-        3. Retrieve top-10 neighbors via HNSW + hybrid RRF.
-        4. Compute distance-weighted retrieval risk.
-        5. Estimate confidence for classifier and retrieval.
-        6. Dynamically fuse both signals.
-        7. Return XAI-ready breakdown.
+    Architecture
+    ------------
+    1. Feature Extraction: Embeds text into a dense vector space using MiniLM.
+    2. Classifier Head: Inference via an ONNX MLP classifier over the embedding.
+    3. Retrieval: Fetches top-10 historical records via hybrid HNSW + pg_trgm.
+    4. Aggregation: Computes distance-weighted retrieval risk from neighbors.
+    5. Heuristics & Rules: Evaluates static regex/keyword rules for an explicit risk floor.
+    6. Dynamic Fusion: Blends Classifier, Retrieval, and Rule signals using 3-way confidence weights.
+    7. Explainable AI: Generates token-level predictive heatmaps and feature deltas.
+
+    Notes
+    -----
+    - Uses 'sandwich truncation' and strided rolling windows for long texts.
+    - Features a safety override: rules force maximum risk if an high-confidence OTP Scam is detected.
     """
 
     # ------------------------------------------------------------------
@@ -1354,15 +1156,6 @@ async def scan_text(text: str):
     classifier_score = float(output[0][1])  # XGB has hazard = 1
     classifier_score = max(0.0, min(1.0, classifier_score))
 
-    # # MLP head
-    # output = await asyncio.to_thread(
-    #     session.run,
-    #     None,
-    #     {"input": input_data},
-    # )
-    # classifier_score = float(output[0][0]) # MLP has hazard = 0
-    # classifier_score = max(0.0, min(1.0, classifier_score))
-
     # ------------------------------------------------------------------
     # 3. Retrieval
     # ------------------------------------------------------------------
@@ -1383,17 +1176,17 @@ async def scan_text(text: str):
     # ------------------------------------------------------------------
     # 4.5 Explainable AI & Scam Classification
     # ------------------------------------------------------------------
-    # spam/ham variables to match training script update
+    # Spam/ham variables to match training script update
     model_score = classifier_score
     ham_score = 1.0 - model_score
 
-    # explainable AI branch#
+    # Explainable AI branch
     explanation_result = explain_text_risk(text)
     rule_boost = explanation_result["total_boost"]
     rule_risk_floor = explanation_result["risk_floor"]
     matched_indicators = explanation_result["matched_indicators"]
 
-    # classification of scam type
+    # Classification of scam type
     type_names, type_vectors = await get_scam_type_prototypes()
     scam_classification = await classify_scam_type(
         text=text,
@@ -1409,7 +1202,7 @@ async def scan_text(text: str):
     # 1. Decisiveness (Linear): Is the retrieval vote clear or 50/50?
     retrieval_decisiveness = probability_confidence(retrieval_risk)
 
-    # 2. Grounding based on INTENT OVERLAP (Linear base):
+    # 2. Grounding based on intent overlap (Linear base):
     # Raw structural similarity of the best match [0.0 to 1.0]
     # We use the semantic score because natural language relies on paraphrasing.
     top_semantic_score = (
@@ -1428,41 +1221,22 @@ async def scan_text(text: str):
         product = retrieval_decisiveness * (retrieval_grounding**2)
         retrieval_confidence = math.pow(product, 1.0 / 3.0)
 
-    # Treat the rule_boost as a probability.
-    # If rule_boost is 0, confidence is 1.0 (it is mathematically certain no keywords exist).
-    # This automatically lowers the score if no indicators are found
+    # Treat the rule_boost as a raw risk indicator.
+    # If rule_boost is 0, no heuristics were triggered. We set confidence to 0.0
+    # so that the rules engine completely drops out of the dynamic fusion denominator,
+    # preventing a "clean" keyword scan from dilution-shielding a dangerous ML score.
     rules_score = rule_boost
     if rules_score == 0:
-        # Adrian: The rules found nothing. It must abstain, NOT vote "Safe".
-        # A confidence of 0 removes it from the denominator.
+        # Zero confidence neutralizes this brain's effect on the ensembled average.
         rules_confidence = 0.0
     else:
-        # Adrian: The rules found something malicious. Let it vote with confidence.
-
-        # apply scam-type safety floor - classifier to help
-        # if classifier is very confident this is OTP Scam, keep it high risk
+        # Apply scam-type safety floor - classifier to help
+        # If classifier is very confident this is OTP Scam, keep it high risk
         if (
             scam_classification["predicted_type"] == "OTP Scam"
             and scam_classification["confidence_level"] == "high"
         ):
-            # Adrian: replaced final_risk_score += 0.20 with rules_score = 1.0
-            # to maintain parity with the dynamic fusion. Equivalent to
-            # "Rules detected scam with max confidence"
-            rules_score = 1.0  # Maximum severity!
-        # elif (
-        #     scam_classification["predicted_type"] == "Phishing"
-        #     and scam_classification["confidence_level"] == "high"
-        #     and rule_boost > 0
-        # ):
-        #     rules_score = 1.0 # Maximum severity!
-
-        # elif (
-        #     scam_classification["predicted_type"] == "Job Scam"
-        #     and scam_classification["confidence_level"] == "high"
-        #     and rule_boost > 0
-        # ):
-        #     rules_score = 1.0 # Maximum severity!
-
+            rules_score = 1.0  # Maximum severity
         rules_confidence = probability_confidence(rules_score)
 
     # ------------------------------------------------------------------
@@ -1470,7 +1244,7 @@ async def scan_text(text: str):
     # ------------------------------------------------------------------
     base_classifier_weight = 0.35
     base_retrieval_weight = 0.40
-    base_rules_weight = 0.25  # 25% voting power for heuristic rules
+    base_rules_weight = 0.25
 
     effective_classifier_weight = base_classifier_weight * classifier_confidence
     effective_retrieval_weight = base_retrieval_weight * retrieval_confidence
@@ -1502,7 +1276,7 @@ async def scan_text(text: str):
     # Apply the risk floor from the matched indicators
     final_risk_score = max(final_risk_score, rule_risk_floor)
 
-    # avoid showing absolute 0% or 100% in UI
+    # Avoid showing absolute 0% or 100% in UI
     final_risk_score = max(final_risk_score, 0.03)
     final_risk_score = min(final_risk_score, 0.97)
 
@@ -1541,11 +1315,8 @@ async def scan_text(text: str):
         if doc_embedding_raw is not None:
             # Parse the PostgreSQL string back into a Python list
             if isinstance(doc_embedding_raw, str):
-                # orjson returns bytes, so we encode/decode if necessary,
-                # but it handles large float arrays 5x-10x faster than standard json.
+                # orjson parses large float arrays 5x-10x faster than standard json
                 parsed_list = orjson.loads(doc_embedding_raw)
-            # if isinstance(doc_embedding_raw, str):
-            #     parsed_list = json.loads(doc_embedding_raw)
             else:
                 parsed_list = doc_embedding_raw
 
@@ -1645,61 +1416,19 @@ async def scan_url(raw_url: str):
 
     Architecture
     ------------
-    1. Safe resolution
-       - Resolve redirects with SSRF protection.
-       - Analyze the final resolved URL if available.
-
-    2. Feature extraction
-       - URLBERT embedding (768-dim, L2 normalized).
-       - 8-dim structural metadata:
-         [path_ratio, tld_tier, entropy, dot_count, digit_ratio,
-          special_chars, subdomain_flag, path_depth]
-
-    3. Classifier head
-       - Concatenate embedding + metadata -> 776-dim.
-       - ONNX MLP outputs classifier_score.
-
-    4. Retrieval
-       - Hybrid HNSW + pg_trgm + RRF against phishing_url table.
-       - Returns top-5 nearest historical URLs with:
-         semantic_score, lexical_score_norm, label.
-
-    5. Distance-weighted retrieval aggregation
-       - Uses compute_retrieval_signal(top_matches), identical to text RAC.
-       - Neighbor weights are softmax over semantic similarity:
-             w_i = exp(sim_i) / sum_j exp(sim_j)
-       - Produces:
-             retrieval_risk
-             semantic_score (weighted)
-             lexical_score (weighted)
-
-    6. Confidence estimation
-       - probability_confidence(p) = 2 * abs(p - 0.5)
-
-    7. Dynamic fusion
-       - Base weights:
-           classifier = 0.40
-           retrieval  = 0.60
-       - Effective weights:
-           base_weight * confidence
-       - Final score:
-           weighted average of classifier_score and retrieval_risk
-
-    8. Structural dissonance
-       - Compare final RAC score against mean(metadata).
-       - Large disagreement indicates unusual edge cases.
-
-    9. Decision logic
-       - flagged: final_risk_score > 0.80
-       - audit:   dissonance > 0.50
-       - clear:   otherwise
+    1. Safe Resolution: Resolves redirect chains safely with SSRF protection.
+    2. Feature Extraction: Extracts URLBERT embeddings and computes 8 structural metadata features.
+    3. Classifier Head: Inference via an ONNX MLP over the concatenated embedding + metadata vector.
+    4. Retrieval: Fetches top-5 historical malicious URLs using hybrid HNSW + pg_trgm.
+    5. Aggregation: Computes distance-weighted retrieval risk from neighbors.
+    6. Dynamic Fusion: Blends Classifier and Retrieval signals using a 2-way confidence weight.
+    7. Dissonance Check: Audits results if deep learning scores clash heavily with structural priors.
+    8. Explainable AI: Extracts metadata SHAP contributions and token-level heatmaps.
 
     Notes
     -----
-    - URLs often benefit more from lexical overlap than semantic similarity
-      because phishing URLs frequently reuse exact tokens, domains, and paths.
-    - The retrieval subsystem remains identical to the text pipeline so your
-      frontend XAI and ensemble logic stay consistent across modalities.
+    - URLs rely heavily on lexical metrics since phishing variants frequently reuse domain/path structures.
+    - The output schema matches the text pipeline to ensure cross-modality frontend compatibility.
     """
 
     # ------------------------------------------------------------------
@@ -1742,37 +1471,29 @@ async def scan_url(raw_url: str):
     classifier_score = float(output[0][1])  # XGB has hazard = 1
     classifier_score = max(0.0, min(1.0, classifier_score))
 
-    # # For MLP head
-    # output = await asyncio.to_thread(
-    #     session.run,
-    #     None,
-    #     {"input": combined_input},
-    # )
-    # classifier_score = float(output[0][0]) # MLP has hazard = 0
-    # classifier_score = max(0.0, min(1.0, classifier_score))
-
     # ------------------------------------------------------------------
     # 3.5 XGBoost Feature Contributions (Metadata)
     # ------------------------------------------------------------------
-    # Extract the underlying Booster from the Sklearn CalibratedClassifierCV
-    # (Assuming it's calibrated. If it's a raw XGBClassifier, use session.get_booster())
+    # --- XAI Layer: Extract SHAP Values from Pre-Warmed Memory ---
     try:
+        # Cascade through Sklearn wrappers (CalibratedClassifierCV -> XGB)
         booster = (
             session.estimator.get_booster()
             if hasattr(session, "estimator")
             else session.get_booster()
         )
 
-        # pred_contribs requires a native DMatrix
+        # Native DMatrix conversion for fast C++ execution
         dmat = __import__("xgboost").DMatrix(combined_input)
         contribs = booster.predict(dmat, pred_contribs=True)[0]
 
-        # contribs shape: (777,) -> 768 embeddings + 8 metadata + 1 bias
-        # Slice the 8 metadata features (Indices 768 to 775)
+        # Topology: (777,) -> 768 text embeddings + 8 metadata + 1 bias
+        # Slice indices 768 to 775 to isolate metadata weights
         meta_shap_values = contribs[-9:-1].tolist()
+        
     except Exception:
-        # Graceful fallback if the Sklearn wrapper obscures the booster
-        meta_shap_values = [0.0] * 8
+        # Fail-safe fallback if package version mismatches obscure properties
+        meta_shap_values = [0.0] * 8       
 
     # Zip the labels, raw values, and XGBoost SHAP contributions together for the UI
     meta_explanation = [
@@ -1810,8 +1531,6 @@ async def scan_url(raw_url: str):
         k=20,
     )
 
-    # print("JSON dumps after top matches")
-    # print(json.dumps(top_matches, default=str, indent=2))
     # ------------------------------------------------------------------
     # 5. Distance-Weighted Retrieval Aggregation
     # ------------------------------------------------------------------
@@ -1911,11 +1630,8 @@ async def scan_url(raw_url: str):
         if doc_embedding_raw is not None:
             # Parse the PostgreSQL string back into a Python list
             if isinstance(doc_embedding_raw, str):
-                # orjson returns bytes, so we encode/decode if necessary,
-                # but it handles large float arrays 5x-10x faster than standard json.
+                # orjson parses large float arrays 5x-10x faster than standard json
                 parsed_list = orjson.loads(doc_embedding_raw)
-            # if isinstance(doc_embedding_raw, str):
-            #     parsed_list = json.loads(doc_embedding_raw)
             else:
                 parsed_list = doc_embedding_raw
 

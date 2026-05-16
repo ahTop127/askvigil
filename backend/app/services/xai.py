@@ -4,7 +4,9 @@ import numpy as np
 def compute_loo_deltas(
     unpooled_tokens: np.ndarray, xgb_model, meta_vector: np.ndarray = None
 ) -> np.ndarray:
-    """Computes Leave-One-Out ablation in a single batch pass (Sklearn-compatible)."""
+    """
+    Computes Leave-One-Out ablation in a single batch pass (Sklearn-compatible).
+    """
     N, D = unpooled_tokens.shape
     if N <= 1:
         return np.zeros(N, dtype=np.float32)
@@ -26,7 +28,6 @@ def compute_loo_deltas(
     # 4. Fill the metadata in-place (Exploit NumPy broadcasting, no np.tile needed)
     if meta_vector is not None:
         combined_matrix[:, D:] = meta_vector
-    ablated_means = (total_sum - unpooled_tokens) / (N - 1)
 
     # 5. Batch Inference (XGBoost SKLEARN API)
     # We pass the raw NumPy array, NOT a DMatrix.
@@ -51,7 +52,10 @@ def generate_text_explanation(
     xgb_deltas: np.ndarray,
     mode: str = "text",
 ) -> list:
-    """Zips the ML tensors into a JSON-friendly array. Lexical match is calculated in-memory."""
+    """
+    Zips the ML tensors into a JSON-friendly array. 
+    Lexical match is calculated in-memory.
+    """
     # Define normalization constants
     # norm_scale: the XGB delta that equals 100% heat (e.g., 0.10 = 10% shift)
     # sem_bounds: (floor, divisor) to map similarity to 0.0 - 1.0

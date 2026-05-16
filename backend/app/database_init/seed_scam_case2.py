@@ -5,13 +5,12 @@ import os
 import sys
 from dotenv import load_dotenv
 from tortoise import Tortoise
+import logging
+logger = logging.getLogger(__name__)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-print(f"current_dir: {current_dir}")
 app_dir = os.path.dirname(current_dir)
-print(f"app_dir: {app_dir}")
 project_root = os.path.dirname(app_dir)
-print(f"project_root: {project_root}")
 sys.path.append(project_root)
 
 # 2. Dynamically load environment variables (must be loaded before importing core.database!)
@@ -21,12 +20,9 @@ env_filename = f".env.{app_env}"
 env_path = os.path.join(project_root, env_filename)
 
 if os.path.exists(env_path):
-    print(
-        f" current runtime environment: {app_env.upper()}; configuration being loaded: {env_filename}"
-    )
     load_dotenv(env_path)
 else:
-    print(
+    logger.warning(
         f" Warning: The environment variable file {env_path} cannot be found. The system will attempt to rely on the existing system environment variables."
     )
 
@@ -139,7 +135,7 @@ async def seed() -> None:
 
             if created:
                 created_n += 1
-                print(f"  + created: {data['title'][:30]}...")
+                logger.info(f"  + created: {data['title'][:30]}...")
             else:
                 # 幂等性校验：如果发现现有数据与静态数据不一致，则进行更新
                 needs_update = False
@@ -163,11 +159,11 @@ async def seed() -> None:
                 if needs_update:
                     await obj.save()
                     updated_n += 1
-                    print(f"  ~ updated fields for: {data['title'][:30]}...")
+                    logger.info(f"  ~ updated fields for: {data['title'][:30]}...")
                 else:
-                    print(f"  = unchanged: {data['title'][:30]}...")
+                    logger.info(f"  = unchanged: {data['title'][:30]}...")
 
-        print(
+        logger.info(
             f"Done. created={created_n}, fields_updated={updated_n}, "
             f"total_defined={len(STATIC_SCAM_CASES)}"
         )

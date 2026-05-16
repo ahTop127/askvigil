@@ -90,5 +90,3 @@ class Settings(BaseSettings):
 
 # Instantiate for use
 settings = Settings()
-
-print(f"Current operating environment: {env_state.upper()}, Loaded: {env_file_name}")

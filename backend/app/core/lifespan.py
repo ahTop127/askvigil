@@ -12,13 +12,15 @@ from app.core.seeding import run_seeding
 from tortoise import Tortoise
 from app.core.registry import MODEL_REGISTRY
 from app.core.config import settings
-from app.scripts.generate_embeddings import generate_and_update_embeddings
-from app.scripts.generate_url_embeddings import generate_and_update_url_embeddings
+from app.database_init.generate_embeddings import generate_and_update_embeddings
+from app.database_init.generate_url_embeddings import generate_and_update_url_embeddings
 from app.services.nlp_service import get_onnx_embedding
 from rapidocr_onnxruntime import RapidOCR
 import cv2
 import numpy as np
 import joblib
+import logging
+logger = logging.getLogger(__name__)
 
 
 async def sync_assets():
@@ -26,10 +28,10 @@ async def sync_assets():
         raise RuntimeError("OCI_PAR_URL is missing!")
 
     async with httpx.AsyncClient(timeout=600.0) as client:  # 10 min timeout for 237MB
-        print(f"[Sync] Querying Oracle Bucket: {settings.OCI_PAR_URL}", flush=True)
+        logger.info(f"[Sync] Querying Oracle Bucket")
         list_resp = await client.get(settings.OCI_PAR_URL)
         remote_files = list_resp.json().get("objects", [])
-        print(f"[Sync] Found {len(remote_files)} objects in cloud.", flush=True)
+        logger.info(f"[Sync] Found {len(remote_files)} objects in cloud.")
 
         for obj in remote_files:
             name = obj["name"]
@@ -44,7 +46,7 @@ async def sync_assets():
             if not local_path.exists() or (
                 size_bytes != -1 and local_path.stat().st_size != size_bytes
             ):
-                print(f"[Sync] Triggering download for: {name}", flush=True)
+                logger.info(f"[Sync] Triggering download for: {name}")
                 # Ensure the local directory structure exists
                 local_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -60,20 +62,20 @@ async def sync_assets():
                                 f.write(chunk)
                         # Finalizes the file only if the stream finished
                         temp_path.replace(local_path)
-                        print(f"[Sync] Successfully saved {name}", flush=True)
+                        logger.info(f"[Sync] Successfully saved {name}")
                     else:
-                        print(
+                        logger.exception(
                             f"[Error] Failed to download {name}: {response.status_code}"
                         )
             else:
-                print(f"[Cache] {name} is already up to date.", flush=True)
+                logger.info(f"[Cache] {name} is already up to date.")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 1. Database sync
     # The API will wait here until the download is finished
-    print("[Lifespan] Starting asset synchronization...")
+    logger.info("[Lifespan] Starting asset synchronization...")
     await sync_assets()
 
     # Verify Schema
@@ -82,7 +84,7 @@ async def lifespan(app: FastAPI):
     # 2. AI Preload - ONNX Inference Sessions (INT8)
     # Use 'CPUExecutionProvider' for ARM Neoverse N1 - ACL isn't actually better
 
-    print("[Lifespan] Loading Quantized ONNX Models...")
+    logger.info("[Lifespan] Loading Quantized ONNX Models...")
     try:
         # Load Text Model (MiniLM)
         MODEL_REGISTRY["text"] = {
@@ -92,7 +94,7 @@ async def lifespan(app: FastAPI):
             ),
         }
     except Exception as e:
-        print(f"[MISSING MODEL] Text model not loaded: {e}")
+        logger.exception(f"[MISSING MODEL] Text model not loaded: {e}")
 
     # XGB
     try:
@@ -100,15 +102,7 @@ async def lifespan(app: FastAPI):
             "session": joblib.load(settings.TEXT_CLASSIFIER_PATH)
         }
     except Exception as e:
-        print(f"[MISSING MODEL] Text classifier model not loaded: {e}")
-
-    # # MLP
-    # try:
-    #     MODEL_REGISTRY["text_classifier"] = {
-    #         "session": load_onnx_session(str(settings.TEXT_CLASSIFIER_PATH))
-    #     }
-    # except Exception as e:
-    #     print("[MISSING MODEL] Text classifier model not loaded: {e}")
+        logger.exception(f"[MISSING MODEL] Text classifier model not loaded: {e}")
 
     # Load URL Model (URLBert)
     try:
@@ -119,7 +113,7 @@ async def lifespan(app: FastAPI):
             ),
         }
     except Exception:
-        print("[MISSING MODEL] Url model not loaded: {e}")
+        logger.exception("[MISSING MODEL] Url model not loaded: {e}")
 
     # XGB
     try:
@@ -127,15 +121,7 @@ async def lifespan(app: FastAPI):
             "session": joblib.load(settings.URL_CLASSIFIER_PATH)
         }
     except Exception as e:
-        print(f"[MISSING MODEL] Text classifier model not loaded: {e}")
-
-    # MLP
-    # try:
-    #     MODEL_REGISTRY["url_classifier"] = {
-    #         "session": load_onnx_session(str(settings.URL_CLASSIFIER_PATH))
-    #     }
-    # except Exception as e:
-    #     print("[MISSING MODEL] Url classifier model not loaded: {e}")
+        logger.exception(f"[MISSING MODEL] Text classifier model not loaded: {e}")
 
     # --- OCR MODEL INITIALIZATION ---
     try:
@@ -162,9 +148,9 @@ async def lifespan(app: FastAPI):
             use_textline_orientation=False,  # Assume standard horizontal layout
             use_space_char=False,  # Standardize output for NLP service
         )
-        print("[SUCCESS] OCR Rapid Engine loaded")
+        logger.info("[SUCCESS] OCR Rapid Engine loaded")
     except Exception as e:
-        print(f"[MISSING MODEL] OCR Rapid Engine not loaded: {e}")
+        logger.info(f"[MISSING MODEL] OCR Rapid Engine not loaded: {e}")
 
     try:
         # --- THE ENHANCED PATH (Forensic Fidelity / Integrity) ---
@@ -194,9 +180,9 @@ async def lifespan(app: FastAPI):
             use_textline_orientation=True,  # Forensic logic to handle tilted captures
             use_space_char=False,
         )
-        print("[SUCCESS] OCR Enhanced Engine loaded")
+        logger.info("[SUCCESS] OCR Enhanced Engine loaded")
     except Exception as e:
-        print(f"[MISSING MODEL] OCR Enhanced Engine not loaded: {e}")
+        logger.exception(f"[MISSING MODEL] OCR Enhanced Engine not loaded: {e}")
 
     # Audit
     # --- [AUDIT] Enhanced Hardware Sync ---
@@ -211,39 +197,23 @@ async def lifespan(app: FastAPI):
         active_vocab = engine.text_rec.postprocess_op.character
         ram_slots = len(active_vocab)
 
-        # print(f"--- [DETAILED ALIGNMENT REPORT] ---")
-        # print(f"[*] Model Neurons: {model_neurons}")
-        # print(f"[*] RAM Slots:    {ram_slots}")
-
-        # # Show Head and Tail
-        # # We convert to list to ensure we can slice safely
-        # vocab_list = list(active_vocab)
-        # print(f"[*] HEAD (First 7): {vocab_list[:7]}")
-        # print(f"[*] TAIL (Last 7):  {vocab_list[-7:]}")
-
         if model_neurons == ram_slots:
-            # print(f"[√] DICT ALIGNMENT OK.") # Once verified, is expected
-            pass
+            logger.info(f"[√] DICT ALIGNMENT OK.") # Once verified, is expected
         else:
-            print(f"[!] DICT MISMATCH: {model_neurons - ram_slots} difference.")
+            logger.exception(f"[!] DICT MISMATCH: {model_neurons - ram_slots} difference.")
     except Exception as e:
-        print(f"[!] Audit failed: {e}")
+        logger.exception(f"[!] Audit failed: {e}")
 
     # Run seeding only after loading models
-    # wangsi New addition: Perform database idempotent initialization before startup
+    # Perform database idempotent initialization before startup
     await run_seeding()
-    # Note: We do NOT 'await' this. We fire and forget.
     os.environ["RUNNING_IN_APP"] = "1"
-
-    # # text contend embedding
-    # asyncio.create_task(generate_and_update_embeddings())
-    # # url phishing embedding
-    # asyncio.create_task(generate_and_update_url_embeddings())
-
-    # Create text and url embeddings sequentially (avoid OOM)
+    
+    # Create text and url embeddings sequentially (avoid OOM). 
+    # Do NOT await this, fire on forget so server runs while generating embeddings
     asyncio.create_task(generate_embeddings_sequentially())
 
-    print("--- Server is LIVE. Background ingestion is running. ---")
+    logger.info("--- Server is LIVE. Background ingestion is running. ---")
     cv2.setNumThreads(0)  # Stop OpenCV thread competition
 
     # Warm up to avoid slow first inference
@@ -252,7 +222,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown logic
     MODEL_REGISTRY.clear()
-    print("Models unloaded.")
+    logger.info("Models unloaded.")
 
 
 async def warm_up_engines():
@@ -260,13 +230,13 @@ async def warm_up_engines():
     Prevents the 5-second 'Cold Start' by pre-allocating ONNX tensors
     and triggering the C++ backends before the first user request.
     """
-    print("[INIT] Warming up Inference Engines on ARM64...")
+    logger.info("[INIT] Warming up Inference Engines on ARM64...")
     # 1. Saturate the Transformer (ONNX)
     # We do this 3 times to ensure the graph optimizer finishes kernel selection
     for i in range(3):
         await get_onnx_embedding("warmup text for saturation", mode="text")
         await get_onnx_embedding("https://warmup-url.com/saturate", mode="url")
-    print("[WARMUP] Transformer saturated.")
+    logger.info("[WARMUP] Transformer saturated.")
 
     # 2. Saturate the XGBoost Classifier
     # XGBoost boosters often lazy-load tree structures on the first few passes
@@ -276,7 +246,7 @@ async def warm_up_engines():
     for i in range(3):
         MODEL_REGISTRY["text_classifier"]["session"].predict_proba(dummy_input_text)
         MODEL_REGISTRY["url_classifier"]["session"].predict_proba(dummy_input_url)
-    print("[WARMUP] Classifiers saturated.")
+    logger.info("[WARMUP] Classifiers saturated.")
 
     # 3. Saturate the OCR (The Heaviest Lift)
     # RapidOCR actually has THREE internal models (Det, Rec, Cls).
@@ -287,8 +257,8 @@ async def warm_up_engines():
     for i in range(5):  # OCR is finicky, give it 5 passes
         MODEL_REGISTRY["ocr_rapid"](dummy_img)
         MODEL_REGISTRY["ocr_enhanced"](dummy_img)
-    print("[WARMUP] OCR saturated.")
-    print("[INIT] System is HOT. All caches primed.")
+    logger.info("[WARMUP] OCR saturated.")
+    logger.info("[INIT] System is ready. All caches primed.")
 
 
 def load_onnx_session(model_path: str):
@@ -297,9 +267,14 @@ def load_onnx_session(model_path: str):
     options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
 
-    # Intra = 4 maximizes single user speed. Is set in docker-compose now.
-    # options.intra_op_num_threads = 4
-    # options.inter_op_num_threads = 1
+    # Maximizes single user speed by using all intra threads available.
+    # Fallback to 4 if the Docker Compose environment variable isn't detected
+    intra_threads = int(os.getenv("ONNXRUNTIME_INTRA_OP_NUM_THREADS", "4"))
+    inter_threads = int(os.getenv("ONNXRUNTIME_INTER_OP_NUM_THREADS", "1"))
+
+    # Explicitly bind ONNX engine threading to match container boundaries
+    options.intra_op_num_threads = intra_threads
+    options.inter_op_num_threads = inter_threads
 
     # Use CPUExecutionProvider. ACL *not* used as it's not actually optimized for oracle a1
     providers = [
@@ -359,7 +334,7 @@ async def ensure_architectural_integrity():
         return  # Instant exit if we're up to date
 
     # 4. Migrations
-    print(
+    logger.info(
         f"[DB MIGRATION] Migrating database from v{db_version} to v{CURRENT_SCHEMA_VERSION}..."
     )
 
@@ -495,9 +470,9 @@ async def ensure_architectural_integrity():
         await conn.execute_script(
             f"INSERT INTO schema_version (version) VALUES ({CURRENT_SCHEMA_VERSION});"
         )
-        print(f"Schema synchronization to v{CURRENT_SCHEMA_VERSION} successful.")
+        logger.info(f"Schema synchronization to v{CURRENT_SCHEMA_VERSION} successful.")
     except Exception as e:
-        print(f"Schema sync failed: {str(e)}")
+        logger.info(f"Schema sync failed: {str(e)}")
 
 
 async def generate_embeddings_sequentially():
@@ -507,4 +482,4 @@ async def generate_embeddings_sequentially():
         # Only then start the second
         await generate_and_update_url_embeddings()
     except Exception as e:
-        print(f"Embedding task failed: {e}")
+        logger.info(f"Embedding task failed: {e}")

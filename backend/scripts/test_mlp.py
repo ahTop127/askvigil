@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+
+# Force Python to recognize the project root directory so 'import app' still works
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 import asyncio
 import json
 

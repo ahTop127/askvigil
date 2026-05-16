@@ -6,6 +6,14 @@ from urllib.parse import urlparse
 from tortoise import Tortoise
 from dotenv import load_dotenv
 import json
+import logging
+from app.core.database import TORTOISE_ORM
+
+# 替换为你的新 Model
+from app.models.open_data import PhishingURL
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 app_dir = os.path.dirname(current_dir)
@@ -17,42 +25,28 @@ env_filename = f".env.{app_env}"
 env_path = os.path.join(project_root, env_filename)
 
 if os.path.exists(env_path):
-    print(
+    logger.info(
         f"[import phishing url] current runtime environment: {app_env.upper()}; configuration being loaded: {env_filename}"
     )
     load_dotenv(env_path)
 else:
-    print(
+    logger.exception(
         f"[import phishing url] Warning: The environment variable file {env_path} cannot be found."
     )
 
-from app.core.database import TORTOISE_ORM
-
-# 替换为你的新 Model
-from app.models.open_data import PhishingURL
-from app.core.config import settings
-
-
 async def import_csv_to_db():
-    print("[import phishing url] Initialize the database connection...")
+    logger.info("[import phishing url] Initialize the database connection...")
     await Tortoise.init(config=TORTOISE_ORM)
 
-    # 假设你把清洗好的 CSV 也放在 resources 文件夹下
-    # csv_path = os.path.join(
-    #     project_root, "resources", "askvigil_master_url_dataset.csv"
-    # )
-    csv_path = os.path.join(
-        project_root, "resources", "askvigil_master_url_dataset_small.csv"
-    )
     # Use the computed property from your BaseSettings
     csv_path = settings.PHISH_CSV
 
     if not os.path.exists(csv_path):
-        print(f"[import phishing url] Error: Data file not found {csv_path}")
+        logger.exception(f"[import phishing url] Error: Data file not found {csv_path}")
         await Tortoise.close_connections()
         return
 
-    print(f"[import phishing url] CSV data is being read: {csv_path}")
+    logger.info(f"[import phishing url] CSV data is being read: {csv_path}")
     try:
         df = pd.read_csv(
             csv_path,
@@ -65,7 +59,7 @@ async def import_csv_to_db():
         raise RuntimeError(f"CRITICAL: Failed to load dataset schema. Error: {e}")
     # Convert the DataFrame to a list of dictionaries
     records = df.to_dict("records")
-    print(
+    logger.info(
         f"[import phishing url] Prepare to parse and write {len(records)} URLs into PostgreSQL..."
     )
     # --- 2. Add URL resolution logic ---
@@ -103,7 +97,7 @@ async def import_csv_to_db():
         else:
             validated_meta = None
             # Log failures so we can track data quality without crashing the batch
-            print(
+            logger.warning(
                 f"WARNING: ID {len(instances)} invalid metadata. Raw: {repr(raw_meta)}"
             )
         try:
@@ -130,16 +124,16 @@ async def import_csv_to_db():
 
         # Temporary Debug within your for-loop
         if len(instances) > 49990 or len(instances) < 5:
-            print(
+            logger.debug(
                 f"DEBUG: URL: {raw_url} | Meta Type: {type(meta_list)} | Content: {meta_list}"
             )
 
     # --- 3. Batch warehousing ---
-    print(f"[import phishing url] Batch creating {len(instances)} instances...")
+    logger.info(f"[import phishing url] Batch creating {len(instances)} instances...")
     await PhishingURL.bulk_create(instances, batch_size=2000)
 
-    print(
-        "[import phishing url] The import has been completely completed! The URL basic data is ready."
+    logger.info(
+        "[import phishing url] The import has been completed! The URL basic data is ready."
     )
 
     # Close the connection

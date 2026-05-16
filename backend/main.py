@@ -5,6 +5,17 @@ from app.api.router import api_router
 from tortoise.contrib.fastapi import register_tortoise
 from app.core.database import TORTOISE_ORM
 from app.core.lifespan import lifespan
+import logging
+
+# Configure the global root logger once at application startup
+logging.basicConfig(
+    level=logging.INFO, # Change to logging.DEBUG locally if you want extra verbose metrics
+    format="%(asctime)s [%(levelname)s] (%(name)s): %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
+
+logger = logging.getLogger("AskVigil.main")
+logger.info("Application context fully initialized.")
 
 app = FastAPI(title="AskVigil API", lifespan=lifespan)
 

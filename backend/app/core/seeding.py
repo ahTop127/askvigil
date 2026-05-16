@@ -7,11 +7,11 @@ from pathlib import Path
 from urllib.parse import urlparse, unquote
 
 import asyncpg
+import logging
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # /app
 QUIZ_SQL_PATH = PROJECT_ROOT / "resources" / "quiz import data.sql"
-print(f"seeding variable: PROJECT_ROOT = {PROJECT_ROOT}")
-print(f"seeding variable: QUIZ_SQL_PATH = {QUIZ_SQL_PATH}")
 
 # Fixed lock ID, used by pg_advisory_lock to avoid concurrent seeding
 SEEDING_LOCK_ID = 2026041201
@@ -72,7 +72,7 @@ It will execute external commands, such as:
 
 
 async def _run_subprocess(cmd: list[str], cwd: Path) -> None:
-    print(f"[Seeding] Running command: {' '.join(cmd)}")
+    logger.info(f"[Seeding] Running command: {' '.join(cmd)}")
     env = os.environ.copy()
     env["PYTHONPATH"] = "/app"
     proc = await asyncio.create_subprocess_exec(
@@ -85,9 +85,9 @@ async def _run_subprocess(cmd: list[str], cwd: Path) -> None:
     stdout, stderr = await proc.communicate()
 
     if stdout:
-        print(stdout.decode(errors="ignore"))
+        logger.info(stdout.decode(errors="ignore"))
     if stderr:
-        print(stderr.decode(errors="ignore"))
+        logger.info(stderr.decode(errors="ignore"))
 
     if proc.returncode != 0:
         raise SeedingError(f"Command failed ({proc.returncode}): {' '.join(cmd)}")
@@ -109,11 +109,11 @@ async def _ensure_database_exists(params: dict[str, object]) -> None:
             target_db,
         )
         if exists:
-            print(f"[Seeding] Database exists: {target_db}")
+            logger.info(f"[Seeding] Database exists: {target_db}")
             return
 
         await conn.execute(f"CREATE DATABASE {_quote_ident(target_db)}")
-        print(f"[Seeding] Database created: {target_db}")
+        logger.info(f"[Seeding] Database created: {target_db}")
     finally:
         await conn.close()
 
@@ -144,18 +144,6 @@ async def _has_any_business_tables(conn: asyncpg.Connection) -> bool:
     # Check for a specific table that defines a successful migration
     # 'scam_categories' is a good candidate since it's the first one you seed
     return await _table_exists(conn, "scam_categories")
-    # return bool(
-    #     await conn.fetchval(
-    #         """
-    #         SELECT EXISTS (
-    #             SELECT 1
-    #             FROM information_schema.tables
-    #             WHERE table_schema = 'public'
-    #               AND table_name NOT IN ('aerich')
-    #         )
-    #         """
-    #     )
-    # )
 
 
 async def _run_aerich_upgrade() -> None:
@@ -167,8 +155,7 @@ async def _run_aerich_upgrade() -> None:
 
 async def _run_seed_scam_categories() -> None:
     await _run_subprocess(
-        [sys.executable, "-m", "app.scripts.seed_scam_categories"],
-        # [sys.executable, str(PROJECT_ROOT / "app/scripts/seed_scam_categories.py")],
+        [sys.executable, "-m", "app.database_init.seed_scam_categories"],
         cwd=PROJECT_ROOT,
     )
 
@@ -183,42 +170,26 @@ async def _run_seed_scam_case() -> None:
 async def _run_import_open_data() -> None:
     # Use -m and the dot-notation path relative to /app/app
     await _run_subprocess(
-        [sys.executable, "-m", "app.scripts.import_open_data"],
+        [sys.executable, "-m", "app.database_init.import_open_data"],
         cwd=PROJECT_ROOT / "app",  # Run from the directory where 'scripts' is a package
     )
-    # await _run_subprocess(
-    #     [sys.executable, str(PROJECT_ROOT / "app/scripts/import_open_data.py")],
-    #     cwd=PROJECT_ROOT,
-    # )
 
 
 # phishing dataset batch import into database
 async def _run_import_phishing_urls() -> None:
     await _run_subprocess(
-        [sys.executable, "-m", "app.scripts.import_phishing_urls"],
+        [sys.executable, "-m", "app.database_init.import_phishing_urls"],
         cwd=PROJECT_ROOT / "app",
     )
-    # await _run_subprocess(
-    #     [sys.executable, str(PROJECT_ROOT / "app/scripts/import_phishing_urls.py")],
-    #     cwd=PROJECT_ROOT,
-    # )
-
-
-# async def _run_generate_embeddings() -> None:
-#     await _run_subprocess(
-#         [sys.executable, str(PROJECT_ROOT / "app/scripts/generate_embeddings.py")],
-#         cwd=PROJECT_ROOT,
-#     )
-
 
 async def _run_quiz_sql(conn: asyncpg.Connection) -> None:
     if not QUIZ_SQL_PATH.exists():
         raise SeedingError(f"Quiz SQL file not found: {QUIZ_SQL_PATH}")
 
     sql = QUIZ_SQL_PATH.read_text(encoding="utf-8")
-    print(f"[Seeding] Executing SQL file: {QUIZ_SQL_PATH}")
+    logger.info(f"[Seeding] Executing SQL file: {QUIZ_SQL_PATH}")
     await conn.execute(sql)
-    print("[Seeding] Quiz SQL import completed.")
+    logger.info("[Seeding] Quiz SQL import completed.")
 
 
 async def run_seeding() -> None:
@@ -233,7 +204,7 @@ async def run_seeding() -> None:
     7) generate missing embeddings
     """
     if os.getenv("DISABLE_AUTO_SEEDING", "").lower() in {"1", "true", "yes"}:
-        print("[Seeding] Disabled by DISABLE_AUTO_SEEDING.")
+        logger.info("[Seeding] Disabled by DISABLE_AUTO_SEEDING.")
         return
 
     db_url = os.getenv("DATABASE_URL")
@@ -254,44 +225,44 @@ async def run_seeding() -> None:
         # 1) tables / migrations
         has_tables = await _has_any_business_tables(conn)
         if not has_tables:
-            print("[Seeding] No business tables found. Running aerich upgrade...")
+            logger.info("[Seeding] No business tables found. Running aerich upgrade...")
             await conn.close()
             await _run_aerich_upgrade()
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
-            print("[Seeding] Tables already exist. Skip migration bootstrap step.")
+            logger.info("[Seeding] Tables already exist. Skip migration bootstrap step.")
 
         # 2) scam_categories
         scam_count = await _table_count(conn, "scam_categories")
         if scam_count == 0:
-            print("[Seeding] scam_categories is empty. Seeding...")
+            logger.info("[Seeding] scam_categories is empty. Seeding...")
             await conn.close()
             await _run_seed_scam_categories()
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
-            print(f"[Seeding] scam_categories has {scam_count} rows. Skip.")
+            logger.info(f"[Seeding] scam_categories has {scam_count} rows. Skip.")
 
         # scam_case
         scam_case_count = await _table_count(conn, "scam_cases")
         if scam_case_count == 0:
-            print("[Seeding] scam_cases is empty. Seeding...")
+            logger.info("[Seeding] scam_cases is empty. Seeding...")
             await conn.close()
             await _run_seed_scam_case()
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
-            print(f"[Seeding] scam_case has {scam_case_count} rows. Skip.")
+            logger.info(f"[Seeding] scam_case has {scam_case_count} rows. Skip.")
 
         # 3) quiz_questions + quiz_options
         qq_count = await _table_count(conn, "quiz_questions")
         qo_count = await _table_count(conn, "quiz_options")
         if qq_count == 0 and qo_count == 0:
-            print("[Seeding] quiz tables are empty. Importing quiz SQL...")
+            logger.info("[Seeding] quiz tables are empty. Importing quiz SQL...")
             await _run_quiz_sql(conn)
         elif qq_count > 0 and qo_count > 0:
-            print(
+            logger.info(
                 f"[Seeding] quiz data exists (questions={qq_count}, options={qo_count}). Skip."
             )
         else:
@@ -304,26 +275,26 @@ async def run_seeding() -> None:
         # 4) open_dataset
         open_count = await _table_count(conn, "open_dataset")
         if open_count == 0:
-            print("[Seeding] open_dataset is empty. Importing clean data...")
+            logger.info("[Seeding] open_dataset is empty. Importing clean data...")
             await conn.close()
             await _run_import_open_data()
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
-            print(
+            logger.info(
                 f"[Seeding] open_dataset has {open_count} rows. Skip clean-data import."
             )
 
         # 5) phishing_url
         phishing_count = await _table_count(conn, "phishing_url")
         if phishing_count == 0:
-            print("[Seeding] phishing_url is empty. Importing clean URL data...")
+            logger.info("[Seeding] phishing_url is empty. Importing clean URL data...")
             await conn.close()
             await _run_import_phishing_urls()
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
-            print(
+            logger.info(
                 f"[Seeding] phishing_url has {phishing_count} rows. Skip clean-url import."
             )
 
@@ -345,19 +316,16 @@ async def run_seeding() -> None:
             # change: for start backend container quickly,
             # seeding.py never calculates the vectors himself,
             # but leaves this hard labor to lifespan.py to run in the background.
-            # await conn.close()
-            # conn = await _connect(params)
-            # await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
-            print(
+            logger.info(
                 f"[Seeding] Found missing embeddings: {missing_embeddings} text rows, {missing_url_embeddings} URL rows."
             )
-            print(
+            logger.info(
                 "[Seeding] Leaving embedding generation to background tasks in lifespan.py..."
             )
         else:
-            print("[Seeding] All open_dataset rows already have embeddings. Skip.")
+            logger.info("[Seeding] All open_dataset rows already have embeddings. Skip.")
 
-        print("[Seeding] Completed successfully.")
+        logger.info("[Seeding] Completed successfully.")
     finally:
         try:
             await conn.execute("SELECT pg_advisory_unlock($1)", SEEDING_LOCK_ID)

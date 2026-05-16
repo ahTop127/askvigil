@@ -10,6 +10,8 @@ import os
 import aiohttp
 from dotenv import load_dotenv
 import asyncio
+import logging
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -45,7 +47,7 @@ class AftercareView(discord.ui.View):
 
 class Client(discord.Client):
     async def on_ready(self):
-        print(f"Logged on as {self.user}!")  # name of the bot
+        logger.info(f"Logged on as {self.user}!")  # name of the bot
 
     async def on_guild_join(
         self, guild
@@ -189,19 +191,19 @@ class Client(discord.Client):
                     async with session.post(ASKVIGIL_API_URL, data=form) as response:
                         if response.status != 200:
                             error_text = await response.text()
-                            print("Backend error:", response.status, error_text)
+                            logger.exception(f"Backend error: Status {response.status} | Details: {error_text}")
                             return None
 
                         return await response.json()
 
             except aiohttp.ClientConnectorError as e:
-                print(f"Connection attempt {attempt + 1} failed:", e)
+                logger.info(f"Connection attempt {attempt + 1} failed: {e}")
 
                 if attempt < 2:
                     await asyncio.sleep(2)
 
             except Exception as e:
-                print("Error calling AskVigil API:", e)
+                logger.exception("Error calling AskVigil API: {e}")
                 return None
 
         return None

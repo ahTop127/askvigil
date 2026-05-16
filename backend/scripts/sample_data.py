@@ -6,7 +6,7 @@ from pathlib import Path
 # .parent 退回一层到 scripts/
 # .parent 再退回一层到 app/
 # .parent 再退回一层到 backend/
-base_dir = Path(__file__).resolve().parent.parent.parent
+base_dir = Path(__file__).resolve().parent.parent
 
 # 2. 拼接出输入和输出的绝对路径
 input_file = base_dir / "resources" / "ready_for_db.csv"
