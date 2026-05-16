@@ -135,7 +135,7 @@ def generate_text_explanation(
                     "norm_xgb": round(norm_xgb, 4),
                     "norm_semantic": round(norm_sem, 4),
                     "is_lexical": is_lexical,
-                }
+                },
             }
         )
     return explanation_array
