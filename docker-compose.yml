@@ -116,6 +116,23 @@ services:
       # - ./data_persistence/npm_data:/data
       # - ./data_persistence/npm_letsencrypt:/etc/letsencrypt
 
+  # 5. Discord Bot Microservice
+  discord-bot:
+    build: ./discord_bot
+    restart: always
+    depends_on:
+      backend:
+        condition: service_started # Wait for the backend API route to be live
+    environment:
+      ENVIRONMENT: prod
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      ASKVIGIL_API_URL: http://backend:8000/api/scan # Internal Docker Network Routing
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'         # Hard-cap compute so it can never hijack main server
+          memory: 256M        # Lightweight python baseline
+
 volumes:
   postgres_data:      # Database state
   npm_data:           # Nginx Manager configs

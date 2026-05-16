@@ -1,3 +1,10 @@
+# /// script
+# dependencies = [
+#     "discord.py",
+#     "aiohttp",
+#     "python-dotenv",
+# ]
+# ///
 import discord
 import os
 import aiohttp

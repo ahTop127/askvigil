@@ -662,15 +662,19 @@ def scan_ocr(image, engine_rapid, engine_enhanced):
 
     log_step("rec-batch", t)
 
-    # --- PHASES 6: READING ORDER SORT ---
+    # --- PHASES 6: ROBUST READING ORDER ---
     t = perf_counter()
-    # Inline sorting
-    final_results.sort(
-        key=lambda x: (
-            np.mean(np.array(x["box"])[:, 1]),
-            np.mean(np.array(x["box"])[:, 0]),
+    if final_results:
+        heights = [np.max(np.array(x["box"])[:, 1]) - np.min(np.array(x["box"])[:, 1]) for x in final_results]
+        # Use a safe denominator (max to prevent 0, default to 32 if no heights)
+        denom = max(np.mean(heights) if heights else 32, 1) * 0.8
+        
+        final_results.sort(
+            key=lambda x: (
+                np.mean(np.array(x["box"])[:, 1]) // denom,
+                np.mean(np.array(x["box"])[:, 0])
+            )
         )
-    )
     log_step("sort", t)
 
     # -------------------------------------------------

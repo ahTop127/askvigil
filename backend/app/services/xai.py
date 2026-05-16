@@ -12,27 +12,31 @@ def compute_loo_deltas(
     # 1. Base Mean and Ablation
     total_sum = np.sum(unpooled_tokens, axis=0)
     base_mean = total_sum / N
+
+    # 2. Pre-allocate single matrix block to eliminate O(N^2) memory copying overhead
+    M = len(meta_vector) if meta_vector is not None else 0
+    # Single allocation block in memory
+    combined_matrix = np.empty((N + 1, D + M), dtype=np.float32)
+
+    # 3. Fill matrix in-place using zero-copy slicing and broadcasting
+    combined_matrix[0, :D] = base_mean
+    # Broadcast subtraction: (1, D) - (N, D) -> fits perfectly into rows 1 to N+1
+    combined_matrix[1:, :D] = (total_sum - unpooled_tokens) / (N - 1)
+
+    # 4. Fill the metadata in-place (Exploit NumPy broadcasting, no np.tile needed)
+    if meta_vector is not None:
+        combined_matrix[:, D:] = meta_vector
     ablated_means = (total_sum - unpooled_tokens) / (N - 1)
 
-    # 2. Combine into one batch matrix (NumPy Array)
-    combined_matrix = np.vstack([base_mean, ablated_means])  # Shape: (N+1, D)
-
-    # 3. Inject Metadata (Crucial for URL Pipeline)
-    if meta_vector is not None:
-        # Repeat the 8-dim metadata N+1 times to match the batch size
-        meta_repeated = np.tile(meta_vector, (N + 1, 1))
-        # Concatenate it to the right of the embeddings (Total Dim: D + 8)
-        combined_matrix = np.hstack([combined_matrix, meta_repeated])
-
-    # 4. Batch Inference (SKLEARN API)
+    # 5. Batch Inference (XGBoost SKLEARN API)
     # We pass the raw NumPy array, NOT a DMatrix.
     # predict_proba returns shape (N+1, 2) where column index 1 is usually the "Hazard/Scam" class.
     all_preds_proba = xgb_model.predict_proba(combined_matrix)
 
-    # Extract the probability of the hazard class for all N+1 scenarios
+    # 5. Extract hazard probabilities and compute Leave-One-Out deltas
+    # Note: Slicing creates a memory 'view', keeping this step O(1) in space overhead
     hazard_probs = all_preds_proba[:, 1]
-
-    # 5. Delta = Base Score - Ablated Score
+    # Delta = Base Score - Ablated Score
     # Positive delta means the token pushes the score UP (malicious)
     return hazard_probs[0] - hazard_probs[1:]
 
@@ -130,7 +134,8 @@ def generate_text_explanation(
                 "ui_signals": {
                     "norm_xgb": round(norm_xgb, 4),
                     "norm_semantic": round(norm_sem, 4),
-                },
+                    "is_lexical": is_lexical,
+                }
             }
         )
     return explanation_array
