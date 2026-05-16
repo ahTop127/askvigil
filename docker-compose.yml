@@ -44,6 +44,12 @@ services:
       # context: ./backend # Tells Docker the 'root' for this build is the backend folder
       # dockerfile: Dockerfile
     restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=3)"]
+      interval: 5s
+      timeout: 3s
+      retries: 4
+      start_period: 15s # Gives the API time to spin up before checking
     depends_on:
       db:
         condition: service_healthy
@@ -82,6 +88,12 @@ services:
   # 3. The React Frontend
   frontend:
     build: ./frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 5s
+      timeout: 3s
+      retries: 4
+      start_period: 15s
     restart: always
     # Expose 80 because NPM needs to talk to this Nginx instance.
     expose:
@@ -103,7 +115,9 @@ services:
     image: "jc21/nginx-proxy-manager:latest"
     depends_on:
       frontend:
-        condition: service_started # Wait for frontend before running
+        condition: service_healthy # Wait for frontend to pass health check
+      backend:
+        condition: service_healthy # Wait for backend to pass health check
     restart: always
     # Ports needed as the front door to our server.
     ports:

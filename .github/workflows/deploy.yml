@@ -101,10 +101,32 @@ jobs:
             # This kills any 'zombie' volumes left by previous failed builds.
             docker volume prune -f
 
-            # 5. Deploy
-            docker compose --env-file .env -f docker-compose.yml up -d --build --remove-orphans
+            # 5. Deploy with Auto-Rollback Safety Net
+            echo "🚀 Deploying containers and waiting for health checks..."
+            if ! docker compose --env-file .env -f docker-compose.yml up -d --build --remove-orphans --wait; then
+              echo "❌ DEPLOYMENT FAILED: One or more health checks failed!"
+              echo "⏪ Rolling back to the previous stable commit..."
+              
+              # Revert the files on the server to the previous commit
+              git reset --hard HEAD~1
+              
+              # Re-deploy the old working images immediately
+              docker compose --env-file .env -f docker-compose.yml up -d --build --remove-orphans
+              
+              # Capture the failure so we can exit at the very end of the script
+              DEPLOYMENT_FAILED=true
+            fi
 
             # 6. POST-DEPLOY HOUSEKEEPING: 
-            # Delete 'dangling' images (the old versions left behind after --build)
-            # This keeps your 'Images' space usage from creeping up over time.
+            # This runs now on BOTH success and failure paths!
+            # It clears out old images from your successful build, OR the broken images from the failed build.
+            echo "🧹 Running post-deploy housekeeping..."
             docker image prune -f
+
+            # 7. Final Exit Status Check for GitHub Actions
+            if [ "$DEPLOYMENT_FAILED" = true ]; then
+              echo "🔴 Signaling failure to GitHub Actions workflow."
+              exit 1
+            else
+              echo "🟢 Deployment finished successfully!"
+            fi
