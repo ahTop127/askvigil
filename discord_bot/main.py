@@ -13,7 +13,7 @@ import asyncio
 
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-ASKVIGIL_API_URL = os.getenv("ASKVIGIL_API_URL")
+ASKVIGIL_API_URL = https://askvigil.duckdns.org/api/v1/detection/scan
 
 
 class AftercareView(discord.ui.View):
