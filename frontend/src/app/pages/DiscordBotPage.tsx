@@ -282,7 +282,7 @@ export default function DiscordBotPage() {
         <DialogContent className="sm:max-w-xl rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black text-slate-900">
-              Add Discord to AskVigil
+              Add AskVigil to Discord
             </DialogTitle>
             <DialogDescription>
               Review the configuration requirements before connecting Discord to

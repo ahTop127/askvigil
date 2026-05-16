@@ -108,6 +108,108 @@ describe("detectScam qr mapping", () => {
     ]);
   });
 
+  it("maps weightage_explainability token_heatmap for text_analysis", async () => {
+    const token_heatmap = [
+      {
+        token_text: "urgent",
+        start_char: 0,
+        end_char: 6,
+        xgb_predictive_delta: 0.05,
+        semantic_similarity: 0.2,
+        is_lexical_match: true,
+        ui_signals: {
+          norm_xgb: 0.5,
+          norm_semantic: 0.3,
+          is_lexical: 1,
+        },
+      },
+    ];
+    const fusion_breakdown = {
+      effective_xgb_weight: 0.6,
+      effective_db_weight: 0.4,
+    };
+    const message = "urgent verify your account";
+    const payload = {
+      unified_text_analysis: {
+        overall_risk_score: 0.7,
+        text_analysis: {
+          risk_score: 0.7,
+          "input text": message,
+          weightage_explainability: { token_heatmap, fusion_breakdown },
+        },
+        url_analysis: [],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+      }),
+    );
+
+    const result = await detectScam({
+      type: "text",
+      content: message,
+    });
+
+    expect(result.textHeatmapBaseText).toBe(message);
+    expect(result.textTokenHeatmap).toEqual(token_heatmap);
+    expect(result.textHeatmapFusion).toEqual(fusion_breakdown);
+    expect(result.originalText).toBe(message);
+  });
+
+  it("maps explainability.token_heatmap and urlHeatmapBaseUrl from unified url_analysis", async () => {
+    const token_heatmap = [
+      {
+        token_text: "ex",
+        start_char: 8,
+        end_char: 10,
+        xgb_predictive_delta: 0.04,
+        semantic_similarity: 0.1,
+        is_lexical_match: false,
+      },
+    ];
+    const fusion_breakdown = {
+      effective_xgb_weight: 0.7767,
+      effective_db_weight: 0.2233,
+    };
+    const payload = {
+      unified_text_analysis: {
+        overall_risk_score: 0.5,
+        text_analysis: null,
+        url_analysis: [
+          {
+            risk_score: 0.5,
+            resolved_url: "https://WWW.Example.COM/x",
+            meta_labels: ["Entropy"],
+            meta_vector: [0.5],
+            explainability: { token_heatmap, fusion_breakdown },
+          },
+        ],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => payload,
+      }),
+    );
+
+    const result = await detectScam({
+      type: "text",
+      content: "https://example.com/x",
+      submissionChannel: "url_tab",
+    });
+
+    expect(result.urlHeatmapBaseUrl).toBe("https://example.com/x");
+    expect(result.urlTokenHeatmap).toEqual(token_heatmap);
+    expect(result.urlHeatmapFusion).toEqual(fusion_breakdown);
+  });
+
   it("sets dualTextUrlDetection and urlDetectionSummary when unified scan has both text_analysis and url_analysis (text input)", async () => {
     const meta_labels = ["Path Ratio", "TLD Tier"];
     const meta_vector = [0.2, 0.9];

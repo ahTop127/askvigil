@@ -17,7 +17,9 @@ import type {
   ScamCase,
   ScamDetectionResult,
   UrlMetaFeatureHighlight,
+  UrlTokenHeatmapEntry,
 } from "@lib/types";
+import { UrlHeatmapExplainSections } from "./UrlHeatmapExplainSections";
 
 const RISK_STYLES: Record<
   RiskLevel,
@@ -71,6 +73,10 @@ const URL_META_SEVERITY_STYLES: Record<
     labelCell: "bg-yellow-200 text-black border-r border-yellow-600/80",
   },
 };
+
+/** Suspicious-parts table: left column for data rows (header uses plain styles). */
+const SUSPICIOUS_PART_VALUE_CELL =
+  "flex items-center bg-sky-50 px-3 py-3 text-sm font-semibold text-slate-800 border-r border-[#e9f4f2] break-words md:px-4";
 
 /** URL paste flow: score bands match app risk (high ≥70 / medium 40–69 / low &lt;40). */
 const URL_ACTION_GUIDANCE_BY_LEVEL: Record<
@@ -156,6 +162,38 @@ function urlMetaFeaturesEqual(
       item.score === b[i]?.score &&
       item.severity === b[i]?.severity &&
       item.explanation === b[i]?.explanation,
+  );
+}
+
+function urlHeatmapFusionEqual(
+  a: ScamDetectionResult["urlHeatmapFusion"],
+  b: ScamDetectionResult["urlHeatmapFusion"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  return (
+    a.effective_xgb_weight === b.effective_xgb_weight &&
+    a.effective_db_weight === b.effective_db_weight
+  );
+}
+
+function urlTokenHeatmapEqual(
+  a: UrlTokenHeatmapEntry[] | undefined,
+  b: UrlTokenHeatmapEntry[] | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return !a && !b;
+  return a.every(
+    (t, i) =>
+      b[i] !== undefined &&
+      t.start_char === b[i].start_char &&
+      t.end_char === b[i].end_char &&
+      t.xgb_predictive_delta === b[i].xgb_predictive_delta &&
+      t.semantic_similarity === b[i].semantic_similarity &&
+      t.token_text === b[i].token_text &&
+      t.ui_signals?.norm_xgb === b[i].ui_signals?.norm_xgb &&
+      t.ui_signals?.norm_semantic === b[i].ui_signals?.norm_semantic &&
+      t.ui_signals?.is_lexical === b[i].ui_signals?.is_lexical,
   );
 }
 
@@ -283,14 +321,22 @@ export const ResultDisplay = memo(
       !isQrResult && level !== "low" && (isPureUrlResult || !isUnknownScamType);
 
     const [summaryTab, setSummaryTab] = useState<"text" | "url">("text");
+    const [showUrlHeatmapBreakdown, setShowUrlHeatmapBreakdown] =
+      useState(false);
+    const [showTextHeatmapBreakdown, setShowTextHeatmapBreakdown] =
+      useState(false);
 
     useEffect(() => {
       setSummaryTab("text");
+      setShowUrlHeatmapBreakdown(false);
+      setShowTextHeatmapBreakdown(false);
     }, [
       result.timestamp,
       result.score,
       result.dualTextUrlDetection,
       result.urlDetectionSummary?.displayUrl,
+      result.urlHeatmapBaseUrl,
+      result.textHeatmapBaseText,
     ]);
 
     /** Mixed mode text tab must surface scam type even if other URL flags are present. */
@@ -333,6 +379,14 @@ export const ResultDisplay = memo(
       dualTextUrl && summaryTab === "url"
         ? result.urlDetectionSummary?.urlMetaFeatures
         : result.urlMetaFeatures;
+    const hasUrlHeatmap = Boolean(
+      result.urlTokenHeatmap?.length &&
+        result.urlHeatmapBaseUrl?.trim(),
+    );
+    const hasTextHeatmap = Boolean(
+      result.textTokenHeatmap?.length &&
+        result.textHeatmapBaseText?.trim(),
+    );
 
     /** Non–dual-branch: same as legacy URL paste row (`submittedUrl` + merged `level`). */
     const submittedUrlGuidancePick = useMemo(() => {
@@ -675,11 +729,29 @@ export const ResultDisplay = memo(
                       Redirects to: {result.redirectUrl}
                     </p>
                   )}
-                  {notableUrlMeta && notableUrlMeta.length > 0 && (
+                  {((notableUrlMeta && notableUrlMeta.length > 0) ||
+                    hasUrlHeatmap) && (
                     <div className="mt-6">
-                      <h4 className="mb-3 text-base font-semibold text-gray-900">
-                        Notable URL signals
-                      </h4>
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <h4 className="text-base font-semibold text-gray-900">
+                          Notable URL signals
+                        </h4>
+                        {hasUrlHeatmap && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 shrink-0 px-2.5 text-xs font-medium"
+                            aria-expanded={showUrlHeatmapBreakdown}
+                            onClick={() =>
+                              setShowUrlHeatmapBreakdown((open) => !open)
+                            }
+                          >
+                            Advanced breakdown
+                          </Button>
+                        )}
+                      </div>
+                      {notableUrlMeta && notableUrlMeta.length > 0 && (
                       <div className="overflow-hidden rounded-none border border-[#e9f4f2]">
                         {notableUrlMeta.map((item, idx) => {
                           const ms = URL_META_SEVERITY_STYLES[item.severity];
@@ -718,38 +790,61 @@ export const ResultDisplay = memo(
                           );
                         })}
                       </div>
+                      )}
+                      {hasUrlHeatmap && showUrlHeatmapBreakdown && (
+                        <UrlHeatmapExplainSections
+                          embedded
+                          baseUrl={result.urlHeatmapBaseUrl!}
+                          tokens={result.urlTokenHeatmap!}
+                          fusion={result.urlHeatmapFusion}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
               {!isQrResult &&
-                !noFlags &&
+                (!noFlags || hasTextHeatmap) &&
                 (!dualTextUrl || summaryTab === "text") && (
                   <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
-                    <h3 className="font-semibold text-gray-900 text-lg">
-                      Suspicious Parts
-                    </h3>
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <h4 className="text-base font-semibold text-gray-900">
+                        Suspicious Parts
+                      </h4>
+                      {hasTextHeatmap && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 shrink-0 px-2.5 text-xs font-medium"
+                          aria-expanded={showTextHeatmapBreakdown}
+                          onClick={() =>
+                            setShowTextHeatmapBreakdown((open) => !open)
+                          }
+                        >
+                          Advanced breakdown
+                        </Button>
+                      )}
+                    </div>
+                    {!noFlags && (
+                    <>
                     <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
-                      <div className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] bg-white px-3 py-3 md:px-4">
-                        <p className="text-base font-semibold text-slate-800">
-                          Detected Signal
-                        </p>
-                        <p className="text-base font-semibold text-slate-800">
-                          Why It Is Risky
-                        </p>
-                      </div>
                       {visibleFlags.map((item, idx) => (
                         <div
                           key={`${item.text}-${idx}`}
-                          className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 odd:bg-white even:bg-[#fbfefe] last:border-b-0 md:px-4"
+                          className="grid grid-cols-[180px_1fr] border-b border-[#e9f4f2] last:border-b-0"
                         >
-                          <p className="text-base text-slate-700 break-words">
+                          <div className={SUSPICIOUS_PART_VALUE_CELL}>
                             {item.text}
-                          </p>
-                          <p className="text-base text-slate-700 break-words">
+                          </div>
+                          <div
+                            className={`flex items-center px-3 py-3 text-base leading-relaxed text-slate-700 break-words md:px-4 ${
+                              idx % 2 === 0 ? "bg-white" : "bg-[#fbfefe]"
+                            }`}
+                          >
                             {item.reason}
-                          </p>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -760,6 +855,17 @@ export const ResultDisplay = memo(
                       >
                         {showAllFlags ? "Show less" : `Show ${extraCount} more`}
                       </button>
+                    )}
+                    </>
+                    )}
+                    {hasTextHeatmap && showTextHeatmapBreakdown && (
+                      <UrlHeatmapExplainSections
+                        embedded
+                        mode="text"
+                        baseUrl={result.textHeatmapBaseText!}
+                        tokens={result.textTokenHeatmap!}
+                        fusion={result.textHeatmapFusion}
+                      />
                     )}
                   </div>
                 )}
@@ -908,5 +1014,23 @@ export const ResultDisplay = memo(
     urlMetaFeaturesEqual(
       prev.result.urlMetaFeatures,
       next.result.urlMetaFeatures,
+    ) &&
+    prev.result.urlHeatmapBaseUrl === next.result.urlHeatmapBaseUrl &&
+    urlHeatmapFusionEqual(
+      prev.result.urlHeatmapFusion,
+      next.result.urlHeatmapFusion,
+    ) &&
+    urlTokenHeatmapEqual(
+      prev.result.urlTokenHeatmap,
+      next.result.urlTokenHeatmap,
+    ) &&
+    prev.result.textHeatmapBaseText === next.result.textHeatmapBaseText &&
+    urlHeatmapFusionEqual(
+      prev.result.textHeatmapFusion,
+      next.result.textHeatmapFusion,
+    ) &&
+    urlTokenHeatmapEqual(
+      prev.result.textTokenHeatmap,
+      next.result.textTokenHeatmap,
     ),
 );

@@ -43,6 +43,9 @@ const BRAND = {
   slate: "#94a3b8",
 } as const;
 
+/** `GET .../scam-type-ranking?top_n=` — home carousel real-case bar chart */
+const SCAM_TYPE_RANKING_TOP_N = 5;
+
 type LoadStatus = "loading" | "ok" | "error";
 
 function shortDate(iso: string) {
@@ -117,7 +120,7 @@ function ChartShell({
       className="rounded-2xl p-1.5 shadow-sm sm:p-2"
       style={{ backgroundColor: BRAND.shell }}
     >
-      <div className="flex h-full min-h-[280px] flex-col overflow-hidden rounded-xl border border-gray-100/90 bg-white shadow-[0_1px_3px_rgba(33,48,52,0.06)]">
+      <div className="flex h-full min-h-[320px] flex-col overflow-hidden rounded-xl border border-gray-100/90 bg-white shadow-[0_1px_3px_rgba(33,48,52,0.06)]">
         <div className="flex items-start justify-between gap-2 border-b border-gray-100 px-4 py-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold text-[#213034] md:text-base">
@@ -143,12 +146,7 @@ function ChartShell({
 
 /* ── Trend: multi-series area, brand-forward palette ── */
 const TREND_SERIES = [
-  {
-    key: "total_count",
-    label: "Total",
-    color: BRAND.primary,
-    grad: "av-total",
-  },
+  { key: "total_count", label: "Total", color: BRAND.primary, grad: "av-total" },
   { key: "text", label: "Text", color: BRAND.success, grad: "av-text" },
   { key: "url", label: "URL", color: BRAND.warn, grad: "av-url" },
   { key: "image", label: "Image", color: BRAND.secondary, grad: "av-image" },
@@ -177,10 +175,7 @@ function TrendBlock({
   onToggleInputType: (t: TrendInputType) => void;
 }) {
   return (
-    <ChartShell
-      title="Detection trend"
-      subtitle="Checks over the selected window"
-    >
+    <ChartShell title="Detection trend" subtitle="Checks over the selected window">
       <div className="mb-2 flex items-start justify-between gap-3">
         <div className="flex min-w-[68px] flex-col gap-1.5">
           {TREND_INPUTS.map((t) => {
@@ -245,34 +240,16 @@ function TrendBlock({
           <Err />
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={points}
-              margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
-            >
+            <AreaChart data={points} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
               <defs>
                 {TREND_SERIES.map((s) => (
-                  <linearGradient
-                    key={s.grad}
-                    id={s.grad}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
+                  <linearGradient key={s.grad} id={s.grad} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={s.color} stopOpacity={0.22} />
-                    <stop
-                      offset="100%"
-                      stopColor={s.color}
-                      stopOpacity={0.02}
-                    />
+                    <stop offset="100%" stopColor={s.color} stopOpacity={0.02} />
                   </linearGradient>
                 ))}
               </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="#eef2f7"
-                vertical={false}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
               <XAxis
                 dataKey="date"
                 tick={{ fill: BRAND.muted, fontSize: 10 }}
@@ -320,13 +297,7 @@ const INPUT_C: Record<string, string> = {
   QR: "#8b5cf6",
 };
 
-function InputBlock({
-  data,
-  status,
-}: {
-  data: InputTypeDistribution | null;
-  status: LoadStatus;
-}) {
+function InputBlock({ data, status }: { data: InputTypeDistribution | null; status: LoadStatus }) {
   const slices = data
     ? [
         { name: "Text", value: data.text_count },
@@ -337,11 +308,7 @@ function InputBlock({
     : [];
 
   return (
-    <ChartShell
-      title="Input type mix"
-      subtitle="How people submit checks"
-      delay={0.05}
-    >
+    <ChartShell title="Input type mix" subtitle="How people submit checks" delay={0.05}>
       <div className="flex h-[220px] items-center gap-2 md:gap-4">
         {status === "loading" ? (
           <Spinner />
@@ -362,12 +329,7 @@ function InputBlock({
                   animationDuration={700}
                 >
                   {slices.map((s) => (
-                    <Cell
-                      key={s.name}
-                      fill={INPUT_C[s.name]}
-                      stroke="#fff"
-                      strokeWidth={2}
-                    />
+                    <Cell key={s.name} fill={INPUT_C[s.name]} stroke="#fff" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip {...LIGHT_TOOLTIP} />
@@ -388,9 +350,7 @@ function InputBlock({
               ))}
               <li className="mt-1 border-t border-gray-100 pt-2 text-gray-500">
                 Total{" "}
-                <span className="font-semibold text-[#213034]">
-                  {data?.total}
-                </span>
+                <span className="font-semibold text-[#213034]">{data?.total}</span>
               </li>
             </ul>
           </>
@@ -408,13 +368,7 @@ const RISK_C: Record<string, string> = {
   Unknown: BRAND.slate,
 };
 
-function RiskBlock({
-  data,
-  status,
-}: {
-  data: RiskLevelDistribution | null;
-  status: LoadStatus;
-}) {
+function RiskBlock({ data, status }: { data: RiskLevelDistribution | null; status: LoadStatus }) {
   const slices = data
     ? [
         { name: "High", value: data.high_count },
@@ -425,11 +379,7 @@ function RiskBlock({
     : [];
 
   return (
-    <ChartShell
-      title="Risk distribution"
-      subtitle="Outcome severity split"
-      delay={0.1}
-    >
+    <ChartShell title="Risk distribution" subtitle="Outcome severity split" delay={0.1}>
       <div className="flex h-[220px] items-center gap-2 md:gap-4">
         {status === "loading" ? (
           <Spinner />
@@ -450,12 +400,7 @@ function RiskBlock({
                   animationDuration={700}
                 >
                   {slices.map((s) => (
-                    <Cell
-                      key={s.name}
-                      fill={RISK_C[s.name]}
-                      stroke="#fff"
-                      strokeWidth={2}
-                    />
+                    <Cell key={s.name} fill={RISK_C[s.name]} stroke="#fff" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip {...LIGHT_TOOLTIP} />
@@ -476,9 +421,7 @@ function RiskBlock({
               ))}
               <li className="mt-1 border-t border-gray-100 pt-2 text-gray-500">
                 Total{" "}
-                <span className="font-semibold text-[#213034]">
-                  {data?.total}
-                </span>
+                <span className="font-semibold text-[#213034]">{data?.total}</span>
               </li>
             </ul>
           </>
@@ -489,13 +432,7 @@ function RiskBlock({
 }
 
 /* ── Scam ranking bars ── */
-function ScamBlock({
-  data,
-  status,
-}: {
-  data: ScanTypeRankingResponse | null;
-  status: LoadStatus;
-}) {
+function ScamBlock({ data, status }: { data: ScanTypeRankingResponse | null; status: LoadStatus }) {
   const rows = (data?.items ?? []).map((it) => ({
     name: fmtScam(it.scam_type),
     count: it.count,
@@ -503,22 +440,18 @@ function ScamBlock({
 
   return (
     <ChartShell
-      title="Top scam types"
-      subtitle="Most frequent categories"
+      title="Real-case scam types"
+      subtitle={`Top ${SCAM_TYPE_RANKING_TOP_N} by frequency in verified cases`}
       delay={0.15}
     >
-      <div className="h-[220px] w-full">
+      <div className="h-[260px] w-full">
         {status === "loading" ? (
           <Spinner />
         ) : status === "error" ? (
           <Err />
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={rows}
-              layout="vertical"
-              margin={{ top: 4, right: 12, left: 0, bottom: 0 }}
-            >
+            <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
               <CartesianGrid horizontal={false} stroke="#eef2f7" />
               <XAxis
                 type="number"
@@ -530,30 +463,17 @@ function ScamBlock({
               <YAxis
                 type="category"
                 dataKey="name"
-                width={88}
+                width={112}
                 tick={{ fill: BRAND.muted, fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip
-                {...LIGHT_TOOLTIP}
-                cursor={{ fill: "rgba(81,120,235,0.06)" }}
-              />
-              <Bar
-                dataKey="count"
-                radius={[0, 6, 6, 0]}
-                animationDuration={700}
-              >
+              <Tooltip {...LIGHT_TOOLTIP} cursor={{ fill: "rgba(81,120,235,0.06)" }} />
+              <Bar dataKey="count" radius={[0, 6, 6, 0]} animationDuration={700}>
                 {rows.map((_, i) => (
                   <Cell
                     key={i}
-                    fill={
-                      i === 0
-                        ? BRAND.primary
-                        : i === 1
-                          ? BRAND.secondary
-                          : BRAND.warn
-                    }
+                    fill={i === 0 ? BRAND.primary : i === 1 ? BRAND.secondary : BRAND.warn}
                     fillOpacity={1 - i * 0.12}
                   />
                 ))}
@@ -573,17 +493,13 @@ export const AnalyticsCarousel = memo(function AnalyticsCarousel() {
   const [trendPoints, setTrendPoints] = useState<TrendPoint[]>([]);
   const [trendStatus, setTrendStatus] = useState<LoadStatus>("loading");
 
-  const [inputDist, setInputDist] = useState<InputTypeDistribution | null>(
-    null,
-  );
+  const [inputDist, setInputDist] = useState<InputTypeDistribution | null>(null);
   const [inputStatus, setInputStatus] = useState<LoadStatus>("loading");
 
   const [riskDist, setRiskDist] = useState<RiskLevelDistribution | null>(null);
   const [riskStatus, setRiskStatus] = useState<LoadStatus>("loading");
 
-  const [scamRank, setScamRank] = useState<ScanTypeRankingResponse | null>(
-    null,
-  );
+  const [scamRank, setScamRank] = useState<ScanTypeRankingResponse | null>(null);
   const [scamStatus, setScamStatus] = useState<LoadStatus>("loading");
 
   useEffect(() => {
@@ -592,9 +508,7 @@ export const AnalyticsCarousel = memo(function AnalyticsCarousel() {
     fetchDetectionTrend(trendDays, trendRisk, trendInputTypes)
       .then((res) => {
         if (!cancelled) {
-          setTrendPoints(
-            res.points.map((p) => ({ ...p, date: shortDate(p.date) })),
-          );
+          setTrendPoints(res.points.map((p) => ({ ...p, date: shortDate(p.date) })));
           setTrendStatus("ok");
         }
       })
@@ -637,7 +551,7 @@ export const AnalyticsCarousel = memo(function AnalyticsCarousel() {
         if (!cancelled) setRiskStatus("error");
       });
 
-    fetchScanTypeRanking(3)
+    fetchScanTypeRanking(SCAM_TYPE_RANKING_TOP_N)
       .then((d) => {
         if (!cancelled) {
           setScamRank(d);
@@ -662,7 +576,7 @@ export const AnalyticsCarousel = memo(function AnalyticsCarousel() {
       className="mt-10"
     >
       <h3 className="mb-6 font-bold leading-tight text-[36px] text-[#213034]">
-        Analytics overview
+        Analytics Overview
       </h3>
 
       <div className="grid gap-4 sm:gap-5 md:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">

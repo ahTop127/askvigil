@@ -1,8 +1,16 @@
-import type { ScamDetectionInput, ScamDetectionResult } from "@lib/types";
+import type {
+  ScamDetectionInput,
+  ScamDetectionResult,
+  UrlHeatmapFusionWeights,
+} from "@lib/types";
 import { APP_CONFIG } from "@lib/config/app";
 import { logger } from "@lib/utils/logger";
 import { isValidUrl } from "@lib/utils/validation";
 import { buildUrlMetaHighlights } from "@lib/utils/urlMetaFeatures";
+import {
+  parseUrlTokenHeatmap,
+  standardizeUrlForHeatmap,
+} from "@lib/utils/urlHeatmapDisplay";
 import { ensureSessionId } from "@lib/api/session";
 
 /**
@@ -73,6 +81,82 @@ function submittedUrlFromInput(input: ScamDetectionInput): string | undefined {
     return trimmed;
   }
   return undefined;
+}
+
+function parseHeatmapFusion(
+  fusionBreakdown: unknown,
+): UrlHeatmapFusionWeights | undefined {
+  if (!fusionBreakdown || typeof fusionBreakdown !== "object") return undefined;
+  const o = fusionBreakdown as Record<string, unknown>;
+  const wx = toNumberOrNull(o.effective_xgb_weight);
+  const wd = toNumberOrNull(o.effective_db_weight);
+  if (wx === null || wd === null) return undefined;
+  return {
+    effective_xgb_weight: Math.max(0, Math.min(1, wx)),
+    effective_db_weight: Math.max(0, Math.min(1, wd)),
+  };
+}
+
+function parseUrlHeatmapFusion(
+  unifiedEntry: QrUrlAnalysisLike | null,
+): UrlHeatmapFusionWeights | undefined {
+  if (!unifiedEntry) return undefined;
+  return parseHeatmapFusion(unifiedEntry.explainability?.fusion_breakdown);
+}
+
+function extractTextHeatmapFromAnalysis(
+  textAnalysis: TextAnalysisLike | null,
+  fallbackBase?: string,
+): Pick<
+  ScamDetectionResult,
+  "textTokenHeatmap" | "textHeatmapBaseText" | "textHeatmapFusion"
+> {
+  if (!textAnalysis) return {};
+  const wx = textAnalysis.weightage_explainability;
+  const parsed = parseUrlTokenHeatmap(wx?.token_heatmap);
+  const fromApi = asNonEmptyString(textAnalysis["input text"])?.trim();
+  const base = fromApi || fallbackBase?.trim();
+  const fusion = parseHeatmapFusion(wx?.fusion_breakdown);
+  if (!base || parsed.length === 0) return {};
+  const filtered = parsed.filter(
+    (e) =>
+      e.start_char >= 0 &&
+      e.end_char <= base.length &&
+      e.start_char < e.end_char,
+  );
+  if (filtered.length === 0) return {};
+  return {
+    textTokenHeatmap: filtered,
+    textHeatmapBaseText: base,
+    ...(fusion ? { textHeatmapFusion: fusion } : {}),
+  };
+}
+
+function extractUrlHeatmapFromUnified(
+  unifiedEntry: QrUrlAnalysisLike | null,
+): Pick<
+  ScamDetectionResult,
+  "urlTokenHeatmap" | "urlHeatmapBaseUrl" | "urlHeatmapFusion"
+> {
+  if (!unifiedEntry) return {};
+  const raw = unifiedEntry.explainability?.token_heatmap;
+  const parsed = parseUrlTokenHeatmap(raw);
+  const resolved = asNonEmptyString(unifiedEntry.resolved_url)?.trim();
+  const fusion = parseUrlHeatmapFusion(unifiedEntry);
+  if (!resolved || parsed.length === 0) return {};
+  const base = standardizeUrlForHeatmap(resolved);
+  const filtered = parsed.filter(
+    (e) =>
+      e.start_char >= 0 &&
+      e.end_char <= base.length &&
+      e.start_char < e.end_char,
+  );
+  if (filtered.length === 0) return {};
+  return {
+    urlTokenHeatmap: filtered,
+    urlHeatmapBaseUrl: base,
+    ...(fusion ? { urlHeatmapFusion: fusion } : {}),
+  };
 }
 
 function mapScanResponse(
@@ -169,6 +253,16 @@ function mapScanResponse(
     return submittedUrlFromInput(input);
   })();
 
+  const { urlTokenHeatmap, urlHeatmapBaseUrl, urlHeatmapFusion } =
+    extractUrlHeatmapFromUnified(unifiedUrlEntry);
+
+  const inputTextBase =
+    input.type === "text" && typeof input.content === "string"
+      ? input.content.trim()
+      : undefined;
+  const { textTokenHeatmap, textHeatmapBaseText, textHeatmapFusion } =
+    extractTextHeatmapFromAnalysis(textAnalysis, inputTextBase);
+
   return {
     score,
     riskLevel: toRiskLevel(score),
@@ -201,6 +295,13 @@ function mapScanResponse(
     immediateGuidanceSaferAction: toStringList(
       textAnalysis?.immediate_guidance?.safer_action,
     ),
+    urlTokenHeatmap,
+    urlHeatmapBaseUrl,
+    urlHeatmapFusion,
+    textTokenHeatmap,
+    textHeatmapBaseText,
+    textHeatmapFusion,
+    originalText: inputTextBase || undefined,
   };
 }
 
@@ -382,6 +483,10 @@ interface QrUrlAnalysisLike {
   rl_report_analysis?: unknown;
   meta_labels?: unknown;
   meta_vector?: unknown;
+  explainability?: {
+    token_heatmap?: unknown;
+    fusion_breakdown?: unknown;
+  };
 }
 
 interface QrDecodedItemLike {
@@ -398,6 +503,11 @@ interface TextAnalysisLike {
   explainability?: {
     matched_indicators?: IndicatorLike[];
   };
+  weightage_explainability?: {
+    token_heatmap?: unknown;
+    fusion_breakdown?: unknown;
+  };
+  "input text"?: unknown;
   immediate_guidance?: ImmediateGuidanceLike;
 }
 

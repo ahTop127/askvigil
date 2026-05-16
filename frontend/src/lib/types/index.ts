@@ -6,6 +6,32 @@ export type DetectionType = "text" | "image" | "url" | "qr";
 /** Textarea vs URL strip — same multipart `text` field, distinct UI semantics. */
 export type DetectionSubmissionChannel = "text_tab" | "url_tab";
 
+/** Normalized per-token UI signals (backend `ui_signals`). */
+export interface UrlHeatmapUiSignals {
+  norm_xgb: number;
+  norm_semantic: number;
+  /** 0–1 (lexical grounding). */
+  is_lexical: number;
+}
+
+/** From `explainability.fusion_breakdown` for segment heat intensity. */
+export interface UrlHeatmapFusionWeights {
+  effective_xgb_weight: number;
+  effective_db_weight: number;
+}
+
+/** One tokenizer span from URL XAI (`explainability.token_heatmap`). */
+export interface UrlTokenHeatmapEntry {
+  token_text: string;
+  start_char: number;
+  end_char: number;
+  xgb_predictive_delta: number;
+  semantic_similarity: number;
+  is_lexical_match: boolean;
+  /** When present, segment color uses fused score × effective weights (see frontend util). */
+  ui_signals?: UrlHeatmapUiSignals;
+}
+
 /** Normalized scam risk bucket. */
 export type RiskLevel = "high" | "medium" | "low";
 
@@ -54,6 +80,18 @@ export interface ScamDetectionResult {
   dualTextUrlDetection?: boolean;
   /** URL-branch payload for dual-mode summary tab (includes branch score tier for guidance). */
   urlDetectionSummary?: UrlDetectionSummary;
+  /** Sub-word explainability for first `url_analysis` row; offsets match `urlHeatmapBaseUrl`. */
+  urlTokenHeatmap?: UrlTokenHeatmapEntry[];
+  /** Canonical URL string aligned with backend tokenizer offsets (standardized resolved URL). */
+  urlHeatmapBaseUrl?: string;
+  /** `explainability.fusion_breakdown` effective weights for unified segment score. */
+  urlHeatmapFusion?: UrlHeatmapFusionWeights;
+  /** Text scan: tokenizer spans aligned with `textHeatmapBaseText` (`weightage_explainability`). */
+  textTokenHeatmap?: UrlTokenHeatmapEntry[];
+  /** Analyzed message string (`text_analysis["input text"]`). */
+  textHeatmapBaseText?: string;
+  /** `weightage_explainability.fusion_breakdown` for text segment score. */
+  textHeatmapFusion?: UrlHeatmapFusionWeights;
   guidance?: string[];
   immediateGuidanceTitle?: string;
   immediateGuidanceSummary?: string;
