@@ -37,23 +37,14 @@ function parseUiSignals(
   const u = raw as Record<string, unknown>;
   const nx = parseNumber(u.norm_xgb, NaN);
   const ns = parseNumber(u.norm_semantic, NaN);
-  let il =
-    typeof u.is_lexical === "boolean"
-      ? u.is_lexical
-        ? 1
-        : 0
-      : NaN;
+  let il = typeof u.is_lexical === "boolean" ? (u.is_lexical ? 1 : 0) : NaN;
   if (!Number.isFinite(il)) {
     il = u.is_lexical !== undefined ? parseNumber(u.is_lexical, NaN) : NaN;
   }
   if (!Number.isFinite(il) && u.is_lexical_match !== undefined) {
     il = legacyLexical || Boolean(u.is_lexical_match) ? 1 : 0;
   }
-  if (
-    !Number.isFinite(nx) ||
-    !Number.isFinite(ns) ||
-    !Number.isFinite(il)
-  ) {
+  if (!Number.isFinite(nx) || !Number.isFinite(ns) || !Number.isFinite(il)) {
     return undefined;
   }
   return {
@@ -151,15 +142,17 @@ function sampleColorStops(
 }
 
 /** Amber / yellow → red ramp (#FAE792 family → red-600). */
-const AMBER_HEATMAP_STOPS: Array<{ pos: number; rgb: [number, number, number] }> =
-  [
-    { pos: 0.0, rgb: [255, 251, 235] },
-    { pos: 0.22, rgb: [253, 230, 138] },
-    { pos: 0.45, rgb: [250, 231, 146] }, // #FAE792
-    { pos: 0.62, rgb: [251, 191, 36] },
-    { pos: 0.8, rgb: [251, 146, 60] },
-    { pos: 1.0, rgb: [220, 38, 38] },
-  ];
+const AMBER_HEATMAP_STOPS: Array<{
+  pos: number;
+  rgb: [number, number, number];
+}> = [
+  { pos: 0.0, rgb: [255, 251, 235] },
+  { pos: 0.22, rgb: [253, 230, 138] },
+  { pos: 0.45, rgb: [250, 231, 146] }, // #FAE792
+  { pos: 0.62, rgb: [251, 191, 36] },
+  { pos: 0.8, rgb: [251, 146, 60] },
+  { pos: 1.0, rgb: [220, 38, 38] },
+];
 
 function amberHeatmapStyles(u: number): {
   backgroundColor: string;
@@ -167,10 +160,8 @@ function amberHeatmapStyles(u: number): {
 } {
   const t = clamp01(u);
   const rgb = sampleColorStops(t, AMBER_HEATMAP_STOPS);
-  const lum =
-    (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
-  const color =
-    t < 0.58 ? "#78350f" : lum > 0.45 ? "#ffffff" : "#7f1d1d";
+  const lum = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+  const color = t < 0.58 ? "#78350f" : lum > 0.45 ? "#ffffff" : "#7f1d1d";
   return {
     backgroundColor: `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`,
     color,
@@ -273,9 +264,7 @@ export function heatmapSpanStyleLegacy(
   const cap = Math.max(scaleCap, 1e-4);
   const ratio = entry.xgb_predictive_delta / cap;
   const tDelta = clamp11(
-    Math.sign(ratio) *
-      Math.pow(Math.min(1, Math.abs(ratio)), 0.52) *
-      1.08,
+    Math.sign(ratio) * Math.pow(Math.min(1, Math.abs(ratio)), 0.52) * 1.08,
   );
 
   const ns = clamp01((entry.semantic_similarity + 1) / 2);
@@ -324,5 +313,8 @@ export function heatmapSpanStyle(
 
 export function maxAbsDelta(entries: UrlTokenHeatmapEntry[]): number {
   if (entries.length === 0) return 1e-4;
-  return Math.max(1e-4, ...entries.map((e) => Math.abs(e.xgb_predictive_delta)));
+  return Math.max(
+    1e-4,
+    ...entries.map((e) => Math.abs(e.xgb_predictive_delta)),
+  );
 }

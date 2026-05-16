@@ -66,9 +66,10 @@ describe("computeUnifiedSegmentIntensity", () => {
       norm_semantic: 1,
       is_lexical: 1,
     };
-    expect(
-      computeUnifiedSegmentIntensity(signals, fusion, "url"),
-    ).toBeCloseTo(1, 5);
+    expect(computeUnifiedSegmentIntensity(signals, fusion, "url")).toBeCloseTo(
+      1,
+      5,
+    );
     expect(
       computeUnifiedSegmentIntensity(
         {

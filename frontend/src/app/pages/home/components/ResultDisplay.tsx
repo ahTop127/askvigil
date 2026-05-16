@@ -380,12 +380,10 @@ export const ResultDisplay = memo(
         ? result.urlDetectionSummary?.urlMetaFeatures
         : result.urlMetaFeatures;
     const hasUrlHeatmap = Boolean(
-      result.urlTokenHeatmap?.length &&
-        result.urlHeatmapBaseUrl?.trim(),
+      result.urlTokenHeatmap?.length && result.urlHeatmapBaseUrl?.trim(),
     );
     const hasTextHeatmap = Boolean(
-      result.textTokenHeatmap?.length &&
-        result.textHeatmapBaseText?.trim(),
+      result.textTokenHeatmap?.length && result.textHeatmapBaseText?.trim(),
     );
 
     /** Non–dual-branch: same as legacy URL paste row (`submittedUrl` + merged `level`). */
@@ -752,44 +750,44 @@ export const ResultDisplay = memo(
                         )}
                       </div>
                       {notableUrlMeta && notableUrlMeta.length > 0 && (
-                      <div className="overflow-hidden rounded-none border border-[#e9f4f2]">
-                        {notableUrlMeta.map((item, idx) => {
-                          const ms = URL_META_SEVERITY_STYLES[item.severity];
-                          const bandLabel =
-                            item.severity === "high"
-                              ? "High"
-                              : item.severity === "medium"
-                                ? "Moderate"
-                                : "Notice";
-                          return (
-                            <div
-                              key={`${item.label}-${idx}`}
-                              className="flex items-center gap-3 border-b border-[#e9f4f2] last:border-b-0 md:gap-4"
-                            >
+                        <div className="overflow-hidden rounded-none border border-[#e9f4f2]">
+                          {notableUrlMeta.map((item, idx) => {
+                            const ms = URL_META_SEVERITY_STYLES[item.severity];
+                            const bandLabel =
+                              item.severity === "high"
+                                ? "High"
+                                : item.severity === "medium"
+                                  ? "Moderate"
+                                  : "Notice";
+                            return (
                               <div
-                                className={`m-0 flex w-[132px] shrink-0 items-center px-2 py-2 text-sm font-semibold ${ms.labelCell}`}
+                                key={`${item.label}-${idx}`}
+                                className="flex items-center gap-3 border-b border-[#e9f4f2] last:border-b-0 md:gap-4"
                               >
-                                {item.label}
-                              </div>
-                              <div
-                                className={`min-w-0 flex-1 py-3 pr-3 text-sm leading-relaxed text-black break-words md:pr-4 ${
-                                  idx % 2 === 0 ? "bg-white" : "bg-[#fbfefe]"
-                                }`}
-                              >
-                                <span
-                                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold md:text-sm ${ms.badge}`}
+                                <div
+                                  className={`m-0 flex w-[132px] shrink-0 items-center px-2 py-2 text-sm font-semibold ${ms.labelCell}`}
                                 >
-                                  {bandLabel}
-                                </span>
-                                <span className="text-neutral-600">
-                                  {" — "}
-                                </span>
-                                <span>{item.explanation}</span>
+                                  {item.label}
+                                </div>
+                                <div
+                                  className={`min-w-0 flex-1 py-3 pr-3 text-sm leading-relaxed text-black break-words md:pr-4 ${
+                                    idx % 2 === 0 ? "bg-white" : "bg-[#fbfefe]"
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold md:text-sm ${ms.badge}`}
+                                  >
+                                    {bandLabel}
+                                  </span>
+                                  <span className="text-neutral-600">
+                                    {" — "}
+                                  </span>
+                                  <span>{item.explanation}</span>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
                       )}
                       {hasUrlHeatmap && showUrlHeatmapBreakdown && (
                         <UrlHeatmapExplainSections
@@ -828,35 +826,37 @@ export const ResultDisplay = memo(
                       )}
                     </div>
                     {!noFlags && (
-                    <>
-                    <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
-                      {visibleFlags.map((item, idx) => (
-                        <div
-                          key={`${item.text}-${idx}`}
-                          className="grid grid-cols-[180px_1fr] border-b border-[#e9f4f2] last:border-b-0"
-                        >
-                          <div className={SUSPICIOUS_PART_VALUE_CELL}>
-                            {item.text}
-                          </div>
-                          <div
-                            className={`flex items-center px-3 py-3 text-base leading-relaxed text-slate-700 break-words md:px-4 ${
-                              idx % 2 === 0 ? "bg-white" : "bg-[#fbfefe]"
-                            }`}
-                          >
-                            {item.reason}
-                          </div>
+                      <>
+                        <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
+                          {visibleFlags.map((item, idx) => (
+                            <div
+                              key={`${item.text}-${idx}`}
+                              className="grid grid-cols-[180px_1fr] border-b border-[#e9f4f2] last:border-b-0"
+                            >
+                              <div className={SUSPICIOUS_PART_VALUE_CELL}>
+                                {item.text}
+                              </div>
+                              <div
+                                className={`flex items-center px-3 py-3 text-base leading-relaxed text-slate-700 break-words md:px-4 ${
+                                  idx % 2 === 0 ? "bg-white" : "bg-[#fbfefe]"
+                                }`}
+                              >
+                                {item.reason}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    {extraCount > 0 && (
-                      <button
-                        className="text-primary text-sm font-medium hover:underline"
-                        onClick={() => setShowAllFlags((v) => !v)}
-                      >
-                        {showAllFlags ? "Show less" : `Show ${extraCount} more`}
-                      </button>
-                    )}
-                    </>
+                        {extraCount > 0 && (
+                          <button
+                            className="text-primary text-sm font-medium hover:underline"
+                            onClick={() => setShowAllFlags((v) => !v)}
+                          >
+                            {showAllFlags
+                              ? "Show less"
+                              : `Show ${extraCount} more`}
+                          </button>
+                        )}
+                      </>
                     )}
                     {hasTextHeatmap && showTextHeatmapBreakdown && (
                       <UrlHeatmapExplainSections
