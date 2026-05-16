@@ -32,7 +32,7 @@ async def scan_universal_input(
             img_res, img_text, metadata = await _handle_image_flow(file)
             results["modalities"]["image"] = img_res
             if img_text:
-                accumulated_text.append(img_text)            
+                accumulated_text.append(img_text)
             results["metadata"] = metadata
 
     # Execution Layer: Unified Text Scanning
@@ -64,7 +64,6 @@ async def _handle_image_flow(image_file: UploadFile):
     )
 
     return results, extracted_text, metadata
-
 
 
 async def _handle_qr_flow(qr_file: UploadFile):

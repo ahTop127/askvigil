@@ -16,6 +16,7 @@ from app.services.retrieval_services import hybrid_search_rrf
 from app.services.xai import compute_loo_deltas, generate_text_explanation
 
 import logging
+
 logger = logging.getLogger(__name__)
 ###########################################################################
 # Parameters
@@ -340,8 +341,10 @@ async def get_onnx_embedding(
         ValueError: If return_xai is requested for a batch (list) of inputs.
     """
     if return_xai and not isinstance(input_data, str):
-        raise ValueError("XAI data extraction is only supported for single string inputs.")
-    
+        raise ValueError(
+            "XAI data extraction is only supported for single string inputs."
+        )
+
     config = MODEL_REGISTRY[mode]
     tokenizer = config["tokenizer"]
     session = config["session"]
@@ -419,6 +422,7 @@ async def get_onnx_embedding(
     if return_xai:
         return final_result, xai_dict
     return final_result
+
 
 def explain_text_risk(text: str):
     """Explainable Boosting: Simple keyword-based heuristic to explain why a text might be risky."""
@@ -715,7 +719,7 @@ async def classify_scam_type(text, type_names, type_vectors):
         "confidence_level": confidence_level,
     }
 
- 
+
 def get_prevention_guidance(predicted_type: str, decision: str):
     """Providing scam prevention guidance"""
     if decision == "clear":
@@ -1007,6 +1011,7 @@ def calculate_advanced_metadata(url: str) -> np.ndarray:
         ],
         dtype=np.float32,
     )
+
 
 def label_to_risk(label: str) -> float:
     """
@@ -1490,10 +1495,10 @@ async def scan_url(raw_url: str):
         # Topology: (777,) -> 768 text embeddings + 8 metadata + 1 bias
         # Slice indices 768 to 775 to isolate metadata weights
         meta_shap_values = contribs[-9:-1].tolist()
-        
+
     except Exception:
         # Fail-safe fallback if package version mismatches obscure properties
-        meta_shap_values = [0.0] * 8       
+        meta_shap_values = [0.0] * 8
 
     # Zip the labels, raw values, and XGBoost SHAP contributions together for the UI
     meta_explanation = [

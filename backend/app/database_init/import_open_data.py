@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.database import TORTOISE_ORM
 from app.models.open_data import OpenDataSet
 import logging
+
 logger = logging.getLogger(__name__)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -32,7 +33,6 @@ else:
     )
 
 
-
 async def import_csv_to_db():
     logger.info("Initialize the database connection...")
     await Tortoise.init(config=TORTOISE_ORM)
@@ -51,7 +51,9 @@ async def import_csv_to_db():
     # Convert the DataFrame to a list of dictionaries
     records = df.to_dict("records")
 
-    logger.info(f"Prepare to write the cleaned data of {len(records)} into PostgreSQL...")
+    logger.info(
+        f"Prepare to write the cleaned data of {len(records)} into PostgreSQL..."
+    )
 
     instances = [OpenDataSet(**row) for row in records]
 

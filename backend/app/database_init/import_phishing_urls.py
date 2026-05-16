@@ -34,6 +34,7 @@ else:
         f"[import phishing url] Warning: The environment variable file {env_path} cannot be found."
     )
 
+
 async def import_csv_to_db():
     logger.info("[import phishing url] Initialize the database connection...")
     await Tortoise.init(config=TORTOISE_ORM)

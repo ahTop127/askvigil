@@ -7,7 +7,7 @@ from time import perf_counter
 from app.core.registry import MODEL_REGISTRY
 import logging
 import hashlib
-import logging
+
 logger = logging.getLogger(__name__)
 
 # QR Regex to match URLS
@@ -15,6 +15,7 @@ URL_PATTERN = re.compile(r"https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+[^\s]*")
 
 # Initialize the QR code detector of OpenCV (global multiplexing to improve performance)
 qr_detector = cv2.QRCodeDetector()
+
 
 class ImageRouter:
     def __init__(self):
@@ -131,7 +132,9 @@ class ImageRouter:
 
         return should_escalate
 
+
 router = ImageRouter()
+
 
 def detect_qr_codes(image_file: UploadFile) -> list[str]:
     """
@@ -279,7 +282,7 @@ def pad_to_same_width(crops: list, target_h: int = 48) -> list:
         h, w = img.shape[:2]
         scale = target_h / max(h, 1)
         new_w = int(w * scale)
-        
+
         resized_img = cv2.resize(img, (new_w, target_h))
         resized.append(resized_img)
         max_w = max(max_w, new_w)
@@ -294,6 +297,7 @@ def pad_to_same_width(crops: list, target_h: int = 48) -> list:
 
     return padded
 
+
 def sanitize_for_json(obj):
     """Recursively converts NumPy types to native Python types."""
     if isinstance(obj, dict):
@@ -301,14 +305,17 @@ def sanitize_for_json(obj):
     elif isinstance(obj, list):
         return [sanitize_for_json(v) for v in obj]
     elif isinstance(obj, (np.float32, np.float64)):
-        return obj.item() # Converts to native Python float
+        return obj.item()  # Converts to native Python float
     elif isinstance(obj, (np.int32, np.int64)):
-        return obj.item() # Converts to native Python int
+        return obj.item()  # Converts to native Python int
     return obj
 
-def scan_ocr(image: np.ndarray, engine_rapid, engine_enhanced, router) -> tuple[list, dict]:
+
+def scan_ocr(
+    image: np.ndarray, engine_rapid, engine_enhanced, router
+) -> tuple[list, dict]:
     """
-    Executes an optimized multi-modal routing, detection, filtering, and 
+    Executes an optimized multi-modal routing, detection, filtering, and
     batched recognition loop over an input matrix asset.
     """
     t_total = perf_counter()
@@ -372,7 +379,7 @@ def scan_ocr(image: np.ndarray, engine_rapid, engine_enhanced, router) -> tuple[
 
     for crop, box in zip(crops, boxes):
         w = crop.shape[1]
-        
+
         # Enforce scale constraints on heavy lines
         if w > 512:
             scale = 512 / w
@@ -382,7 +389,7 @@ def scan_ocr(image: np.ndarray, engine_rapid, engine_enhanced, router) -> tuple[
                 interpolation=cv2.INTER_AREA,
             )
             w = 512
-            
+
         if w < 128:
             buckets["s"].append((crop, box))
         elif w < 256:

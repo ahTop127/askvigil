@@ -18,6 +18,7 @@ import sys
 from dotenv import load_dotenv
 from tortoise import Tortoise
 import logging
+
 logger = logging.getLogger(__name__)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))

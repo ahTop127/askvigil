@@ -13,6 +13,7 @@ from app.services.nlp_service import get_onnx_embedding
 import signal
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -47,7 +48,9 @@ async def manage_url_index(conn, action: str):
     """Lifecycle hook for HNSW indexing (URL Vectors)."""
     # 2. Note: The index name here must be distinguished from the index name of text, for example, idx_hnsw_url_embeddings
     if action == "drop":
-        logger.info("--- [MAINTENANCE] Dropping URL HNSW Index for high-speed ingestion ---")
+        logger.info(
+            "--- [MAINTENANCE] Dropping URL HNSW Index for high-speed ingestion ---"
+        )
         await conn.execute_query("DROP INDEX IF EXISTS idx_hnsw_url_embeddings;")
 
     elif action == "create":
@@ -83,11 +86,7 @@ async def generate_and_update_url_embeddings():
         if total_count == 0:
             logger.info("All URL vectors already present")
             return
-        logger.info(
-            f"Found {total_count} URL data vectors missing."
-        )
-
-        
+        logger.info(f"Found {total_count} URL data vectors missing.")
 
         # 2. PRE-INGESTION: Only drop the index now that we know we have work to do
         await manage_url_index(conn, "drop")
@@ -108,7 +107,7 @@ async def generate_and_update_url_embeddings():
 
         # 4. Search for URL data where no vector has been generated
         batch_size = 200
-        offset = 0        
+        offset = 0
 
         while keep_running:  # Allow graceful shut down
             # Only take the necessary fields to reduce memory usage
@@ -144,8 +143,10 @@ async def generate_and_update_url_embeddings():
                 batch_size=batch_size,
             )
             offset += len(records)
-            if offset%5000 == 0:
-                logger.info(f"[embedding phishing url] URL Progress: {offset} / {total_count}")
+            if offset % 5000 == 0:
+                logger.info(
+                    f"[embedding phishing url] URL Progress: {offset} / {total_count}"
+                )
 
             # Garbage collection and time slice concession
             del records
@@ -159,7 +160,7 @@ async def generate_and_update_url_embeddings():
         )
 
     finally:
-        if 'total_count' in locals() and total_count > 0:
+        if "total_count" in locals() and total_count > 0:
             await manage_url_index(conn, "create")
 
         if prev is None:

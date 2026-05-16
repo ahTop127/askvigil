@@ -13,6 +13,7 @@ from app.core.registry import MODEL_REGISTRY
 from app.services.nlp_service import get_onnx_embedding
 import signal
 import logging
+
 logger = logging.getLogger(__name__)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -45,7 +46,9 @@ signal.signal(signal.SIGINT, handle_exit)
 async def manage_index(conn, action: str):
     """Lifecycle hook for HNSW indexing."""
     if action == "drop":
-        logger.info("--- [MAINTENANCE] Dropping HNSW Index for high-speed ingestion ---")
+        logger.info(
+            "--- [MAINTENANCE] Dropping HNSW Index for high-speed ingestion ---"
+        )
         await conn.execute_query("DROP INDEX IF EXISTS idx_hnsw_embeddings;")
 
     elif action == "create":
@@ -85,9 +88,7 @@ async def generate_and_update_embeddings():
         if total_count == 0:
             logger.info("All text vectors already present.")
             return
-        logger.info(
-            f"Vectors missing for: {total_count} text data."
-        )
+        logger.info(f"Vectors missing for: {total_count} text data.")
 
         # PRE-INGESTION: Drop index to prevent CPU/Memory contention
         await manage_index(conn, "drop")
@@ -96,7 +97,9 @@ async def generate_and_update_embeddings():
         attempts = 0
         while "text" not in MODEL_REGISTRY:
             if attempts > 10:
-                logger.exception("CRITICAL: Models timed out. Aborting background task.")
+                logger.exception(
+                    "CRITICAL: Models timed out. Aborting background task."
+                )
                 return
             await asyncio.sleep(2)
             attempts += 1
@@ -105,8 +108,6 @@ async def generate_and_update_embeddings():
         # 4. Find all the data that has not yet generated vectors
         batch_size = 200
         offset = 0
-
-        
 
         while keep_running:
             records = (
@@ -147,7 +148,7 @@ async def generate_and_update_embeddings():
             "All text vectors have been generated! Database now ready for AI search!"
         )
     finally:
-        if 'total_count' in locals() and total_count > 0:
+        if "total_count" in locals() and total_count > 0:
             await manage_index(conn, "create")
 
         if prev is None:
@@ -156,7 +157,6 @@ async def generate_and_update_embeddings():
             os.environ["DISABLE_AUTO_SEEDING"] = prev
 
     # After leaving the async with code block, lifespan will automatically execute the cleanup code following yield (MODEL_REGISTRY.clear()).
-
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from urllib.parse import urlparse, unquote
 
 import asyncpg
 import logging
+
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # /app
@@ -182,6 +183,7 @@ async def _run_import_phishing_urls() -> None:
         cwd=PROJECT_ROOT / "app",
     )
 
+
 async def _run_quiz_sql(conn: asyncpg.Connection) -> None:
     if not QUIZ_SQL_PATH.exists():
         raise SeedingError(f"Quiz SQL file not found: {QUIZ_SQL_PATH}")
@@ -231,7 +233,9 @@ async def run_seeding() -> None:
             conn = await _connect(params)
             await conn.execute("SELECT pg_advisory_lock($1)", SEEDING_LOCK_ID)
         else:
-            logger.info("[Seeding] Tables already exist. Skip migration bootstrap step.")
+            logger.info(
+                "[Seeding] Tables already exist. Skip migration bootstrap step."
+            )
 
         # 2) scam_categories
         scam_count = await _table_count(conn, "scam_categories")
@@ -323,7 +327,9 @@ async def run_seeding() -> None:
                 "[Seeding] Leaving embedding generation to background tasks in lifespan.py..."
             )
         else:
-            logger.info("[Seeding] All open_dataset rows already have embeddings. Skip.")
+            logger.info(
+                "[Seeding] All open_dataset rows already have embeddings. Skip."
+            )
 
         logger.info("[Seeding] Completed successfully.")
     finally:

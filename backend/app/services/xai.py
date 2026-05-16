@@ -53,7 +53,7 @@ def generate_text_explanation(
     mode: str = "text",
 ) -> list:
     """
-    Zips the ML tensors into a JSON-friendly array. 
+    Zips the ML tensors into a JSON-friendly array.
     Lexical match is calculated in-memory.
     """
     # Define normalization constants

@@ -20,6 +20,7 @@ import cv2
 import numpy as np
 import joblib
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +29,7 @@ async def sync_assets():
         raise RuntimeError("OCI_PAR_URL is missing!")
 
     async with httpx.AsyncClient(timeout=600.0) as client:  # 10 min timeout for 237MB
-        logger.info(f"[Sync] Querying Oracle Bucket")
+        logger.info("[Sync] Querying Oracle Bucket")
         list_resp = await client.get(settings.OCI_PAR_URL)
         remote_files = list_resp.json().get("objects", [])
         logger.info(f"[Sync] Found {len(remote_files)} objects in cloud.")
@@ -198,9 +199,11 @@ async def lifespan(app: FastAPI):
         ram_slots = len(active_vocab)
 
         if model_neurons == ram_slots:
-            logger.info(f"[√] DICT ALIGNMENT OK.") # Once verified, is expected
+            logger.info("[√] DICT ALIGNMENT OK.")  # Once verified, is expected
         else:
-            logger.exception(f"[!] DICT MISMATCH: {model_neurons - ram_slots} difference.")
+            logger.exception(
+                f"[!] DICT MISMATCH: {model_neurons - ram_slots} difference."
+            )
     except Exception as e:
         logger.exception(f"[!] Audit failed: {e}")
 
@@ -208,8 +211,8 @@ async def lifespan(app: FastAPI):
     # Perform database idempotent initialization before startup
     await run_seeding()
     os.environ["RUNNING_IN_APP"] = "1"
-    
-    # Create text and url embeddings sequentially (avoid OOM). 
+
+    # Create text and url embeddings sequentially (avoid OOM).
     # Do NOT await this, fire on forget so server runs while generating embeddings
     asyncio.create_task(generate_embeddings_sequentially())
 
