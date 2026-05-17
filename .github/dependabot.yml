@@ -1,0 +1,7 @@
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/backend" # Tells Dependabot to look inside the backend folder
+    target-branch: "iteration-3"
+    schedule:
+      interval: "weekly"
