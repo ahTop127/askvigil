@@ -10,7 +10,7 @@ NETWORK_PING_URL = f"{BASE_URL}/"  # Hits your root health_check()
 
 def run_comprehensive_benchmark():
     # Initialize a unified session for the entire script lifecycle
-    session = requests.Session() 
+    session = requests.Session()
     print(f"Connecting to: {BASE_URL}")
     print("Step 1: Calculating network flight time overhead via root health check...")
 
@@ -61,14 +61,14 @@ def run_comprehensive_benchmark():
 
     for category, form_payload in payloads.items():
         print(f"\n--- Testing Category: {category} ---")
-        
+
         # 🚀 WARMUP LAP: Execute once to prime OS page cache, Python heap, and DB buffers
         print(f"[{category}] Triggering warmup lap to stabilize system state...")
         try:
             session.post(SCAN_URL, data=form_payload, timeout=15)
         except requests.exceptions.RequestException:
-            pass # Absorb any cold timeout anomalies quietly
-        
+            pass  # Absorb any cold timeout anomalies quietly
+
         print(f"[{category}] System warmed up. Collecting clean metrics...")
         adjusted_latencies = []
 

@@ -47,11 +47,13 @@ def run_ocr_benchmark():
         with open(file_name, "rb") as f:
             real_bytes = f.read()
         byte_length = len(real_bytes)
-        
+
         # 🚀 NETWORK WARMUP LAP: Absorb the cold socket/SSL handshake overhead for this loop
         print(f"-> Priming network connection for {byte_length} byte payload...")
         try:
-            dummy_file = {"file": ("dummy.bin", b"X" * byte_length, "application/octet-stream")}
+            dummy_file = {
+                "file": ("dummy.bin", b"X" * byte_length, "application/octet-stream")
+            }
             session.post(CALIBRATION_URL, files=dummy_file, timeout=15)
         except requests.exceptions.RequestException:
             pass
@@ -97,7 +99,7 @@ def run_ocr_benchmark():
 
         print("-> System warmed up. Executing 20x Live OCR Processing Loops...")
         adjusted_latencies = []
-        
+
         for i in range(20):
             # Re-open file each loop to refresh the file pointer stream safely
             with open(file_name, "rb") as img:
