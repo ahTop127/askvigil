@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import {
   AlertCircle,
   Check,
+  ChevronDown,
   LoaderCircle,
   Shield,
   TriangleAlert,
@@ -268,6 +269,33 @@ function toQrReportRows(
       value: toReportDisplayValue(value),
     }))
     .filter((row) => row.value !== "-");
+}
+
+function AdvancedBreakdownButton({
+  expanded,
+  onToggle,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 shrink-0 gap-1 px-2.5 text-xs font-medium"
+      aria-expanded={expanded}
+      onClick={onToggle}
+    >
+      Advanced breakdown
+      <ChevronDown
+        className={`size-3.5 shrink-0 transition-transform duration-200 ${
+          expanded ? "rotate-180" : ""
+        }`}
+        aria-hidden
+      />
+    </Button>
+  );
 }
 
 /**
@@ -735,18 +763,12 @@ export const ResultDisplay = memo(
                           Notable URL signals
                         </h4>
                         {hasUrlHeatmap && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-7 shrink-0 px-2.5 text-xs font-medium"
-                            aria-expanded={showUrlHeatmapBreakdown}
-                            onClick={() =>
+                          <AdvancedBreakdownButton
+                            expanded={showUrlHeatmapBreakdown}
+                            onToggle={() =>
                               setShowUrlHeatmapBreakdown((open) => !open)
                             }
-                          >
-                            Advanced breakdown
-                          </Button>
+                          />
                         )}
                       </div>
                       {notableUrlMeta && notableUrlMeta.length > 0 && (
@@ -811,18 +833,12 @@ export const ResultDisplay = memo(
                         Suspicious Parts
                       </h4>
                       {hasTextHeatmap && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 shrink-0 px-2.5 text-xs font-medium"
-                          aria-expanded={showTextHeatmapBreakdown}
-                          onClick={() =>
+                        <AdvancedBreakdownButton
+                          expanded={showTextHeatmapBreakdown}
+                          onToggle={() =>
                             setShowTextHeatmapBreakdown((open) => !open)
                           }
-                        >
-                          Advanced breakdown
-                        </Button>
+                        />
                       )}
                     </div>
                     {!noFlags && (
