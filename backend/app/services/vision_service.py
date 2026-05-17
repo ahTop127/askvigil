@@ -186,47 +186,6 @@ def detect_qr_codes(image_file: UploadFile) -> list[str]:
     return [{"decoded_content": data, "urls": urls}]
 
 
-def is_meaningless(box_img) -> bool:
-    """
-    Extremely cheap reject filter to catch blank/noisy crops before text recognition.
-    """
-    if box_img is None or box_img.size == 0:
-        return True
-
-    h, w = box_img.shape[:2]
-
-    # Reject tiny pathological crops
-    if h < 4 or w < 4:
-        return True
-
-    # Extremely low variance usually means blank/solid noise patterns
-    gray = cv2.cvtColor(box_img, cv2.COLOR_BGR2GRAY)
-    if gray.std() < 2.0:
-        return True
-
-    return False
-
-
-def get_optimal_size(is_complex: bool, image: np.ndarray) -> int:
-    """
-    Computes optimal matrix resizing bounds based on image complexity and aspect ratio.
-    """
-    h, w = image.shape[:2]
-    aspect_ratio = max(w, h) / (min(w, h) + 1e-7)
-
-    # Rapid Path
-    if not is_complex:
-        # Boost extreme aspect ratios ('slivers') to preserve vertical font height
-        if aspect_ratio > 10:
-            return 1280
-        return 640
-
-    # Enhanced Path (Complex documents / clutters)
-    if max(h, w) > 1500:
-        return 1024
-    return 960
-
-
 def get_rotate_crop_image(img: np.ndarray, points: list) -> np.ndarray:
     """
     Rectifies a quadrilateral text region into a standard horizontal bounding crop.
@@ -270,34 +229,6 @@ def get_rotate_crop_image(img: np.ndarray, points: list) -> np.ndarray:
     return img_crop
 
 
-def pad_to_same_width(crops: list, target_h: int = 48) -> list:
-    """
-    Normalizes crops to a fixed height and matching width to stabilize ONNX batch execution.
-    """
-    resized = []
-    max_w = 0
-
-    # 1. Normalize height boundaries
-    for img in crops:
-        h, w = img.shape[:2]
-        scale = target_h / max(h, 1)
-        new_w = int(w * scale)
-
-        resized_img = cv2.resize(img, (new_w, target_h))
-        resized.append(resized_img)
-        max_w = max(max_w, new_w)
-
-    # 2. Pad width elements symmetrically
-    padded = []
-    for img in resized:
-        h, w = img.shape[:2]
-        pad = np.zeros((h, max_w, 3), dtype=np.uint8)
-        pad[:, :w] = img
-        padded.append(pad)
-
-    return padded
-
-
 def sanitize_for_json(obj):
     """Recursively converts NumPy types to native Python types."""
     if isinstance(obj, dict):
@@ -325,6 +256,7 @@ def scan_ocr(
     analysis = router.last_analysis
     engine = engine_enhanced if is_complex else engine_rapid
 
+    # DO NOT RESIZE MANUALLY. LET RAPIDOCR DO IT.
     # --- Phase 2: Core Matrix Detection ---
     dt_boxes, _ = engine.text_det(image)
 

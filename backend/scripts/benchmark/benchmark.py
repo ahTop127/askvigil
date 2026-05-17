@@ -9,14 +9,25 @@ NETWORK_PING_URL = f"{BASE_URL}/"  # Hits your root health_check()
 
 
 def run_comprehensive_benchmark():
+    # Initialize a unified session for the entire script lifecycle
+    session = requests.Session() 
     print(f"Connecting to: {BASE_URL}")
     print("Step 1: Calculating network flight time overhead via root health check...")
 
+    # 🚀 NETWORK WARMUP LAP: Absorb the brutal cold TCP/SSL handshake cost here
+    print("-> Priming network socket and TLS handshake...")
+    try:
+        session.get(NETWORK_PING_URL, timeout=5)
+    except requests.exceptions.RequestException:
+        pass
+
+    # Now, run your actual baseline collection on an already-warmed connection pool
+    print("-> Collecting stabilized network latency metrics...")
     network_latencies = []
     for _ in range(25):
         start = time.perf_counter()
         try:
-            response = requests.get(NETWORK_PING_URL, timeout=5)
+            response = session.get(NETWORK_PING_URL, timeout=5)
             if response.status_code == 200:
                 network_latencies.append(time.perf_counter() - start)
         except requests.exceptions.RequestException:
@@ -50,12 +61,21 @@ def run_comprehensive_benchmark():
 
     for category, form_payload in payloads.items():
         print(f"\n--- Testing Category: {category} ---")
+        
+        # 🚀 WARMUP LAP: Execute once to prime OS page cache, Python heap, and DB buffers
+        print(f"[{category}] Triggering warmup lap to stabilize system state...")
+        try:
+            session.post(SCAN_URL, data=form_payload, timeout=15)
+        except requests.exceptions.RequestException:
+            pass # Absorb any cold timeout anomalies quietly
+        
+        print(f"[{category}] System warmed up. Collecting clean metrics...")
         adjusted_latencies = []
 
         for i in range(25):
             start_time = time.perf_counter()
             try:
-                response = requests.post(SCAN_URL, data=form_payload, timeout=15)
+                response = session.post(SCAN_URL, data=form_payload, timeout=15)
                 total_time = time.perf_counter() - start_time
 
                 if response.status_code == 200:

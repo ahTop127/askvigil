@@ -8,8 +8,8 @@ WORKDIR /app
 # Set an explicit path for models
 ENV RAPIDOCR_MODEL_PATH=/app/ocr_models
 
-# Add libgl1 and libglib2.0-0 here so the warm-up command can run successfully
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Added 'apt-get upgrade -y' to clear builder vulnerabilities
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
@@ -28,8 +28,9 @@ RUN .venv/bin/python -c "from rapidocr_onnxruntime import RapidOCR; RapidOCR()"
 FROM python:3.12-slim
 WORKDIR /app
 
+# Added 'apt-get upgrade -y' to secure the final runtime environment
 # libgl1 and libglib2.0-0 are MANDATORY for OpenCV (RapidOCR dependency)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     libpq5 \
     ca-certificates \
     libgl1 \

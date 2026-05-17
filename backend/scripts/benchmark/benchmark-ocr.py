@@ -14,6 +14,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Define just the filenames here
 IMAGE_FILENAMES = {
+    # "Easy Fast-Path (Simple Asset)": "dense-easy.png",
     "Optimized Fast-Path (Dense Asset)": "dense-light.jpeg",
     "Complex Edge-Path (Dense Asset)": "dense-complex.jpeg",
 }
@@ -27,7 +28,8 @@ IMAGE_FILES = {
 
 def run_ocr_benchmark():
     print(f"Connecting to live instance: {BASE_URL}\n")
-
+    # Initialize a unified session for the entire script lifecycle
+    session = requests.Session()
     report_metrics = {}
 
     for category, file_name in IMAGE_FILES.items():
@@ -45,19 +47,27 @@ def run_ocr_benchmark():
         with open(file_name, "rb") as f:
             real_bytes = f.read()
         byte_length = len(real_bytes)
+        
+        # 🚀 NETWORK WARMUP LAP: Absorb the cold socket/SSL handshake overhead for this loop
+        print(f"-> Priming network connection for {byte_length} byte payload...")
+        try:
+            dummy_file = {"file": ("dummy.bin", b"X" * byte_length, "application/octet-stream")}
+            session.post(CALIBRATION_URL, files=dummy_file, timeout=15)
+        except requests.exceptions.RequestException:
+            pass
 
         print(f"-> Calibrating upload speed for an exact {byte_length} byte payload...")
         network_latencies = []
 
-        # Run 3 calibration loops to find network flight overhead for this file size
-        for _ in range(3):
+        # Run 10 calibration loops to find network flight overhead for this file size
+        for _ in range(10):
             # Create an in-memory dummy file block with identical size to simulate upload transit
             dummy_file = {
                 "file": ("dummy.bin", b"X" * byte_length, "application/octet-stream")
             }
             start = time.perf_counter()
             try:
-                requests.post(CALIBRATION_URL, files=dummy_file, timeout=15)
+                session.post(CALIBRATION_URL, files=dummy_file, timeout=15)
                 network_latencies.append(time.perf_counter() - start)
             except requests.exceptions.RequestException:
                 pass
@@ -70,10 +80,25 @@ def run_ocr_benchmark():
         print(f"-> Calculated Upload Overhead: {avg_network_overhead:.4f}s")
 
         # --- PHASE 2: REAL RAC PIPELINE EXECUTION ---
-        print("-> Executing 10x Live OCR Processing Loops...")
-        adjusted_latencies = []
+        # 🚀 BACKEND WARMUP LAP: Prime the computer vision model files and memory arrays
+        print("-> Triggering OCR warmup lap to cache model files into RAM...")
+        try:
+            with open(file_name, "rb") as img:
+                warmup_payload = {
+                    "file": (
+                        file_name,
+                        img,
+                        "image/jpeg" if file_name.endswith(".jpg") else "image/png",
+                    )
+                }
+                session.post(SCAN_URL, files=warmup_payload, timeout=20)
+        except requests.exceptions.RequestException:
+            pass
 
-        for i in range(10):
+        print("-> System warmed up. Executing 20x Live OCR Processing Loops...")
+        adjusted_latencies = []
+        
+        for i in range(20):
             # Re-open file each loop to refresh the file pointer stream safely
             with open(file_name, "rb") as img:
                 # 'input_type' is omitted or set to standard processing values
@@ -81,13 +106,13 @@ def run_ocr_benchmark():
                     "file": (
                         file_name,
                         img,
-                        "image/jpeg" if file_name.endswith(".jpg") else "image/png",
+                        "image/jpeg" if file_name.endswith(".jpeg") else "image/png",
                     )
                 }
 
                 start_time = time.perf_counter()
                 try:
-                    response = requests.post(SCAN_URL, files=files_payload, timeout=20)
+                    response = session.post(SCAN_URL, files=files_payload, timeout=20)
                     total_time = time.perf_counter() - start_time
 
                     if response.status_code == 200:
