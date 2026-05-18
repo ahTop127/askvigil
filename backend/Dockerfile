@@ -5,9 +5,6 @@
 FROM python:3.12-slim AS builder
 WORKDIR /app
 
-# Set an explicit path for models
-ENV RAPIDOCR_MODEL_PATH=/app/ocr_models
-
 # Added 'apt-get upgrade -y' to clear builder vulnerabilities
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     build-essential \
@@ -20,9 +17,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 RUN pip install --no-cache-dir uv
 COPY uv.lock pyproject.toml ./
 RUN uv sync --frozen --no-install-project
-
-# Pre-warm the OCR engine to bake the model weights directly into the builder layer cache
-RUN .venv/bin/python -c "from rapidocr_onnxruntime import RapidOCR; RapidOCR()"
 
 # --- STAGE 2: Runtime ---
 FROM python:3.12-slim

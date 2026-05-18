@@ -5,6 +5,7 @@ import os
 import sys
 from pathlib import Path
 from urllib.parse import urlparse, unquote
+from app.core.config import settings
 
 import asyncpg
 import logging
@@ -12,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # /app
-QUIZ_SQL_PATH = PROJECT_ROOT / "resources" / "quiz import data.sql"
+# QUIZ_SQL_PATH = PROJECT_ROOT / "resources" / "quiz import data.sql"
 
 # Fixed lock ID, used by pg_advisory_lock to avoid concurrent seeding
 SEEDING_LOCK_ID = 2026041201
@@ -185,11 +186,11 @@ async def _run_import_phishing_urls() -> None:
 
 
 async def _run_quiz_sql(conn: asyncpg.Connection) -> None:
-    if not QUIZ_SQL_PATH.exists():
-        raise SeedingError(f"Quiz SQL file not found: {QUIZ_SQL_PATH}")
+    if not settings.QUIZ_SQL_PATH.exists():
+        raise SeedingError(f"Quiz SQL file not found: {settings.QUIZ_SQL_PATH}")
 
-    sql = QUIZ_SQL_PATH.read_text(encoding="utf-8")
-    logger.info(f"[Seeding] Executing SQL file: {QUIZ_SQL_PATH}")
+    sql = settings.QUIZ_SQL_PATH.read_text(encoding="utf-8")
+    logger.info(f"[Seeding] Executing SQL file: {settings.QUIZ_SQL_PATH}")
     await conn.execute(sql)
     logger.info("[Seeding] Quiz SQL import completed.")
 

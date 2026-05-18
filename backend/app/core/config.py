@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # --- ENVIRONMENT VARIABLES (Mapped from .env) ---
     DATABASE_URL: str
     PERSISTENCE_PATH: Path = Path("/app/data_persistence")
+    QUIZ_SQL_PATH: Path = Path("/app/database_init/quiz import data.sql")
     OCI_PAR_URL: str | None = None
 
     # --- ARCHITECTURAL CONSTANTS ---
@@ -48,7 +49,6 @@ class Settings(BaseSettings):
     @property
     def TEXT_CLASSIFIER_PATH(self) -> Path:
         return self.TEXT_MODEL_PATH / "calibrated_classifier.joblib"  # XGB
-        # return self.TEXT_MODEL_PATH / "classifier.onnx" # MLP
 
     @property
     def URL_MODEL_PATH(self) -> Path:
@@ -57,7 +57,6 @@ class Settings(BaseSettings):
     @property
     def URL_CLASSIFIER_PATH(self) -> Path:
         return self.URL_MODEL_PATH / "calibrated_classifier.joblib"  # XGB
-        # return self.URL_MODEL_PATH / "classifier.onnx" # MLP
 
     @property
     def OCR_MODEL_DIR(self) -> Path:

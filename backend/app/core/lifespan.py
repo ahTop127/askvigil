@@ -156,10 +156,12 @@ async def lifespan(app: FastAPI):
     try:
         # --- THE ENHANCED PATH (Forensic Fidelity / Integrity) ---
         # Goal: High-fidelity recovery for screen photos/distorted signals.
-        # Uses 'server' weights to extract features from blur and glare.
+        # Uses 'server' weights for recognition to extract features from blur and glare.
+        # NOTE: Using the RAPID model for text detection. The ENHANCED model 
+        # (settings.OCR_DET_ENHANCED_PATH) is more accurate but suffers from 
+        # severe latency bottlenecks in production.
         MODEL_REGISTRY["ocr_enhanced"] = RapidOCR(
             # 1. Model Paths
-            # det_model_path=str(settings.OCR_DET_ENHANCED_PATH), # Accurate, but too slow
             det_model_path=str(
                 settings.OCR_DET_RAPID_PATH
             ),  # Good enough even for enhanced
@@ -296,7 +298,6 @@ def load_onnx_session(model_path: str):
     if not target_file.exists():
         raise FileNotFoundError(f"ONNX binary not found at: {target_file}")
 
-    # model_file = f"{model_path}/model_quantized.onnx"
     session = ort.InferenceSession(
         target_file, sess_options=options, providers=providers
     )
