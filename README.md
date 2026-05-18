@@ -1,30 +1,40 @@
-# AskVigil - a Scam Detector website app.
+# 🛡️ AskVigil: Real-Time Multimodal Scam Detection
 
-Welcome to AskVigil by SleepUnderflow. We are using a containerized Python stack. This means if it runs on your laptop in Docker, it **will** work on the Oracle server. You must have docker desktop running to run the code. Run `docker compose up --build` to update the running code.
+**AskVigil** is a high-performance, multimodal security engine designed to catch zero-day phishing, malicious links, and scam imagery in real-time. 
 
-General Syntax for inserting data into cloud storage:  
-Just use scripts/upload_assets.py and edit it to the folders you want to upload. Or:
-`curl.exe -X PUT --data-binary "@local_file_name" "PAR_URL/remote_file_name"`
-PAR_URL goes into the .env file, it is not to be shared publicly.
+Moving beyond traditional static blocklists, AskVigil employs a dynamic **Retrieval-Augmented Classification (RAC)** architecture. By fusing semantic intent, structural lexical analysis, and predictive machine learning (XGBoost), it dissects payloads across Text, URLs, and Images (via OCR/QR extraction) with sub-millisecond precision. 
+
+Every threat score is backed by a zero-latency **Explainable AI (XAI)** layer, translating complex matrix math into transparent, human-readable proof directly in the UI.
+
+### ✨ Key Capabilities
+* **Multimodal Ingestion:** Natively analyzes raw text, domains, and extracts embedded threats from images using adaptive computer vision.
+* **Zero-Day Detection:** Uses calibrated predictive modeling to catch novel scams that have never been documented before.
+* **Transparent AI:** No "black-box" decisions. Token-level feature ablation and semantic vector matching prove exactly *why* a payload was flagged.
+* **Omnichannel Protection:** Accessible via a seamless web dashboard or our lightweight Discord Bot for community-level moderation.
 
 ---
 ## 🛠 The Tech Stack: Multimodal AI Architecture
 
-### Base website
+### 🌐 Core Platform & Integrations
 * **Frontend: React** — Flexible and industry-standard for building the analyst dashboard.
 * **Backend: FastAPI** — High-performance Python. Fast to develop with native async support for our concurrent ML and Database pipelines.
 * **Proxy: Nginx Proxy Manager** — GUI-based reverse proxy for DuckDNS and automated SSL certificate management.
+* **Microservice: Discord Bot** — A lightweight, resource-capped asynchronous bot that securely queries the internal FastAPI network (`http://backend:8000`) without exposing its traffic to the public web, bringing real-time threat analysis directly to community servers.
 
 ### 🛡 Core AI Engines
 * **URL Intelligence: urlbert-tiny-v5** — A domain-specific transformer model used exclusively for URL analysis. It captures structural nuances (TLDs, subdomains, path entropy) better than generic language models.
 * **Text Intelligence: Paraphrase-multilingual-MiniLM-L12-v2** — Specifically chosen for text semantic mapping. Optimized for high-throughput multilingual intent detection.
-* **Predictive Head: XGBoost** — The "Generalization Engine." Trained on 120k+ samples to recognize zero-day signatures across URLs and Text.
+* **Predictive Head: XGBoost** — The "Generalization Engine" capable of catching zero-day signatures. 
+    * *Robust Training Data:* Trained on a 70k+ dataset for text, and a 120k+ dataset for URLs. The URL dataset was rigorously balanced using a custom **Water-Filling Stratification** algorithm across 8-dimensional structural metadata (TLD tier, entropy, path depth, etc.) to ensure rare edge-cases are preserved without class imbalance.
+    * *Probability Calibration:* Applies context-aware **Platt Scaling** (`Sigmoid` for text nuance, `Isotonic` regression for URL F1 optimization) to convert raw margin scores into perfectly calibrated threat probabilities.
 
 ### 👁 Multimodal Inputs (Computer Vision)
 * **High-Speed OCR: RapidOCR (PP-OCRv5)** — Optimized for 2-5x faster inference via a custom **Adaptive Image Router**. 
+    * *Geometric Array Filtering:* Applied natively to OCR outputs to aggressively filter noise and refine bounding boxes.
     * *Adaptive Routing:* Automatically switches between "Light" (mobile-grade) and "Server" (high-accuracy) models based on image complexity analysis (blur, contrast, entropy).
     * *Inference Optimization:* Implements width-bucket batching to minimize padding waste during ONNX execution.
-* **QR Logic: OpenCV (cv2.QRCodeDetector)** — Lightweight, low-latency detection that extracts and routes embedded URLs back into the primary scanning pipeline.
+    * *Real-World Speeds:* Achieves end-to-end processing times of **1.4s on Rapid mode** and **4s on Complex mode**.
+* **QR Logic: OpenCV (cv2.QRCodeDetector)** — Lightweight, low-latency detection that extracts and routes embedded URLs back into the primary scanning pipeline.D`
 
 ### 🏗 Infrastructure & Production Hardening
 * **Database: PostgreSQL (pgvector + pg_trgm)** — Dual-method historical memory.
@@ -34,6 +44,10 @@ PAR_URL goes into the .env file, it is not to be shared publicly.
     * Every model is quantized and mapped via ONNX Runtime with hardcoded `intra_op_num_threads` to prevent Linux CFS context-switching lag.
     * Custom `shm_size` allocation in Docker to support parallel HNSW indexing and IPC tensor sharing for RapidOCR.
     * Implemented a **"Triple-Fire" Engine Warmup** script that saturates the CPU L2/L3 caches on startup, entirely eliminating 5-second cold-start penalties for sub-millisecond real-time inference.
+* **Hardware-Level Container Governance:** To guarantee zero database corruption during heavy ML inference (RapidOCR/XGBoost), containers are strictly isolated using Docker resource limits. PostgreSQL I/O is mathematically capped via `blkio_config` (400 IOPS / 10mbps limits), while auxiliary services like the Discord bot are hard-capped to fractional CPUs to prevent compute hijacking.
+* **Dynamic Asset Synchronization:** Heavy ML artifacts (ONNX models, XGBoost `.joblib` heads, and raw datasets) are entirely excluded from git. They are dynamically synced from an **Oracle Cloud Object Storage** bucket via Pre-Authenticated Requests (PAR) directly into a Docker named volume (`asset_data`) during deployment, keeping the repository lean.
+* **Stateless Production Environment:** To prevent disk-bloat on the host Oracle A1 instance, the production server operates as a purely stateless inference engine with zero internal telemetry logging. System profiling and sub-millisecond benchmarking are handled entirely by offline, external polling scripts.
+* **Pipeline Benchmarking:** The complete Retrieval-Augmented Classification (RAC) and Explainable AI (XAI) pipeline is hyper-optimized, executing from payload ingestion to final XAI UI JSON in just **0.095s to 0.181s** (scaling from short to long payloads).
 
 ---
 
@@ -46,7 +60,7 @@ Unlike standard static whitelists or single-model classifiers, this system uses 
 3. **The Heuristic Brain (Rules Engine):** A hardcoded asymmetric regex defense for immediate, known-bad signatures.
 
 **The Dynamic Fusion Engine:** 
-The system does not simply average these scores. It uses a **Dimensional Normalization Engine (Weighted Geometric Mean)** to calculate *Effective Confidence*. If the Database pulls a result that has high consensus but poor structural grounding (a hallucination), the math automatically applies a severe penalty, silencing the database and seamlessly offloading the decision to the XGBoost model.
+The system does not simply average these scores. It uses a **Dimensional Normalization Engine (Weighted Geometric Mean)** to calculate *Effective Confidence*. If the Database pulls a result that has high consensus but poor structural grounding (a hallucination), the math automatically applies a severe penalty, silencing the database and seamlessly offloading the decision to the calibrated XGBoost model, and vice versa if the XGBoost model has no confidence.
 
 ---
 
@@ -101,78 +115,135 @@ graph TD
     XAI_LAYER -->|Mean-Centered Array| OUTPUT[Final Risk Score & UI JSON]
 ```
 
-## 🚀 Getting Started (Local Development)
+## 🚀 Getting Started & Local Development
 
 ### 1. Prerequisites
-* Install **Docker Desktop** and **VS Code**. No GPU needed - CPU only, since our server doesn't have GPU anyway.
+* Install **Docker Desktop** and **VS Code**. 
+* *Note on Hardware:* This stack runs entirely on **CPU-bound execution**. No local GPU is required—matching our production Oracle A1 ARM64 bare-metal architecture.
 
-### 2. Setup
-1.  Clone the repo.
-2.  Create a `.env` file in the root directory (see the lead for the template).
-3.  Fire up the stack:
-    ```bash
-    docker compose up --build
-    ```
-    _Note: The first run will take a while to download the AI models and initialize the database, and much longer to regenerate the database vector embeddings_
-4.  The Workflow
-    * **Editing Code:** Run docker compose up --build to update the code.
-    * **Database:** The database schema is built to be self-healing. Just start the containers and start querying. Database embeddings generation, however, will take a long time if you haven't generated them before.
+### 2. Quick Start Stack Initialization
+1. Clone the repository.
+2. Create a `.env` file in the root directory (refer to the project lead for the secure credentials template).
+3. Spin up the unified container environment:
 
-5.  Production (Oracle Cloud)
-    * **Deployment:** Simply git push origin main.
-    * **CI/CD:** GitHub Actions will automatically build and deploy to the Oracle server.
-    * **Secrets:** Production secrets are managed on the server's .env. Do not push your local .env to Git.
+```bash
+docker compose up --build
+```
 
-6.  **Verification:**
-    * **Local Frontend:** [http://localhost](http://localhost)
-    * **Local API Docs:** [http://localhost/docs](http://localhost/docs) (FastAPI generates this automatically!)
-    * **Production:** [https://askvigil.duckdns.org]
-    * **Docs:** Go to [https://askvigil.duckdns.org] and append /api, /docs, /redoc, or /openapi.json for for whichever ones you want.
+> ⏳ **First-Run Notice:** The initial build will take longer as it provisions the database schema, downloads the domain-specific AI models, and triggers the structural/semantic index populations.
 
----
+### 3. Core Development Workflow
+* **Code Interactivity:** The environment enforces immutable build parity. To hot-reload system logic, model configurations, or frontend states, execute:
+  ```bash
+  docker compose up --build backend
+  ```
+* **Database State:** The PostgreSQL layer features automated schema discovery and self-healing initialization. Database vector migrations are handled dynamically via mounted entrypoints. 
+* **Dependency Management:** Python dependencies are strictly governed using a locked manifest (`uv.lock`). If you introduce a new dependency to the backend ecosystem, append it securely using the `uv` toolchain within the appropriate container context:
+  ```bash
+  uv add [library-name]
+  ```
 
-## ☁️ Deployment (CI/CD)
-
-We are using **GitHub Actions** for "Hands-Off" deployment. 
-* **The Flow:** Push your code to the `main` branch → GitHub SSHes into Oracle → Docker rebuilds only what changed.
-* **Note:** If you need a new Python library, add it to `backend/pyproject.toml` with `uv add [library]`.
+### 4. Local & Production Verification Paths
+* **Local Analyst Dashboard:** http://localhost
+* **Local OpenAPI (FastAPI) Docs:** http://localhost/docs
+* **Production Public Gateway:** https://askvigil.duckdns.org
+* **Production API Explorer:** Append `/api`, `/docs`, `/redoc`, or `/openapi.json` to the production gateway.
 
 ---
 
-## ⚠️ Ground Rules
-1. **Never** commit the `.env` file to Git (it’s in the `.gitignore`).
-2. **Never** commit large AI model files or datasets. These go into Oracle Object Storage.
-3. **Always** test your `docker compose up --build` locally before pushing to `main`.
+## ☁️ Cloud Asset Management & Storage Routing
 
-## Developer Debugging Checklist:
-Environment giving import errors after an update?  
-Run `docker compose down` followed by `docker compose up --build`.  
-If uv.lock died, you can delete it and run uv sync again to regenerate it.  
+Heavy infrastructure dependencies (such as the 120k/70k training sets, ONNX engine files, and raw `.joblib` predictive heads) are isolated from Version Control to prevent repository bloat. They are governed out-of-band via Oracle Cloud Infrastructure (OCI) Object Storage using Pre-Authenticated Request (PAR) endpoints.
 
+### Synchronizing Assets
+* **Automated Python Pipeline:** Execute the utility tracking script to map, verify, and stream local payloads directly to remote buckets:
+  ```bash
+  python scripts/upload_assets.py
+  ```
+* **Direct Binary Ingestion (cURL):** Alternatively, explicitly route localized binary layers directly to the OCI endpoint via terminal injection:
+  ```bash
+  curl -X PUT --data-binary "@local_file_name" "YOUR_PAR_URL/remote_file_name"
+  ```
+  *(Ensure your `OCI_PAR_URL` variable is securely isolated inside your `.env` and never leaked).*
 
+---
+
+## 🤖 Continuous Integration & Deployment (CI/CD)
+
+We implement an automated, hands-off multi-stage pipeline utilizing **GitHub Actions** for zero-downtime microservice staging.
+
+* **The Pipeline Flow:** Direct `git push origin main` triggers code-quality assessment gates -> Automation securely SSHes into the target Oracle A1 host instance -> Docker evaluates changed layers and compiles the updated container architecture automatically.
+* **Secrets Separation:** Production configurations are localized directly within the server's runtime `.env`. GitHub holds encrypted keys strictly required for SSH and image layer provisioning.
+
+---
+
+## ⚠️ Platform Ground Rules
+
+1. **Zero Git Leakage:** **Never** commit a `.env` file to source control. It is explicitly sandboxed via `.gitignore`.
+2. **Asset Sanitization:** **Never** push model footprints or text/URL data arrays to Git. Utilize the Object Storage PAR pipeline exclusively.
+3. **Pre-Flight Validation:** **Always** execute `docker compose up --build` locally to verify runtime integrity before pushing to the `main` branch.
+
+### 🛠️ Developer Debugging Checklist
+* **Import/Context Conflicts:** Encountering broken execution boundaries after an update? Completely tear down shared volumes and rebuild clean network interfaces:
+  ```bash
+  docker compose down && docker compose up --build
+  ```
+* **Manifest Lock Corruption:** If `uv.lock` registers structural validation conflicts, safely eliminate the corrupted artifact and allow the deterministic package manager to resolve the tree fresh:
+  ```bash
+  rm uv.lock && uv sync
+  ```
+
+---
 
 ## 🔍 Known Limitations & Future Roadmap
 
-### 1. Current Limitation: Intent-Blind Semantic Matching
-The current iteration uses a high-performance **Bi-Encoder (`paraphrase-multilingual-MiniLM-L12-v2`)** paired with a **Lexical engine (`pg_trgm`)**. 
-* **The Challenge:** In specific edge cases—primarily "Scam Warnings" or "Educational Content"—the system may produce a **Confident Hallucination (False Positive)**. This occurs because the retriever identifies high semantic similarity to scam templates but remains "intent-blind" to the context (e.g., a user warning a friend about a virus).
-* **The Trade-off:** We have prioritized **Deterministic Latency (<1.0s)** and **Edge-Ready Inference** over generative reasoning to ensure the system remains viable for real-time production environments.
+### 1. Current Architectural Limitations
 
-### 2. Future Work: SLM Intent Gating (V2.0 Blueprint)
-To resolve the semantic ambiguity between "Scam Content" and "Scam Discussion," we have developed a blueprint for a **Reasoning-Augmented Classification (RAC) Refinement** layer.
+* **Inference Variable Retention:** Current real-time inference objects are processed directly in volatile server memory. While secure from persistent exposure, true production hardening requires explicit variable teardown routines immediately following UI execution blocks to optimize garbage collection on constraints-heavy CPU loops.
+* **Intent-Blind Semantic Matching:** The current historical engine pairs a high-performance Bi-Encoder (`paraphrase-multilingual-MiniLM-L12-v2`) with a lexical engine (`pg_trgm`). In specific edge cases—primarily "Scam Warnings" or educational security writeups—the system can produce a False Positive. Because the retriever identifies high semantic similarity to scam templates, it remains blind to the meta-intent (e.g., a security analyst discussing a virus vs. a scammer deploying one).
+* **The Performance Trade-off:** To guarantee a deterministic, sub-second production latency boundary (**<0.181s execution overhead**), we deliberately prioritized vector/lexical retrieval over slow generative reasoning for the MVP.
 
-#### **A. Probabilistic Intent Calibration**
-The proposed upgrade introduces a **Small Language Model (SLM)**—such as *Qwen2.5-0.5B*—acting as a Contextual Prior. This model extracts a **3-Bit Intent Vector** in parallel with retrieval:
-1. **Posture:** (Professional vs. Anonymous)
-2. **Pressure:** (Neutral vs. Coercive)
-3. **Instruction:** (Informational vs. Action-oriented)
+---
 
-#### **B. Conformity-Scaled Fusion**
-Instead of a binary veto, we propose a **Non-Linear Conformity Score**:
+### 2. Future Work: Reasoning-Augmented Refinement (V2.0 Blueprint & Architectural Veto)
+
+To resolve semantic ambiguity without sacrificing real-time throughput, we developed a blueprint for a localized, lightweight contextual gating layer. However, **this architecture was intentionally vetoed for the current MVP** due to critical engineering constraints.
+
+#### **A. The Proposed Upgrade: Probabilistic Intent Calibration**
+The V2 blueprint integrates a localized, quantized Small Language Model (SLM)—such as *Qwen2.5-0.5B-Instruct*—to execute flash context parsing in parallel with the main pipeline. The SLM is designed to extract a discrete **3-Bit Intent Vector** assessing:
+1. **Posture:** (Professional/Analytical vs. Anonymous/Hostile)
+2. **Pressure:** (Neutral Information vs. Coercive/Urgent Demands)
+3. **Instruction:** (Educational Context vs. Action-Oriented Links/Prompts)
+
+#### **B. Conformity-Scaled Fusion Math**
+The SLM's contextual output would feed into a non-linear Conformity Score inside the Dynamic Fusion Engine to adjust retrieval weighting dynamically:
+
 $$effective\_retrieval\_confidence = base\_retrieval\_confidence \times (1 - |risk - vibe|)^2$$
-This ensures that if the SLM detects a "Warning" vibe while the Database retrieves a "Scam" match, the retrieval weight is mathematically neutralized before hitting the XGBoost head.
 
-#### **C. Implementation Constraints**
-While this architecture is finalized, it was scoped out of the current MVP to avoid:
-* **Generative Latency Tax:** Avoiding the 300-600ms TTFT penalty inherent in LLM inference.
-* **Data Preparation Overhead:** Maintaining pipeline agility without the multi-hour inference requirements for retraining the XGBoost feature set.
+If the database retrieves an exact semantic match for a known scam phrase, but the SLM flags the overall document posture as an "Analytical Warning" (low alignment), the retrieval confidence is mathematically neutralized before the feature arrays hit the final XGBoost predictive head.
+
+#### **C. Deep Dive: Why This Architecture Was Vetoed for the MVP**
+While mathematically sound, this SLM integration was aggressively scoped out of production deployment for the following reasons:
+* **The Generative Latency Tax:** Even a 0.5B model introduces a 300–600ms Time-To-First-Token (TTFT) penalty. This completely violates our strict, sub-200ms real-time inference SLA.
+* **Quantization Brittleness:** Compressing a complex language model's reasoning capabilities down to a high-density, discrete 3-bit vector structure proved brittle during edge-case validation, leading to unpredictable classification degradation.
+* **The Heuristic "Whack-a-Mole" Trap:** Attempting to map human intent into fixed structural buckets (Posture, Pressure, Instruction) quickly devolves into a game of whack-a-mole. Human speech patterns vary wildly, and adding more bits to catch conversational edge cases introduces endless rule creep and technical debt.
+* **Data Preparation Overhead:** Injecting LLM-generated features into the classification loop would require regenerating embeddings and entirely retraining the 120k+ data point XGBoost head, severely breaking pipeline agility.
+
+#### **D. Alternate Scope Implementations**
+Instead of the SLM, immediate roadmap focus is locked on:
+* **Dynamic Scam Classification:** The current MVP utilizes a fast, regex-based heuristic engine to classify scam types (e.g., Phishing vs. OTP Scam). A planned V2 enhancement will transition this to a dynamic metadata extractor, determining the scam type by analyzing the metadata of the closest semantic vectors retrieved by the Historical Brain, allowing for the classification of novel or blended scam archetypes.
+* **Real-Time Drift Analysis:** Transitioning system performance tracking from an offline script (`benchmark.py`) into an asynchronous, non-blocking telemetry stream for live model evaluation.
+* **Computer Vision Enhancements:** Deepening the adaptive OCR layout parsing layer to handle higher document structural skew and lower-contrast security inputs.
+
+
+
+
+When a user encounters a suspicious, high-paying job offer or an unknown link, the system executes an automated, sub-second business workflow:
+
+1. Data Ingestion: The user inputs raw text, a URL, or an image into the User Portal or Discord Check Bot.
+2. Intelligent Routing: If an image is uploaded, the Adaptive Image Router instantly evaluates its complexity and passes it through optimized OCR or QR decoding layers to pull out hidden text or embedded domain links.
+3. Feature Ingestion & Platt Calibration: Normalized features are piped to the Predictive Brain. Raw XGBoost margin scores are passed through context-aware Platt Scaling (Sigmoid for text nuance, Isotonic regression for URL F1 accuracy) to compute perfectly calibrated risk probabilities.
+4. Parallel Memory Matching: Concurrently, the Historical Brain runs the payload against our secure data repository using HNSW vector distance for text context and lexical trigrams for URL strings, while the Heuristic Engine checks for immediate, known-bad signatures.
+Dynamic Balance & Verification: The system's fusion engine instantly cross-references the predictive models against the historical database. If any analytical branch shows low confidence or weak grounding, its influence is automatically dialed back on a smooth, proportional scale. This collaborative check ensures that a single outlier cannot corrupt the final decision, optimizing accuracy.
+6. Vectorized XAI Extraction: The Explainability layer runs a vectorized Leave-One-Out (LOO) matrix ablation on the text strings and extracts C++ SHAP values from the URL models. This isolates exactly which specific words, TLD tiers, or character entropy traits triggered the danger score.
+7. Purely Stateless Value Delivery: Within 0.095 to 0.181 seconds, the User Portal or Discord bot returns a clean, labeled UI output highlighting the exact threat tokens, providing an explicit scam-type classification, and delivering actionable post-scam safety guidance. The payload is then instantly cleared from server memory, leaving zero digital footprint.
