@@ -14,9 +14,11 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Define just the filenames here
 IMAGE_FILENAMES = {
-    # "Easy Fast-Path (Simple Asset)": "dense-easy.png",
-    "Optimized Fast-Path (Dense Asset)": "dense-light.jpeg",
-    "Complex Edge-Path (Dense Asset)": "dense-complex.jpeg",
+    "Micro Notification": "ocr-micro-notification.png",
+    "Dense Transaction Stream": "ocr-dense-transaction-stream.png",
+    "Uniform Stream": "ocr-uniform-stream.png",
+    "Fragmented Block": "ocr-fragmented-block.png",
+    "Sparse Matrix": "ocr-sparse-matrix.png",
 }
 
 # Combine the script directory with the filename dynamically using os.path.join
