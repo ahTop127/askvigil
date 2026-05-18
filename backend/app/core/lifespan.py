@@ -157,8 +157,8 @@ async def lifespan(app: FastAPI):
         # --- THE ENHANCED PATH (Forensic Fidelity / Integrity) ---
         # Goal: High-fidelity recovery for screen photos/distorted signals.
         # Uses 'server' weights for recognition to extract features from blur and glare.
-        # NOTE: Using the RAPID model for text detection. The ENHANCED model 
-        # (settings.OCR_DET_ENHANCED_PATH) is more accurate but suffers from 
+        # NOTE: Using the RAPID model for text detection. The ENHANCED model
+        # (settings.OCR_DET_ENHANCED_PATH) is more accurate but suffers from
         # severe latency bottlenecks in production.
         MODEL_REGISTRY["ocr_enhanced"] = RapidOCR(
             # 1. Model Paths
