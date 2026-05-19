@@ -13,7 +13,7 @@ class PublicStatsOut(BaseModel):
 class TrendPointOut(BaseModel):
     date: str = Field(..., description="UTC date in YYYY-MM-DD")
     total_count: int = Field(..., description="Total checks that day")
-    risk_count: int = Field(..., description="Checks matching selected risk_level")
+    # risk_count: int = Field(..., description="Checks matching selected risk_level")
     text: int = 0
     image: int = 0
     url: int = 0
