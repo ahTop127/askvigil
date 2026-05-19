@@ -19,8 +19,10 @@ def _risk_match(
 ) -> bool:
     if risk_level == "all":
         return True
+
     if score is None:
         return False
+
     s = float(score)
     if risk_level == "high":
         return s >= 70
@@ -83,7 +85,6 @@ async def get_detection_trend(
         bucket[d] = {
             "date": d,
             "total_count": 0,
-            "risk_count": 0,
             "text": 0,
             "image": 0,
             "url": 0,
@@ -96,9 +97,12 @@ async def get_detection_trend(
         point = bucket.get(day_key)
         if point is None:
             continue
+
+        if not _risk_match(row.get("risk_score"), risk_level):
+            continue
+
         point["total_count"] += 1
-        if _risk_match(row.get("risk_score"), risk_level):
-            point["risk_count"] += 1
+
         it = row["input_type"]
         if it == InputType.TEXT:
             point["text"] += 1
