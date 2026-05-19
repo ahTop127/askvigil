@@ -29,6 +29,13 @@ Every threat score is backed by a zero-latency **Explainable AI (XAI)** layer, t
     * *Probability Calibration:* Applies context-aware **Platt Scaling** (`Sigmoid` for text nuance, `Isotonic` regression for URL F1 optimization) to convert raw margin scores into perfectly calibrated threat probabilities.
 
 ### 👁 Multimodal Inputs (Computer Vision)
+* **High-Speed OCR: RapidOCR (PP-OCRv5)** — Optimized for hyper-efficient execution via a custom **Adaptive Image Router**. 
+    * *Geometric Array Filtering:* Applied natively to OCR outputs to aggressively filter noise and refine bounding boxes.
+    * *Adaptive Routing:* Analyzes image complexity (blur, contrast, entropy) to dynamically select the optimal inference pathway.
+    * *Inference Optimization:* Implements width-bucket batching to minimize padding waste during ONNX execution.
+    * *End-to-End System Latency:* Achieves total pipeline turnaround times—inclusive of downstream Retrieval-Augmented Classification (RAC)—ranging from **0.6s** for micro notifications to a maximum of **1.8s** for dense, fragmented blocks.
+
+### 👁 Multimodal Inputs (Computer Vision)
 * **High-Speed OCR: RapidOCR (PP-OCRv5)** — Optimized for 2-5x faster inference via a custom **Adaptive Image Router**. 
     * *Geometric Array Filtering:* Applied natively to OCR outputs to aggressively filter noise and refine bounding boxes.
     * *Adaptive Routing:* Automatically switches between "Light" (mobile-grade) and "Server" (high-accuracy) models based on image complexity analysis (blur, contrast, entropy).
@@ -234,16 +241,3 @@ Instead of the SLM, immediate roadmap focus is locked on:
 * **Dynamic Scam Classification:** The current MVP utilizes a fast, regex-based heuristic engine to classify scam types (e.g., Phishing vs. OTP Scam). A planned V2 enhancement will transition this to a dynamic metadata extractor, determining the scam type by analyzing the metadata of the closest semantic vectors retrieved by the Historical Brain, allowing for the classification of novel or blended scam archetypes.
 * **Real-Time Drift Analysis:** Transitioning system performance tracking from an offline script (`benchmark.py`) into an asynchronous, non-blocking telemetry stream for live model evaluation.
 * **Computer Vision Enhancements:** Deepening the adaptive OCR layout parsing layer to handle higher document structural skew and lower-contrast security inputs.
-
-
-
-
-When a user encounters a suspicious, high-paying job offer or an unknown link, the system executes an automated, sub-second business workflow:
-
-1. Data Ingestion: The user inputs raw text, a URL, or an image into the User Portal or Discord Check Bot.
-2. Intelligent Routing: If an image is uploaded, the Adaptive Image Router instantly evaluates its complexity and passes it through optimized OCR or QR decoding layers to pull out hidden text or embedded domain links.
-3. Feature Ingestion & Platt Calibration: Normalized features are piped to the Predictive Brain. Raw XGBoost margin scores are passed through context-aware Platt Scaling (Sigmoid for text nuance, Isotonic regression for URL F1 accuracy) to compute perfectly calibrated risk probabilities.
-4. Parallel Memory Matching: Concurrently, the Historical Brain runs the payload against our secure data repository using HNSW vector distance for text context and lexical trigrams for URL strings, while the Heuristic Engine checks for immediate, known-bad signatures.
-Dynamic Balance & Verification: The system's fusion engine instantly cross-references the predictive models against the historical database. If any analytical branch shows low confidence or weak grounding, its influence is automatically dialed back on a smooth, proportional scale. This collaborative check ensures that a single outlier cannot corrupt the final decision, optimizing accuracy.
-6. Vectorized XAI Extraction: The Explainability layer runs a vectorized Leave-One-Out (LOO) matrix ablation on the text strings and extracts C++ SHAP values from the URL models. This isolates exactly which specific words, TLD tiers, or character entropy traits triggered the danger score.
-7. Purely Stateless Value Delivery: Within 0.095 to 0.181 seconds, the User Portal or Discord bot returns a clean, labeled UI output highlighting the exact threat tokens, providing an explicit scam-type classification, and delivering actionable post-scam safety guidance. The payload is then instantly cleared from server memory, leaving zero digital footprint.
