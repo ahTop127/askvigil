@@ -34,13 +34,6 @@ Every threat score is backed by a zero-latency **Explainable AI (XAI)** layer, t
     * *Adaptive Routing:* Analyzes image complexity (blur, contrast, entropy) to dynamically select the optimal inference pathway.
     * *Inference Optimization:* Implements width-bucket batching to minimize padding waste during ONNX execution.
     * *End-to-End System Latency:* Achieves total pipeline turnaround times—inclusive of downstream Retrieval-Augmented Classification (RAC)—ranging from **0.6s** for micro notifications to a maximum of **1.8s** for dense, fragmented blocks.
-
-### 👁 Multimodal Inputs (Computer Vision)
-* **High-Speed OCR: RapidOCR (PP-OCRv5)** — Optimized for 2-5x faster inference via a custom **Adaptive Image Router**. 
-    * *Geometric Array Filtering:* Applied natively to OCR outputs to aggressively filter noise and refine bounding boxes.
-    * *Adaptive Routing:* Automatically switches between "Light" (mobile-grade) and "Server" (high-accuracy) models based on image complexity analysis (blur, contrast, entropy).
-    * *Inference Optimization:* Implements width-bucket batching to minimize padding waste during ONNX execution.
-    * *Real-World Speeds:* Achieves end-to-end processing times of **1.4s on Rapid mode** and **4s on Complex mode**.
 * **QR Logic: OpenCV (cv2.QRCodeDetector)** — Lightweight, low-latency detection that extracts and routes embedded URLs back into the primary scanning pipeline.D`
 
 ### 🏗 Infrastructure & Production Hardening
@@ -202,6 +195,36 @@ We implement an automated, hands-off multi-stage pipeline utilizing **GitHub Act
 
 ---
 
+## 📊 Detailed Performance Benchmarks
+
+The inline metrics quoted across the OCR and RAC modules represent real-world stress testing. Expand the sections below to view the raw end-to-end performance matrices.
+
+<details>
+<summary>🚀 View Final RAC Performance Benchmark Matrix (End-to-end ethernet)</summary>
+
+| Payload Category | Avg Compute Time | Min (Best Case) | Max (Worst Case) |
+| :--- | :--- | :--- | :--- |
+| **Short** (~150 chars) | 0.0952s | 0.0900s | 0.1150s |
+| **Medium** (~500 chars) | 0.1246s | 0.1211s | 0.1290s |
+| **Long** (~950 chars) | 0.1812s | 0.1738s | 0.2195s |
+
+</details>
+
+<details>
+<summary>🚀 View Final OCR Performance Benchmark Matrix (End-to-end ethernet)</summary>
+
+| Asset Category | File Size | Avg Compute Time | Min (Best) | Max (Worst) |
+| :--- | :--- | :--- | :--- | :--- |
+| **Micro Notification** | 8.3 KB | 0.5993s | 0.5790s | 0.6982s |
+| **Dense Transaction Stream** | 67.6 KB | 0.5942s | 0.5714s | 0.6367s |
+| **Uniform Stream** | 64.8 KB | 1.7194s | 1.6605s | 1.9414s |
+| **Fragmented Block** | 102.0 KB | 1.7937s | 1.7456s | 1.9032s |
+| **Sparse Matrix** | 117.5 KB | 1.7205s | 1.6841s | 1.8329s |
+
+</details>
+
+---
+
 ## 🔍 Known Limitations & Future Roadmap
 
 ### 1. Current Architectural Limitations
@@ -234,7 +257,7 @@ While mathematically sound, this SLM integration was aggressively scoped out of 
 * **The Generative Latency Tax:** Even a 0.5B model introduces a 300–600ms Time-To-First-Token (TTFT) penalty. This completely violates our strict, sub-200ms real-time inference SLA.
 * **Quantization Brittleness:** Compressing a complex language model's reasoning capabilities down to a high-density, discrete 3-bit vector structure proved brittle during edge-case validation, leading to unpredictable classification degradation.
 * **The Heuristic "Whack-a-Mole" Trap:** Attempting to map human intent into fixed structural buckets (Posture, Pressure, Instruction) quickly devolves into a game of whack-a-mole. Human speech patterns vary wildly, and adding more bits to catch conversational edge cases introduces endless rule creep and technical debt.
-* **Data Preparation Overhead:** Injecting LLM-generated features into the classification loop would require regenerating embeddings and entirely retraining the 120k+ data point XGBoost head, severely breaking pipeline agility.
+* **Data Preparation Overhead:** Introducing generative language modeling features would break our clean architectural separation. Instead of a fast, modular voting ensemble, we would have to restructure the downstream Dynamic Fusion Engine's normalization math and retrain our calibration layers, severely slowing down pipeline agility.
 
 #### **D. Alternate Scope Implementations**
 Instead of the SLM, immediate roadmap focus is locked on:
