@@ -115,6 +115,27 @@ graph TD
     XAI_LAYER -->|Mean-Centered Array| OUTPUT[Final Risk Score & UI JSON]
 ```
 
+### Network Topology
+```mermaid
+graph TD
+    %% Styling Definitions
+    classDef edge fill:#f1c40f,stroke:#f39c12,stroke-width:2px,color:#000
+    classDef proxy fill:#0984e3,stroke:#74b9ff,stroke-width:2px,color:#fff
+    classDef internal fill:#6c5ce7,stroke:#a29bfe,stroke-width:2px,color:#fff
+    classDef secure fill:#00b894,stroke:#55efc4,stroke-width:2px,color:#fff
+
+    %% Diagram Nodes & Connections
+    WAN[Public Web Traffic <br> Ports: 80 / 443]:::edge --> NPM[Nginx Proxy Manager]:::proxy
+    
+    subgraph Private Docker Network Bridge
+        NPM -->|Internal Route: Port 80| FE[React Frontend Container]:::internal
+        NPM -->|Internal Route: Port 8000| BE[FastAPI Backend Container]:::internal
+        BOT[Discord Bot Microservice]:::internal -->|Internal DNS Routing <br> /api/scan| BE
+    end
+
+    BE -->|Secure Localhost Only <br> 127.0.0.1:5432| DB[(pgvector/pgvector:pg16 DB)]:::secure
+```
+
 ## 🚀 Getting Started & Local Development
 
 ### 1. Prerequisites

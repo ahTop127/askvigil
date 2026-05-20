@@ -65,7 +65,6 @@ services:
       OMP_THREAD_LIMIT: 4
       ONNXRUNTIME_INTRA_OP_NUM_THREADS: 4
       ONNXRUNTIME_INTER_OP_NUM_THREADS: 1
-      # PYTHONUNBUFFERED: 1
       # We use the 'db' service name as the hostname
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql      
       OCI_PAR_URL: ${OCI_PAR_URL} 
@@ -101,8 +100,6 @@ services:
     depends_on:
       - backend
     volumes:
-      # - ./frontend:/app
-      # - /app/node_modules # "Anonymous volume" - hides host node_modules and uses container's
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro # nginx config
     deploy:
       resources:
@@ -127,8 +124,6 @@ services:
     volumes:
       - npm_data:/data
       - npm_letsencrypt:/etc/letsencrypt
-      # - ./data_persistence/npm_data:/data
-      # - ./data_persistence/npm_letsencrypt:/etc/letsencrypt
 
   # 5. Discord Bot Microservice
   discord-bot:
