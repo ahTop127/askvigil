@@ -179,16 +179,6 @@ export interface ScamType {
   learning: ScamTypePageCopy;
 }
 
-/**
- * Persisted onboarding / alert preferences for the current browser.
- */
-export interface UserPreferences {
-  topics: string[];
-  goal: string;
-  wantsAlerts: boolean;
-  savedAt: string;
-}
-
 /** One actionable step in post-scam guidance. */
 export interface GuidanceStep {
   id: string;

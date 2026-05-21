@@ -17,11 +17,6 @@ export const ERROR_MESSAGES = {
     "This is not a valid QR code. Please upload a valid QR code to check.",
 } as const;
 
-export const SUCCESS_MESSAGES = {
-  detectionComplete: "Detection completed successfully",
-  preferencesSaved: "Your preferences have been saved",
-} as const;
-
 /** Static marketing / UI copy (i18n-ready keys grouped by section) */
 export const UI_TEXT = {
   hero: {
