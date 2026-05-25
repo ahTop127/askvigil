@@ -79,40 +79,50 @@ graph TD
     %% Styling
     classDef multimodal fill:#f1c40f,stroke:#f39c12,stroke-width:2px,color:#000
     classDef router fill:#0984e3,stroke:#74b9ff,stroke-width:2px,color:#fff
+    classDef embedding fill:#e67e22,stroke:#d35400,stroke-width:2px,color:#fff
     classDef model fill:#6c5ce7,stroke:#a29bfe,stroke-width:2px,color:#fff
-    classDef logic fill:#00b894,stroke:#55efc4,stroke-width:2px,color:#fff
+    classDef db fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:#fff
     classDef fusion fill:#d63031,stroke:#ff7675,stroke-width:2px,color:#fff
     classDef xai fill:#e84393,stroke:#fd79a8,stroke-width:2px,color:#fff
 
-    %% Input Layer
-    INPUT[User Input: Text, URL, or Image]:::multimodal --> ROUTE{Input Router}:::router
+    %% Compressed Entry & Pre-Processing Loop
+    USER_IN[User Input]:::multimodal --> IN_MGR{Pipeline Router}:::router
+    USER_IN -.->|If Image Payload| CV_ROUTE{Adaptive Image Router}:::router
+    CV_ROUTE -->|QR Vector| QR[cv2 QR Scanner]:::multimodal
+    CV_ROUTE -->|Dense Matrix| OCR[Adaptive RapidOCR Engine]:::multimodal
+    QR & OCR -->|Extracted Text/URL| IN_MGR
 
-    %% Multimodal Pre-processing
-    ROUTE -->|Image| QR[cv2 QR Scanner]:::multimodal
-    ROUTE -->|Image| OCR[Adaptive RapidOCR Engine]:::multimodal
-    OCR -->|Extracted Text/URL| ROUTE
-    QR -->|Embedded URL| ROUTE
+    %% Pipeline Routing
+    IN_MGR -->|Text Payload| REGEX[Heuristic Rules Engine]
+    IN_MGR -->|URL Payload| URL_META[8D Metadata Array]
 
-    %% Specialized Pipelines
-    ROUTE -->|URL| U_PIPE[URL Pipeline]:::logic
-    ROUTE -->|Text| T_PIPE[Text Pipeline]:::logic
+    %% Left-Side Text Stream (Mirrored inward to avoid crosses)
+    subgraph Text_RAC ["Text RAC Pipeline (Primary)"]
+        REGEX -->|Tokenization| T_EMBED[Text Embeddings]:::embedding
+        T_EMBED -->|Vector Inputs| XGB_T[XGBoost Classifier]:::model
+        T_EMBED -->|Query Target| RRF_T[RRF Pooler <br/> Skew: Semantic]:::fusion
+    end
 
-    %% Model Splits
-    U_PIPE -->|Structural Metadata| XGB_U[XGBoost Classifier]:::model
-    U_PIPE -->|URLBERT Embeddings| DB_U[(PG Lexical Search)]
+    %% Right-Side URL Stream (Mirrored inward to avoid crosses)
+    subgraph URL_RAC ["URL RAC Pipeline"]
+        URL_META -->|Tokenization| U_EMBED[URL Embeddings]:::embedding
+        U_EMBED -->|Heuristic Weights| XGB_U[XGBoost Classifier]:::model
+        U_EMBED -->|Query Target| RRF_U[RRF Pooler <br/> Skew: Lexical]:::fusion
+    end
+
+    %% Unified Database Engine Layer (Clean Symmetrical Convergence)
+    DB[(PostgreSQL DB <br/> pgvector + pg_trgm)]:::db
+    RRF_T -->|HNSW Semantic Search| DB    
+    RRF_U -->|Trigram Lexical Search| DB
+
+    %% Voting & Signal Synthesis
+    DB -->|Extract Top 10 Matches| RET_SIG[Compute Retrieval Signal Score <br/> Aggregated Semantic/Lexical Matching]:::fusion
     
-    T_PIPE -->|Regex Rules| REGEX[Heuristic Engine]
-    T_PIPE -->|MiniLM Embeddings| DB_T[(PG Semantic Search)]
-    T_PIPE -->|Text Content| XGB_T[XGBoost Classifier]:::model
+    XGB_T & RET_SIG & XGB_U -->|Independent Voting Vectors| F_ENG{Dynamic Fusion Engine}:::fusion
 
-    %% Fusion Engine
-    XGB_U & DB_U --> FUSE_U{Dynamic Fusion}:::fusion
-    XGB_T & DB_T & REGEX --> FUSE_T{Dynamic Fusion}:::fusion
-
-    %% Explainable AI (XAI) Extraction
-    FUSE_U -->|SHAP Feature Contributions + LOO Matrix Ablation| XAI_LAYER{XAI Translation Layer}:::xai
-    FUSE_T -->|LOO Matrix Ablation| XAI_LAYER
-    XAI_LAYER -->|Mean-Centered Array| OUTPUT[Final Risk Score & UI JSON]
+    %% Explainable AI Generation
+    F_ENG -->|Effective Confidence Tuning| XAI_LAYER{XAI Translation Layer}:::xai
+    XAI_LAYER -->|LOO Matrix Ablation + Mean-Centered Dot Products| OUTPUT[Final Risk Score & UI JSON]
 ```
 
 ### Network Topology
@@ -124,16 +134,22 @@ graph TD
     classDef internal fill:#6c5ce7,stroke:#a29bfe,stroke-width:2px,color:#fff
     classDef secure fill:#00b894,stroke:#55efc4,stroke-width:2px,color:#fff
 
-    %% Diagram Nodes & Connections
+    %% Network Entry
     WAN[Public Web Traffic <br> Ports: 80 / 443]:::edge --> NPM[Nginx Proxy Manager]:::proxy
     
-    subgraph Private Docker Network Bridge
-        NPM -->|Internal Route: Port 80| FE[React Frontend Container]:::internal
-        NPM -->|Internal Route: Port 8000| BE[FastAPI Backend Container]:::internal
+    subgraph DMZ ["Private Docker Network Bridge - Stateless Compute Zone"]
+        NPM -->|Internal Port 80| FE[React Frontend Container]:::internal
+        NPM -->|Internal Port 8000| BE[FastAPI Backend Container]:::internal
+        
+        subgraph BE_BOX ["FastAPI Container Internals"]
+            BE --> AI_ENG[Local ONNX Models, <br/> XGBoost Heads & Fusion Math]:::internal
+        end
+
         BOT[Discord Bot Microservice]:::internal -->|Internal DNS Routing <br> /api/scan| BE
     end
 
-    BE -->|Secure Localhost Only <br> 127.0.0.1:5432| DB[(pgvector/pgvector:pg16 DB)]:::secure
+    %% Secure Persistence Layer
+    AI_ENG -->|RRF Target Evaluation <br/> Secure Localhost Port: 5432| DB[(pgvector / pg_trgm DB)]:::secure
 ```
 
 ## 🚀 Getting Started & Local Development
