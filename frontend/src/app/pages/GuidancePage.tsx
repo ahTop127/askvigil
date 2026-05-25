@@ -88,14 +88,14 @@ export default function GuidancePage() {
                     </div>
                     {/* Bottom: White Background + Text */}
                     <div className="bg-white p-6 h-50">
-                      <h3 className="text-2xl font-semibold text-primary mb-3">
+                      <h3 className="text-2xl font-semibold text-[#F38F36] mb-3">
                         {scam.title}
                       </h3>
                       <p className="text-gray-700 leading-relaxed mb-4">
                         {v.description}
                       </p>
                       <div className="flex items-center justify-end">
-                        <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                        <ArrowRight className="w-5 h-5 text-[#F39036] group-hover:translate-x-1 transition-all" />
                       </div>
                     </div>
                   </div>

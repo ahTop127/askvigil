@@ -1,7 +1,9 @@
 name: Deploy to Oracle Cloud
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "iteration-*"
     paths-ignore:
       - ".devcontainer/**"
       - ".gitignore"
@@ -62,6 +64,8 @@ jobs:
   # Job 2: Auto Deploy
   deploy:
     needs: lint-and-fix
+    # Only runs if the branch is 'main' or starts with 'iteration-'
+    if: github.ref_name == 'main' || startsWith(github.ref_name, 'iteration-')
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
@@ -84,13 +88,51 @@ jobs:
             cd $TARGET_DIR
 
             # Pause DB
-            docker compose stop db
+            docker compose stop db backend frontend
 
-            # 3. Clean Slate: Fetch latest ver and auto-lint fixes to force the server to match GitHub exactly.
+            # 3. Git Sync Clean Slate: Fetch latest ver and auto-lint fixes to force the server to match GitHub exactly.
             git remote set-url origin $REPO_URL
-            git fetch origin main
-            git reset --hard origin/main
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
             git clean -fd
 
-            # 4. Deploy
-            docker compose --env-file .env -f docker-compose.yml up -d --build --remove-orphans
+            # 4. SELECTIVE CLEANUP: Reclaim space BEFORE building
+            # --remove-orphans in step 4 only stops them; it doesn't delete their volumes.
+            # This kills any 'zombie' volumes left by previous failed builds.
+            docker volume prune -f
+
+            # 5. Deploy and let Docker compose handle the rollout sequence
+            echo "🚀 Deploying containers and waiting for health checks..."
+            if ! docker compose --env-file .env -f docker-compose.yml up -d --build --remove-orphans --wait; then
+              echo "❌ DEPLOYMENT FAILED: One or more health checks failed!"
+              echo "⏪ Rolling back to the previous stable commit..."
+              
+              # Revert the files on the server to the previous commit
+              git reset --hard HEAD~1
+              
+              # Ensure clean slate on rollback too
+              docker compose down
+              docker compose --env-file .env -f docker-compose.yml up -d --build --remove-orphans
+              
+              # Capture the failure so we can exit at the very end of the script
+              DEPLOYMENT_FAILED=true
+            else
+              # Force NPM to reload its upstreams cleanly
+              # After everything passes health checks, kicking NPM ensures its DNS cache maps to the NEW container IPs
+              echo "🔄 Gracefully recycling proxy routing tables..."
+              docker compose restart nginx-proxy
+            fi
+
+            # 6. POST-DEPLOY HOUSEKEEPING: 
+            # This runs now on BOTH success and failure paths!
+            # It clears out old images from your successful build, OR the broken images from the failed build.
+            echo "🧹 Running post-deploy housekeeping..."
+            docker image prune -f
+
+            # 7. Final Exit Status Check for GitHub Actions
+            if [ "$DEPLOYMENT_FAILED" = true ]; then
+              echo "🔴 Signaling failure to GitHub Actions workflow."
+              exit 1
+            else
+              echo "🟢 Deployment finished successfully!"
+            fi

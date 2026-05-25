@@ -5,13 +5,15 @@ services:
     ports:
       - "127.0.0.1:5432:5432" # Securely bind to the server's internal localhost only
     restart: always
+    shm_size: '1gb'
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_SHARED_BUFFERS: 2GB # Tell Postgres to use the RAM you gave it
     volumes:
-      - ./data_persistence/postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data # Named volume (Fast)
+      # Keep this as a bind mount because init scripts are "Code" (Infrastructure-as-Code)
       - ./infrastructure/postgres:/docker-entrypoint-initdb.d:ro
     # Cap db resource usage to avoid hanging
     blkio_config:
@@ -38,40 +40,59 @@ services:
 
   # 2. The FastAPI Backend
   backend:
-    build:
-      context: ./backend # Tells Docker the 'root' for this build is the backend folder
-      dockerfile: Dockerfile
+    build: ./backend
+      # context: ./backend # Tells Docker the 'root' for this build is the backend folder
+      # dockerfile: Dockerfile
     restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs', timeout=3)"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 30s # Gives the API time to spin up before checking
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/app # Mount the actual backend folder
-      - ./data_persistence:/app/data_persistence #
-      - /app/.venv # PROTECT: Use the container's internal Linux venv
+      - asset_data:/app/data_persistence # Named volume (Secure)
+      # Note: No more bind mount for app. Must run docker compose up --build backend for changes
+      # Links the code/history between repo (host) and app (container) to capture new migrations
+      - ./migrations:/app/migrations
     environment:
-      OMP_NUM_THREADS: 1  # Force each process to use only 1 core
-      MKL_NUM_THREADS: 1
-      PYTHONUNBUFFERED: 1
+      ENVIRONMENT: prod
+      OMP_NUM_THREADS: 4
+      MKL_NUM_THREADS: 4
+      OMP_THREAD_LIMIT: 4
+      ONNXRUNTIME_INTRA_OP_NUM_THREADS: 4
+      ONNXRUNTIME_INTER_OP_NUM_THREADS: 1
       # We use the 'db' service name as the hostname
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql
-      MODEL_PATH: /app/data_persistence/ai_models
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME} # Tortoise needs postgres not postgresql      
       OCI_PAR_URL: ${OCI_PAR_URL} 
+      
+      MODEL_PATH: /app/data_persistence/ai_models
       PERSISTENCE_PATH: /app/data_persistence
+      PYTHONPATH: /app/app  # <--- Forces Python to see 'core' and 'scripts' as top-level
     # Expose 8000 because it's an internal API service.
     expose:
       - "8000"
     deploy:
       resources:
-        limits:
-          cpus: '2.5'      # Never let the backend take more than 2 cores
+        limits:          
           memory: 16G       # Primary need for RAM
+          # No cpu limit here - let it burst to 4.0 if others are idle
         reservations: # Guarantees this amount is always available
           memory: 8G
+          cpus: '2.0'  # Guaranteed minimum
 
   # 3. The React Frontend
   frontend:
     build: ./frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 30s
     restart: always
     # Expose 80 because NPM needs to talk to this Nginx instance.
     expose:
@@ -79,8 +100,6 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./frontend:/app
-      - /app/node_modules # "Anonymous volume" - hides host node_modules and uses container's
       - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro # nginx config
     deploy:
       resources:
@@ -93,7 +112,9 @@ services:
     image: "jc21/nginx-proxy-manager:latest"
     depends_on:
       frontend:
-        condition: service_started # Wait for frontend before running
+        condition: service_healthy # Wait for frontend to pass health check
+      backend:
+        condition: service_healthy # Wait for backend to pass health check
     restart: always
     # Ports needed as the front door to our server.
     ports:
@@ -101,11 +122,32 @@ services:
       - "81:81" # Management UI (Used to set up DuckDNS)
       - "443:443" # Public HTTPS
     volumes:
-      - ./data_persistence/npm_data:/data
-      - ./data_persistence/npm_letsencrypt:/etc/letsencrypt
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+
+  # 5. Discord Bot Microservice
+  discord-bot:
+    build: ./discord_bot
+    restart: always
+    depends_on:
+      backend:
+        condition: service_started # Wait for the backend API route to be live
+    environment:
+      ENVIRONMENT: prod
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      ASKVIGIL_API_URL: http://backend:8000/api/scan # Internal Docker Network Routing
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'         # Hard-cap compute so it can never hijack main server
+          memory: 256M        # Lightweight python baseline
 
 volumes:
-  postgres_data:
-  backend_packages: # Defines the persistent "storage bin"
+  postgres_data:      # Database state
+  npm_data:           # Nginx Manager configs
+    external: true
+  npm_letsencrypt:    # SSL Certificates
+    external: true
+  asset_data:         # Your ONNX models and CSV datasets
 
 

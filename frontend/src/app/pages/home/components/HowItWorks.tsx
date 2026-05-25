@@ -1,10 +1,10 @@
 import { memo, useCallback } from "react";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router";
-import { Shield } from "lucide-react";
+import { Shield, FolderOpen } from "lucide-react";
 
 /**
- * Three-column narrative with CTAs into product areas.
+ * Feature narrative blocks with CTAs into product areas.
  */
 export const HowItWorks = memo(function HowItWorks() {
   const navigate = useNavigate();
@@ -15,6 +15,10 @@ export const HowItWorks = memo(function HowItWorks() {
 
   const goGuidance = useCallback(() => {
     navigate("/guidance");
+  }, [navigate]);
+
+  const goCases = useCallback(() => {
+    navigate("/cases");
   }, [navigate]);
 
   return (
@@ -28,7 +32,7 @@ export const HowItWorks = memo(function HowItWorks() {
             How it works
           </h2>
           <p className="text-xl text-gray-600">
-            Three simple ways to stay safe online
+            Four simple ways to stay safe online
           </p>
         </div>
 
@@ -158,6 +162,49 @@ export const HowItWorks = memo(function HowItWorks() {
                 className="w-full h-80 object-cover rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300"
                 loading="lazy"
               />
+            </motion.div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-12 items-center lg:pl-20">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, x: 60 }}
+              whileInView={{ opacity: 1, scale: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+              className="order-1"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixlib=rb-4.1.0&q=80&w=1080"
+                alt="Reviewing documents and case examples"
+                className="w-full h-80 object-cover rounded-2xl shadow-2xl hover:shadow-3xl transition-shadow duration-300"
+                loading="lazy"
+              />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: -60 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              className="order-2"
+            >
+              <h3 className="text-3xl font-bold text-[#213034] mb-4">
+                Browse real scam cases
+              </h3>
+              <p className="text-lg text-gray-600 mb-6 leading-relaxed">
+                Explore organised examples from reliable online sources. Filter
+                by scam type or communication channel to see how similar scams
+                unfold on the platforms you use every day. Open a case to read
+                full context, tactics, and warning signs so you can recognise
+                patterns faster next time.
+              </p>
+              <button
+                type="button"
+                onClick={goCases}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-[#E0AB71] to-[#D09A5F] hover:from-[#D09A5F] hover:to-[#C08850] text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg hover:shadow-xl hover:scale-105"
+              >
+                <FolderOpen className="w-5 h-5" aria-hidden />
+                Browse cases
+              </button>
             </motion.div>
           </div>
         </div>

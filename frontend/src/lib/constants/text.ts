@@ -8,17 +8,13 @@ export const ERROR_MESSAGES = {
   fileTooLarge: "File is too large. Please choose a smaller image.",
   unsupportedImage: "Unsupported image format.",
   textTooLong: "Text exceeds the maximum length allowed.",
+  insufficientContent: "Content is insufficient and cannot be analyzed.",
   analysisFailed: "Unable to complete analysis. Please try again.",
   urlAnalyzeFailed: "Unable to analyze this URL. Please try again later.",
   unreachableUrl:
     "This URL could not be reached. Please check the link and try again.",
   qrDecodeFailed:
     "This is not a valid QR code. Please upload a valid QR code to check.",
-} as const;
-
-export const SUCCESS_MESSAGES = {
-  detectionComplete: "Detection completed successfully",
-  preferencesSaved: "Your preferences have been saved",
 } as const;
 
 /** Static marketing / UI copy (i18n-ready keys grouped by section) */
@@ -43,7 +39,7 @@ export const UI_TEXT = {
     textPlaceholder: "Paste suspicious message text here...",
     imageDropTitle: "Upload a screenshot or image",
     imageDropHint: "Drag and drop or click to browse",
-    urlPlaceholder: "e.g. https://example.com",
+    urlPlaceholder: "e.g. https://example.com or example.com",
     qrDropTitle: "Upload a QR code image",
     qrDropHint: "Drag and drop or click to browse",
     buttonCheck: "Check for Scams Now",

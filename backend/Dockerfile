@@ -1,31 +1,48 @@
-FROM python:3.12-slim
+# Uses multi-stage builds to separate heavy compilation toolchains from the final runtime image.
+# Installs 'uv' via pip in Stage 1 to build a locked virtual env, isolating thick OCR/ONNX caches.
 
+# --- STAGE 1: Builder ---
+FROM python:3.12-slim AS builder
 WORKDIR /app
 
-# 1. Install system dependencies and uv
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
+# Added 'apt-get upgrade -y' to clear builder vulnerabilities
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
-    ffmpeg \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    libgl1 \
+    libglib2.0-0 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENV PATH="/root/.local/bin:$PATH"
-
-# 2. Copy lockfiles 
+RUN pip install --no-cache-dir uv
 COPY uv.lock pyproject.toml ./
+RUN uv sync --frozen --no-install-project
 
-# 3. Sync the environment
-RUN uv sync --frozen
+# --- STAGE 2: Runtime ---
+FROM python:3.12-slim
+WORKDIR /app
 
-# Cache easy OCR so it doesn't keep redownloading
-RUN /app/.venv/bin/python -c "import easyocr; easyocr.Reader(['en'], gpu=False)"
+# Added 'apt-get upgrade -y' to secure the final runtime environment
+# libgl1 and libglib2.0-0 are MANDATORY for OpenCV (RapidOCR dependency)
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    libpq5 \
+    ca-certificates \
+    libgl1 \
+    libglib2.0-0 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 4. Copy app code
-COPY . .
+# Copy the lightweight, pre-compiled virtual environment
+COPY --from=builder /app/.venv /app/.venv
 
-# 5. Run the app using the absolute path to the Linux binary
-CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Copy code last to maximize layer caching efficiency 
+COPY . . 
+
+# Restore the PATH and PYTHONPATH tracking matrices
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app:/app/app"
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8000
+
+# Fire up the engine using the top-level app entry point
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -10,6 +10,7 @@ import PracticePage from "./pages/PracticePage";
 import CasesPage from "./pages/CasesPage";
 import CaseDetailPage from "./pages/CaseDetailPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import DiscordBotPage from "./pages/DiscordBotPage";
 
 export const router = createBrowserRouter([
   {
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: "quiz", Component: PracticePage },
       { path: "cases", Component: CasesPage },
       { path: "cases/:caseId", Component: CaseDetailPage },
+      { path: "discord-bot", Component: DiscordBotPage },
       { path: "*", Component: NotFoundPage },
     ],
   },

@@ -14,12 +14,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function isValidUrl(url: string): boolean {
   const t = url.trim();
   if (!t) return false;
-  if (!/^https?:\/\//i.test(t)) return false;
+  const normalized = /^https?:\/\//i.test(t) ? t : `https://${t}`;
   try {
-    const u = new URL(t);
-    return Boolean(u.hostname);
+    const u = new URL(normalized);
+    return Boolean(u.hostname) && u.hostname.includes(".");
   } catch {
-    return URL_REGEX.test(t);
+    return URL_REGEX.test(normalized);
   }
 }
 
@@ -57,6 +57,9 @@ export function validateDetectionInput(
       const text = typeof content === "string" ? content : "";
       if (!text.trim()) {
         return { isValid: false, error: ERROR_MESSAGES.textInput };
+      }
+      if (text.trim().length < 5) {
+        return { isValid: false, error: ERROR_MESSAGES.insufficientContent };
       }
       if (text.length > APP_CONFIG.detection.maxTextLength) {
         return { isValid: false, error: ERROR_MESSAGES.textTooLong };

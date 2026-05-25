@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useNavigate } from "react-router";
 import { detectScam } from "@lib/api/scamDetection";
 import { ERROR_MESSAGES } from "@lib/constants/text";
 import type { DetectionType, ScamDetectionResult } from "@lib/types";
@@ -70,19 +71,17 @@ export interface UseScamDetectionReturn {
   qrFile: File | null;
   error: string;
   isChecking: boolean;
-  showResult: boolean;
-  result: ScamDetectionResult | null;
   setActiveTab: (tab: string) => void;
   setTextInput: (value: string) => void;
   setUrlInput: (value: string) => void;
   setImageFile: (file: File | null) => void;
   setQrFile: (file: File | null) => void;
   handleCheck: () => Promise<void>;
-  resetDetection: () => void;
   clearError: () => void;
 }
 
 export function useScamDetection(): UseScamDetectionReturn {
+  const navigate = useNavigate();
   const [activeTab, setActiveTabState] = useState<DetectionType>("text");
   const [textInput, setTextInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
@@ -90,8 +89,6 @@ export function useScamDetection(): UseScamDetectionReturn {
   const [qrFile, setQrFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [isChecking, setIsChecking] = useState(false);
-  const [showResult, setShowResult] = useState(false);
-  const [result, setResult] = useState<ScamDetectionResult | null>(null);
 
   const setActiveTab = useCallback((tab: string) => {
     if (isDetectionTab(tab)) setActiveTabState(tab);
@@ -105,7 +102,7 @@ export function useScamDetection(): UseScamDetectionReturn {
       case "text":
         return { type: "text", content: textInput };
       case "url":
-        return { type: "url", content: urlInput };
+        return { type: "text", content: urlInput };
       case "image":
         return imageFile ? { type: "image", content: imageFile } : null;
       case "qr":
@@ -125,18 +122,21 @@ export function useScamDetection(): UseScamDetectionReturn {
       else setError(ERROR_MESSAGES.textInput);
       return;
     }
-    const v = validateDetectionInput(payload.type, payload.content);
+    const v =
+      activeTab === "url"
+        ? validateDetectionInput("url", urlInput)
+        : validateDetectionInput(payload.type, payload.content);
     if (!v.isValid) {
       setError(v.error ?? ERROR_MESSAGES.textInput);
       return;
     }
     setIsChecking(true);
-    setShowResult(false);
     try {
       let res: ScamDetectionResult;
-      const shouldUseLocalDemo =
-        payload.type === "qr" ||
-        isStepDemoPayload(payload.type, payload.content);
+      const shouldUseLocalDemo = isStepDemoPayload(
+        payload.type,
+        payload.content,
+      );
 
       if (shouldUseLocalDemo) {
         await new Promise((resolve) => {
@@ -147,10 +147,24 @@ export function useScamDetection(): UseScamDetectionReturn {
         res = await detectScam({
           type: payload.type,
           content: payload.content,
+          ...(typeof payload.content === "string"
+            ? {
+                submissionChannel: activeTab === "url" ? "url_tab" : "text_tab",
+              }
+            : {}),
         });
       }
-      setResult(res);
-      setShowResult(true);
+
+      if (activeTab === "text" && res.overallRiskScore === -1) {
+        setError(ERROR_MESSAGES.insufficientContent);
+        return;
+      }
+
+      localStorage.setItem(
+        "lastScanResult",
+        JSON.stringify({ ...res, detectionType: activeTab }),
+      );
+      navigate("/result");
     } catch (e) {
       logger.error("Detection failed", e instanceof Error ? e : undefined);
       const msg = e instanceof Error ? e.message.toLowerCase() : "";
@@ -168,22 +182,11 @@ export function useScamDetection(): UseScamDetectionReturn {
     } finally {
       setIsChecking(false);
     }
-  }, [activeTab, getPayload]);
+  }, [activeTab, getPayload, navigate]);
 
   const handleCheck = useCallback(async () => {
     await runDetection();
   }, [runDetection]);
-
-  const resetDetection = useCallback(() => {
-    setShowResult(false);
-    setResult(null);
-    setTextInput("");
-    setUrlInput("");
-    setImageFile(null);
-    setQrFile(null);
-    setError("");
-    setActiveTabState("text");
-  }, []);
 
   const clearError = useCallback(() => setError(""), []);
 
@@ -195,15 +198,12 @@ export function useScamDetection(): UseScamDetectionReturn {
     qrFile,
     error,
     isChecking,
-    showResult,
-    result,
     setActiveTab,
     setTextInput,
     setUrlInput,
     setImageFile,
     setQrFile,
     handleCheck,
-    resetDetection,
     clearError,
   };
 }

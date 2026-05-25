@@ -6,6 +6,8 @@ from enum import Enum
 class InputType(str, Enum):
     TEXT = "text"
     IMAGE = "image"
+    URL = "url"
+    QR = "qr"
 
 
 class ScamCategory(models.Model):
@@ -28,7 +30,7 @@ class DetectionLog(models.Model):
     )
     # Use CharEnumField to directly map the verification rules
     input_type = fields.CharEnumField(InputType, max_length=20)
-    input_content = fields.TextField()
+    input_content = fields.TextField(null=True)
     risk_score = fields.DecimalField(max_digits=5, decimal_places=2, null=True)
     created_at = fields.DatetimeField(auto_now_add=True)
 

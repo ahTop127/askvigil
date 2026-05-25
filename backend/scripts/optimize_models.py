@@ -1,6 +1,7 @@
 # # Docker extension -> right click askvigil-backend, start new shell. then run:
 # # export PYTHONPATH=$PYTHONPATH:.
 # # uv run python -m scripts.optimize_models
+# docker exec -it -e PYTHONPATH="/app" askvigil-backend-1 python /app/scripts/optimize_models.py
 from pathlib import Path
 from transformers import AutoTokenizer
 from optimum.exporters.onnx import main_export
@@ -20,27 +21,30 @@ def export_and_quantize(task_name: str, model_id: str):
     output_dir = BASE_MODEL_DIR / f"{task_name}_onnx"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Export to ONNX
+    # 1. Export to ONNX (Cleaned for high-throughput)
     print(f"[{task_name}] Exporting {model_id}...")
     main_export(
         model_name_or_path=model_id,
         output=output_dir,
         task="feature-extraction",
-        model_kwargs={"output_attentions": True},  # Plumbed for XAI
+        # Feature-extraction natively outputs 'last_hidden_state',
+        # which is all we need for XAI.
         no_post_process=True,
     )
 
-    # 2. Save tokenizer
+    # 2. Save tokenizer (Enforcing FastTokenizer for XAI Offsets)
     print(f"[{task_name}] Saving Tokenizer files...")
     tokenizer = AutoTokenizer.from_pretrained(
         model_id,
+        use_fast=True,  # For offset_mapping during inference
         fix_mistral_regex=True,  # Silences regex warning
     )
     tokenizer.save_pretrained(output_dir)
 
     # 3. Quantize to INT8
     print(f"[{task_name}] Quantizing...")
-    quantizer = ORTQuantizer.from_pretrained(output_dir)
+    # Explicitly target "model.onnx" so it ignores any old quantized files
+    quantizer = ORTQuantizer.from_pretrained(output_dir, file_name="model.onnx")
     dq_config = AutoQuantizationConfig.arm64(is_static=False)  # Optimized for Ampere A1
 
     quantizer.quantize(

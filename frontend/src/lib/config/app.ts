@@ -37,8 +37,6 @@ export const APP_CONFIG = {
 
   /** localStorage keys (legacy keys preserved for existing users) */
   storageKeys: {
-    userPreferences: "askvigilPreferences",
-    preferencesDismissed: "askvigilPreferencesDismissed",
     detectionHistory: "askvigil_history",
   },
 } as const;

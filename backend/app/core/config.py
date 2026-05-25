@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # --- ENVIRONMENT VARIABLES (Mapped from .env) ---
     DATABASE_URL: str
     PERSISTENCE_PATH: Path = Path("/app/data_persistence")
+    QUIZ_SQL_PATH: Path = Path("/app/database_init/quiz import data.sql")
     OCI_PAR_URL: str | None = None
 
     # --- ARCHITECTURAL CONSTANTS ---
@@ -21,12 +22,8 @@ class Settings(BaseSettings):
     RRF_DEPTH: int = 100
     RRF_K: int = 2
     SEARCH_WINDOW: int = 10
-    K_SATURATION: float = 0.66  # Maps 1.0 mass to 0.6 momentum
     DIM_TEXT: int = 384
     DIM_URL: int = 768
-    # Asymmetric Saturation Constants
-    LAMBDA_SPAM: float = 0.8  # More sensitive
-    LAMBDA_HAM: float = 1.2  # Harder to satisfy
 
     # --- COMPUTED PROPERTIES (Paths & Derived Logic) ---
     @property
@@ -51,15 +48,40 @@ class Settings(BaseSettings):
 
     @property
     def TEXT_CLASSIFIER_PATH(self) -> Path:
-        return self.TEXT_MODEL_PATH / "classifier.onnx"
+        return self.TEXT_MODEL_PATH / "calibrated_classifier.joblib"  # XGB
 
     @property
     def URL_MODEL_PATH(self) -> Path:
         return self.MODEL_DIR / "url_onnx"
 
     @property
-    def MAX_POSSIBLE_RRF(self) -> float:
-        return 2.0 / (self.RRF_CONSTANT + 1)
+    def URL_CLASSIFIER_PATH(self) -> Path:
+        return self.URL_MODEL_PATH / "calibrated_classifier.joblib"  # XGB
+
+    @property
+    def OCR_MODEL_DIR(self) -> Path:
+        return self.MODEL_DIR / "ocr_onnx"
+
+    @property
+    def OCR_DET_RAPID_PATH(self) -> str:
+        return self.OCR_MODEL_DIR / "v5_det_light_fp32.onnx"
+
+    @property
+    def OCR_REC_RAPID_PATH(self) -> str:
+        return self.OCR_MODEL_DIR / "v5_rec_light_fp32.onnx"
+
+    @property
+    def OCR_DET_ENHANCED_PATH(self) -> str:
+        return self.OCR_MODEL_DIR / "v5_det_server_fp32.onnx"
+
+    @property
+    def OCR_REC_ENHANCED_PATH(self) -> str:
+        return self.OCR_MODEL_DIR / "v5_rec_server_fp32.onnx"
+
+    @property
+    def OCR_KEYS_PATH(self) -> str:
+        # This is the character dictionary (keys)
+        return self.OCR_MODEL_DIR / "ppocr_keys.txt"
 
     # Pydantic Config. Dynamically specify the env file to be loaded
     model_config = SettingsConfigDict(env_file=env_file_name, extra="ignore")
@@ -67,5 +89,3 @@ class Settings(BaseSettings):
 
 # Instantiate for use
 settings = Settings()
-
-print(f"Current operating environment: {env_state.upper()}, Loaded: {env_file_name}")

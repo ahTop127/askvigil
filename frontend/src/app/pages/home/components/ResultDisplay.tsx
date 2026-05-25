@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import {
   AlertCircle,
   Check,
+  ChevronDown,
   LoaderCircle,
   Shield,
   TriangleAlert,
@@ -12,7 +13,14 @@ import { Badge } from "@components/ui/badge";
 import { fetchScamCases } from "@lib/api/cases";
 import { APP_CONFIG } from "@lib/config/app";
 import { UI_TEXT } from "@lib/constants/text";
-import type { RiskLevel, ScamCase, ScamDetectionResult } from "@lib/types";
+import type {
+  RiskLevel,
+  ScamCase,
+  ScamDetectionResult,
+  UrlMetaFeatureHighlight,
+  UrlTokenHeatmapEntry,
+} from "@lib/types";
+import { UrlHeatmapExplainSections } from "./UrlHeatmapExplainSections";
 
 const RISK_STYLES: Record<
   RiskLevel,
@@ -43,6 +51,167 @@ const RISK_STYLES: Record<
   },
 };
 
+const URL_META_SEVERITY_STYLES: Record<
+  UrlMetaFeatureHighlight["severity"],
+  { card: string; badge: string; emphasis: string; labelCell: string }
+> = {
+  high: {
+    card: "border-red-200 bg-red-50/90",
+    badge: "border border-red-300 bg-red-100 text-red-800",
+    emphasis: "text-red-700",
+    labelCell: "bg-red-200 text-black border-r border-red-500/85",
+  },
+  medium: {
+    card: "border-amber-200 bg-amber-50/90",
+    badge: "border border-amber-300 bg-amber-100 text-amber-900",
+    emphasis: "text-amber-800",
+    labelCell: "bg-amber-200 text-black border-r border-amber-500/85",
+  },
+  low: {
+    card: "border-yellow-200 bg-yellow-50/80",
+    badge: "border border-yellow-400 bg-yellow-100 text-yellow-900",
+    emphasis: "text-yellow-800",
+    labelCell: "bg-yellow-200 text-black border-r border-yellow-600/80",
+  },
+};
+
+/** Suspicious-parts table: left column for data rows (header uses plain styles). */
+const SUSPICIOUS_PART_VALUE_CELL =
+  "flex items-center bg-sky-50 px-3 py-3 text-sm font-semibold text-slate-800 border-r border-[#e9f4f2] break-words md:px-4";
+
+/** URL paste flow: score bands match app risk (high ≥70 / medium 40–69 / low &lt;40). */
+const URL_ACTION_GUIDANCE_BY_LEVEL: Record<
+  RiskLevel,
+  { dontDo: string[]; safer: string[] }
+> = {
+  high: {
+    dontDo: [
+      "Don't click, type, or share this link — it is highly likely to be a phishing or credential-harvesting site.",
+      "Don't enter any passwords, OTP, or bank details if you already opened it.",
+    ],
+    safer: [
+      "Close the tab immediately and do not forward this link to anyone.",
+      "If you entered any credentials, change your passwords now and contact your bank's official hotline.",
+      "Report this link to your bank's fraud department or the Malaysian Cyber Security Centre (Cyber999).",
+    ],
+  },
+  medium: {
+    dontDo: [
+      "Don't click this link directly from messages, emails, or WhatsApp groups without verifying.",
+      "Don't enter personal information, IC number, or banking details without verifying the domain first.",
+    ],
+    safer: [
+      "Verify the link through official channels before clicking.",
+      "Navigate to the brand's official website directly by typing the URL manually (e.g., type maybank2u.com.my instead of clicking).",
+      "Cross-check the domain with the official brand's domain — look at the rightmost part of the URL to see who really controls the site.",
+    ],
+  },
+  low: {
+    dontDo: [
+      'Don\'t assume a "safe" score means you can relax completely — scammers can mimic legitimate structures.',
+      "Don't share sensitive information even if the link appears technically safe.",
+    ],
+    safer: [
+      "Double-check the URL and verify the sender's identity before proceeding.",
+      "If you received this from an unknown sender, verify the source through other channels before taking any action.",
+    ],
+  },
+};
+
+function mulberry32(seed: number): () => number {
+  return () => {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashGuidanceSeed(parts: string[]): number {
+  let h = 2166136261;
+  for (const p of parts) {
+    for (let i = 0; i < p.length; i++) {
+      h ^= p.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+  }
+  return h >>> 0;
+}
+
+/** Picks 1 or 2 distinct lines when the pool has ≥2; stable RNG via `next`. */
+function pickUrlGuidanceSubset(lines: string[], next: () => number): string[] {
+  if (lines.length === 0) return [];
+  if (lines.length === 1) return [lines[0]];
+  const count = next() < 0.5 ? 1 : 2;
+  const order = lines.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order.slice(0, count).map((i) => lines[i]);
+}
+
+function urlMetaFeaturesEqual(
+  a: ScamDetectionResult["urlMetaFeatures"],
+  b: ScamDetectionResult["urlMetaFeatures"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return !a && !b;
+  return a.every(
+    (item, i) =>
+      item.label === b[i]?.label &&
+      item.score === b[i]?.score &&
+      item.severity === b[i]?.severity &&
+      item.explanation === b[i]?.explanation,
+  );
+}
+
+function urlHeatmapFusionEqual(
+  a: ScamDetectionResult["urlHeatmapFusion"],
+  b: ScamDetectionResult["urlHeatmapFusion"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  return (
+    a.effective_xgb_weight === b.effective_xgb_weight &&
+    a.effective_db_weight === b.effective_db_weight
+  );
+}
+
+function urlTokenHeatmapEqual(
+  a: UrlTokenHeatmapEntry[] | undefined,
+  b: UrlTokenHeatmapEntry[] | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return !a && !b;
+  return a.every(
+    (t, i) =>
+      b[i] !== undefined &&
+      t.start_char === b[i].start_char &&
+      t.end_char === b[i].end_char &&
+      t.xgb_predictive_delta === b[i].xgb_predictive_delta &&
+      t.semantic_similarity === b[i].semantic_similarity &&
+      t.token_text === b[i].token_text &&
+      t.ui_signals?.norm_xgb === b[i].ui_signals?.norm_xgb &&
+      t.ui_signals?.norm_semantic === b[i].ui_signals?.norm_semantic &&
+      t.ui_signals?.is_lexical === b[i].ui_signals?.is_lexical,
+  );
+}
+
+function urlDetectionSummaryEqual(
+  a: ScamDetectionResult["urlDetectionSummary"],
+  b: ScamDetectionResult["urlDetectionSummary"],
+): boolean {
+  if (a === b) return true;
+  if (!a || !b) return !a && !b;
+  return (
+    a.displayUrl === b.displayUrl &&
+    a.urlRiskScore === b.urlRiskScore &&
+    a.urlRiskLevel === b.urlRiskLevel &&
+    urlMetaFeaturesEqual(a.urlMetaFeatures, b.urlMetaFeatures)
+  );
+}
+
 export interface ResultDisplayProps {
   result: ScamDetectionResult;
   onNewAnalysis: () => void;
@@ -53,16 +222,80 @@ function isRiskLevel(v: string): v is RiskLevel {
 }
 
 function getCaseFilterScamType(scamType: string): string {
-  const normalized = scamType.trim().toLowerCase();
-  if (normalized === "job_scam" || normalized === "job-scam") return "job-scam";
-  if (normalized === "phishing") return "phishing";
-  if (normalized === "qr_code_scam" || normalized === "qr-scam")
-    return "qr-scam";
-  if (normalized === "otp_scam" || normalized === "otp-scam") return "otp-scam";
-  if (normalized === "suspicious_link" || normalized === "suspicious-link") {
-    return "suspicious-link";
-  }
+  const normalized = scamType.trim().toLowerCase().replace(/\s+/g, " ");
+  const compact = normalized.replace(/[\s-]+/g, "_");
+  if (compact === "job_scam" || compact === "job_scams") return "job-scam";
+  if (compact === "phishing") return "phishing";
+  if (compact === "otp_scam" || compact === "otp_scams") return "otp-scam";
   return "all";
+}
+
+function humanizeReportKey(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function toReportDisplayValue(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string") return value.trim() || "-";
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    const compact = value
+      .map((item) => toReportDisplayValue(item))
+      .filter((v) => v !== "-");
+    return compact.length > 0 ? compact.join(", ") : "-";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return "-";
+}
+
+function toQrReportRows(
+  report: Record<string, unknown> | Record<string, unknown>[] | undefined,
+): Array<{ label: string; value: string }> {
+  if (!report) return [];
+  const source =
+    Array.isArray(report) && report.length > 0
+      ? report[0]
+      : (report as Record<string, unknown>);
+  return Object.entries(source)
+    .map(([key, value]) => ({
+      label: humanizeReportKey(key),
+      value: toReportDisplayValue(value),
+    }))
+    .filter((row) => row.value !== "-");
+}
+
+function AdvancedBreakdownButton({
+  expanded,
+  onToggle,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 shrink-0 gap-1 px-2.5 text-xs font-medium"
+      aria-expanded={expanded}
+      onClick={onToggle}
+    >
+      Advanced breakdown
+      <ChevronDown
+        className={`size-3.5 shrink-0 transition-transform duration-200 ${
+          expanded ? "rotate-180" : ""
+        }`}
+        aria-hidden
+      />
+    </Button>
+  );
 }
 
 /**
@@ -104,21 +337,159 @@ export const ResultDisplay = memo(
     const immediateSummary = result.immediateGuidanceSummary?.trim();
     const isUnknownScamType =
       (result.scamType ?? "").trim().toLowerCase() === "unknown";
-    const shouldShowRelatedCases =
-      !result.submittedUrl && !result.qrDecodedContent;
+    const isQrResult = Boolean(result.qrDecodedContent || result.qrContentType);
+    const isUrlOrQrResult = Boolean(result.submittedUrl || isQrResult);
+    const dualTextUrl =
+      Boolean(result.dualTextUrlDetection) &&
+      Boolean(result.urlDetectionSummary);
+    /** URL strip flow only — not textarea + dual summary, not QR */
+    const isPureUrlResult =
+      result.detectionType === "url" && !isQrResult && !dualTextUrl;
+    const showIamScammedButton =
+      !isQrResult && level !== "low" && (isPureUrlResult || !isUnknownScamType);
+
+    const [summaryTab, setSummaryTab] = useState<"text" | "url">("text");
+    const [showUrlHeatmapBreakdown, setShowUrlHeatmapBreakdown] =
+      useState(false);
+    const [showTextHeatmapBreakdown, setShowTextHeatmapBreakdown] =
+      useState(false);
+
+    useEffect(() => {
+      setSummaryTab("text");
+      setShowUrlHeatmapBreakdown(false);
+      setShowTextHeatmapBreakdown(false);
+    }, [
+      result.timestamp,
+      result.score,
+      result.dualTextUrlDetection,
+      result.urlDetectionSummary?.displayUrl,
+      result.urlHeatmapBaseUrl,
+      result.textHeatmapBaseText,
+    ]);
+
+    /** Mixed mode text tab must surface scam type even if other URL flags are present. */
+    const shouldShowScamTypeBadge = dualTextUrl
+      ? summaryTab === "text"
+      : !isQrResult &&
+        result.detectionType !== "qr" &&
+        result.detectionType !== "url" &&
+        !result.submittedUrl;
+
+    /** Mixed mode text tab must keep related-case card visible. */
+    const shouldShowRelatedCases = dualTextUrl
+      ? summaryTab === "text"
+      : !result.submittedUrl && !result.qrDecodedContent;
+
+    const urlBranchLevel =
+      result.urlDetectionSummary &&
+      isRiskLevel(result.urlDetectionSummary.urlRiskLevel)
+        ? result.urlDetectionSummary.urlRiskLevel
+        : level;
+    const scoreCardLevel =
+      dualTextUrl && summaryTab === "url" ? urlBranchLevel : level;
+    const scoreCardStyles = RISK_STYLES[scoreCardLevel];
+    const scoreCardScore =
+      dualTextUrl && summaryTab === "url" && result.urlDetectionSummary
+        ? result.urlDetectionSummary.urlRiskScore
+        : result.score;
+
+    const showExplanationUnderScore = dualTextUrl
+      ? summaryTab === "text"
+      : !isUrlOrQrResult;
+
+    const detectedLinkPrimary = dualTextUrl
+      ? summaryTab === "url"
+        ? result.urlDetectionSummary?.displayUrl?.trim()
+        : undefined
+      : result.submittedUrl?.trim();
+    const showDetectedLinkCard = Boolean(detectedLinkPrimary);
+    const notableUrlMeta =
+      dualTextUrl && summaryTab === "url"
+        ? result.urlDetectionSummary?.urlMetaFeatures
+        : result.urlMetaFeatures;
+    const hasUrlHeatmap = Boolean(
+      result.urlTokenHeatmap?.length && result.urlHeatmapBaseUrl?.trim(),
+    );
+    const hasTextHeatmap = Boolean(
+      result.textTokenHeatmap?.length && result.textHeatmapBaseText?.trim(),
+    );
+
+    /** Non–dual-branch: same as legacy URL paste row (`submittedUrl` + merged `level`). */
+    const submittedUrlGuidancePick = useMemo(() => {
+      const url = result.submittedUrl?.trim();
+      if (!url || !isRiskLevel(level)) return null;
+      const seed = hashGuidanceSeed([
+        url,
+        result.timestamp,
+        String(result.score),
+        level,
+      ]);
+      const next = mulberry32(seed);
+      const pool = URL_ACTION_GUIDANCE_BY_LEVEL[level];
+      return {
+        dontDo: pickUrlGuidanceSubset(pool.dontDo, next),
+        safer: pickUrlGuidanceSubset(pool.safer, next),
+      };
+    }, [result.submittedUrl, result.timestamp, result.score, level]);
+
+    /** Dual-branch URL tab: same pool + RNG pattern as URL paste, keyed by branch URL/score/tier. */
+    const dualUrlTabGuidancePick = useMemo(() => {
+      if (!result.dualTextUrlDetection || !result.urlDetectionSummary) {
+        return null;
+      }
+      const sum = result.urlDetectionSummary;
+      const uLevel = isRiskLevel(sum.urlRiskLevel) ? sum.urlRiskLevel : level;
+      const seed = hashGuidanceSeed([
+        sum.displayUrl.trim() || "url-branch",
+        result.timestamp,
+        String(sum.urlRiskScore),
+        uLevel,
+      ]);
+      const next = mulberry32(seed);
+      const pool = URL_ACTION_GUIDANCE_BY_LEVEL[uLevel];
+      return {
+        dontDo: pickUrlGuidanceSubset(pool.dontDo, next),
+        safer: pickUrlGuidanceSubset(pool.safer, next),
+      };
+    }, [
+      result.dualTextUrlDetection,
+      result.timestamp,
+      result.urlDetectionSummary?.displayUrl,
+      result.urlDetectionSummary?.urlRiskScore,
+      result.urlDetectionSummary?.urlRiskLevel,
+      level,
+    ]);
+
+    /** Dual text tab: behave like plain text result (no URL-line guidance). URL tab: URL-style guidance. */
+    const urlGuidancePick = dualTextUrl
+      ? summaryTab === "url"
+        ? dualUrlTabGuidancePick
+        : null
+      : submittedUrlGuidancePick;
+
     const dontDoItems =
-      result.immediateGuidanceDontDo &&
+      urlGuidancePick?.dontDo ??
+      (result.immediateGuidanceDontDo &&
       result.immediateGuidanceDontDo.length > 0
         ? result.immediateGuidanceDontDo
-        : guidance.slice(0, 2);
+        : guidance.slice(0, 2));
     const saferActionItems =
-      result.immediateGuidanceSaferAction &&
+      urlGuidancePick?.safer ??
+      (result.immediateGuidanceSaferAction &&
       result.immediateGuidanceSaferAction.length > 0
         ? result.immediateGuidanceSaferAction
-        : guidance.slice(2, 5);
+        : guidance.slice(2, 5));
+    const urlActionGuideTwoColumn =
+      urlGuidancePick !== null || !isUnknownScamType;
+    const showUrlAwareDontDoPanel =
+      urlGuidancePick !== null || !isUnknownScamType;
     const caseFilterScamType = useMemo(
       () => getCaseFilterScamType(result.scamType || ""),
       [result.scamType],
+    );
+    const qrReportRows = useMemo(
+      () => toQrReportRows(result.qrUrlReportAnalysis),
+      [result.qrUrlReportAnalysis],
     );
 
     useEffect(() => {
@@ -153,203 +524,411 @@ export const ResultDisplay = memo(
         <div
           className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm"
           role="region"
-          aria-label={`Detection result: ${level} risk, score ${result.score}`}
+          aria-label={`Detection result: ${scoreCardLevel} risk, score ${scoreCardScore}`}
         >
-          <div className={`h-1.5 w-full ${styles.accent}`} />
+          <div className="overflow-hidden border-b border-[#8ed6ce] bg-white shadow-sm">
+            <div className="bg-[#223C61] px-5 py-3">
+              <h3 className="text-lg font-semibold text-white">
+                {result.qrDecodedContent || qrReportRows.length > 0
+                  ? "URL Report Summary"
+                  : "Detection Summary"}
+              </h3>
+            </div>
+            <div className="border-b border-[#d9efec] px-5 py-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                  {steps.map((step) => (
+                    <div
+                      key={step.key}
+                      className={`inline-flex items-center gap-1.5 text-sm font-semibold tracking-wide ${
+                        step.status === "pending"
+                          ? "text-gray-400"
+                          : step.status === "failed"
+                            ? "text-red-600"
+                            : "text-gray-700"
+                      }`}
+                    >
+                      {step.status === "completed" && (
+                        <Check className="h-4 w-4 text-emerald-600" />
+                      )}
+                      {step.status === "current" && (
+                        <LoaderCircle className="h-4 w-4 animate-spin text-primary" />
+                      )}
+                      {step.status === "failed" && (
+                        <TriangleAlert className="h-4 w-4 text-red-600" />
+                      )}
+                      <span>{step.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  type="button"
+                  onClick={onNewAnalysis}
+                  className="h-9 w-[170px] items-end gap-5 rounded-2xl bg-[#283C5E] px-[2px] text-sm font-semibold text-white hover:bg-[#1f314f]"
+                >
+                  Check Again
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {(result.qrDecodedContent || qrReportRows.length > 0) && (
+            <div className="overflow-hidden border-b border-[#8ed6ce] bg-white shadow-sm">
+              <div className="p-3 md:p-4">
+                <div className="mb-3 rounded-xl border border-[#d9efec] bg-[#f8fdfc] p-4 md:p-5">
+                  <div className="grid gap-5 md:grid-cols-[220px_1fr] md:items-center">
+                    <div
+                      className={`relative mx-auto h-44 w-44 rounded-full border-8 border-slate-100 bg-white shadow-lg ${styles.glow} flex items-center justify-center`}
+                    >
+                      <div className="flex h-32 w-32 flex-col items-center justify-center rounded-full border border-slate-100 bg-white">
+                        <div
+                          className={`text-6xl font-black tracking-tight ${styles.score}`}
+                          aria-hidden
+                        >
+                          {result.score}
+                        </div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                          {UI_TEXT.result.scoreSuffix}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-base font-bold ${styles.badge}`}
+                      >
+                        {level === "low" ? (
+                          <Shield className="h-4 w-4" aria-hidden />
+                        ) : (
+                          <AlertCircle className="h-4 w-4" aria-hidden />
+                        )}
+                        {level === "high"
+                          ? UI_TEXT.result.high
+                          : level === "medium"
+                            ? UI_TEXT.result.medium
+                            : UI_TEXT.result.low}
+                      </div>
+                      <p className="mt-3 text-sm font-medium text-gray-500">
+                        {APP_CONFIG.name} ·{" "}
+                        {new Date(result.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {result.qrDecodedContent && (
+                  <div className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 bg-white md:px-4">
+                    <p className="text-sm font-semibold text-slate-800">
+                      QR Code Content
+                    </p>
+                    <p className="text-sm text-slate-700 break-words">
+                      {result.qrContentType === "url"
+                        ? `This QR code opens: ${result.qrDecodedContent}`
+                        : `This QR code contains: ${result.qrDecodedContent}`}
+                    </p>
+                  </div>
+                )}
+                {qrReportRows.map((row) => (
+                  <div
+                    key={row.label}
+                    className="grid grid-cols-[180px_1fr] gap-3 border-b border-[#e9f4f2] px-3 py-3 odd:bg-white even:bg-[#fbfefe] last:border-b-0 md:px-4"
+                  >
+                    <p className="text-sm font-semibold text-slate-800">
+                      {row.label}
+                    </p>
+                    <p className="text-sm text-slate-700 break-words">
+                      {row.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="relative z-10">
             <div className="p-6 md:p-9 bg-gradient-to-b from-white via-white to-slate-50/50 text-[15px] md:text-base">
-              <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center">
-                <div className="rounded-2xl p-4 border border-slate-200 bg-white/90 shadow-sm md:flex-1">
-                  <div className="flex flex-wrap gap-3">
-                    {steps.map((step) => (
-                      <div
-                        key={step.key}
-                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold tracking-wide ${
-                          step.status === "current"
-                            ? "text-primary bg-primary/10"
-                            : step.status === "pending"
-                              ? "text-gray-400 bg-gray-100"
-                              : step.status === "failed"
-                                ? "text-red-600 bg-red-50"
-                                : "text-gray-700 bg-slate-100"
-                        }`}
-                      >
-                        {step.status === "completed" && (
-                          <Check className="w-4 h-4" />
-                        )}
-                        {step.status === "current" && (
-                          <LoaderCircle className="w-4 h-4 animate-spin" />
-                        )}
-                        {step.status === "failed" && (
-                          <TriangleAlert className="w-4 h-4" />
-                        )}
-                        <span>{step.label}</span>
+              <div className="-mt-2 mb-6 md:-mt-4 md:mb-5" />
+
+              {!isQrResult && (
+                <div className="mb-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                  {dualTextUrl && (
+                    <div
+                      className="border-b border-slate-200 bg-[#eef1f6]"
+                      role="tablist"
+                      aria-label="Detection summary type"
+                    >
+                      <div className="flex p-1.5 md:p-2">
+                        <div className="flex w-full gap-0 rounded-md bg-slate-300/35 p-1 shadow-inner ring-1 ring-slate-300/40 md:max-w-2xl">
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={summaryTab === "text"}
+                            onClick={() => setSummaryTab("text")}
+                            className={`min-h-9 flex-1 rounded px-2 py-2 text-center text-xs font-medium leading-snug transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#283C5E] md:px-4 md:text-sm ${
+                              summaryTab === "text"
+                                ? "bg-[#283C5E] text-white shadow-sm"
+                                : "bg-transparent text-slate-700 hover:bg-white/60 hover:text-slate-900"
+                            }`}
+                          >
+                            Text detection summary
+                          </button>
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={summaryTab === "url"}
+                            onClick={() => setSummaryTab("url")}
+                            className={`min-h-9 flex-1 rounded px-2 py-2 text-center text-xs font-medium leading-snug transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#283C5E] md:px-4 md:text-sm ${
+                              summaryTab === "url"
+                                ? "bg-[#283C5E] text-white shadow-sm"
+                                : "bg-transparent text-slate-700 hover:bg-white/60 hover:text-slate-900"
+                            }`}
+                          >
+                            URL detection summary
+                          </button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={onNewAnalysis}
-                    className="h-10 rounded-full bg-primary px-5 text-base text-primary-foreground font-semibold hover:bg-secondary shadow-sm"
-                  >
-                    Check Again
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-6 rounded-3xl border border-slate-200 bg-white p-5 md:grid-cols-[220px_1fr] md:items-center md:p-6 mb-8 shadow-sm">
-                <div
-                  className={`relative mx-auto w-44 h-44 rounded-full border-8 border-slate-100 bg-white flex items-center justify-center shadow-lg ${styles.glow}`}
-                >
-                  <div className="w-32 h-32 rounded-full border border-slate-100 bg-white flex flex-col items-center justify-center">
-                    <div
-                      className={`text-6xl font-black tracking-tight ${styles.score}`}
-                      aria-hidden
-                    >
-                      {result.score}
                     </div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
-                      {UI_TEXT.result.scoreSuffix}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                  )}
+                  <div className="grid gap-6 p-5 md:grid-cols-[220px_1fr] md:items-center md:p-6">
                     <div
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${styles.badge}`}
+                      className={`relative mx-auto w-44 h-44 rounded-full border-8 border-slate-100 bg-white flex items-center justify-center shadow-lg ${scoreCardStyles.glow}`}
                     >
-                      {level === "low" ? (
-                        <Shield className="w-4 h-4" aria-hidden />
-                      ) : (
-                        <AlertCircle className="w-4 h-4" aria-hidden />
+                      <div className="w-32 h-32 rounded-full border border-slate-100 bg-white flex flex-col items-center justify-center">
+                        <div
+                          className={`text-6xl font-black tracking-tight ${scoreCardStyles.score}`}
+                          aria-hidden
+                        >
+                          {scoreCardScore}
+                        </div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500">
+                          {UI_TEXT.result.scoreSuffix}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <div
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-base font-bold border ${scoreCardStyles.badge}`}
+                        >
+                          {scoreCardLevel === "low" ? (
+                            <Shield className="w-4 h-4" aria-hidden />
+                          ) : (
+                            <AlertCircle className="w-4 h-4" aria-hidden />
+                          )}
+                          {scoreCardLevel === "high"
+                            ? UI_TEXT.result.high
+                            : scoreCardLevel === "medium"
+                              ? UI_TEXT.result.medium
+                              : UI_TEXT.result.low}
+                        </div>
+                        {shouldShowScamTypeBadge && (
+                          <Badge
+                            variant="outline"
+                            className="border-primary/40 text-primary bg-primary/10 px-3 py-1 font-semibold"
+                          >
+                            {scamTypeLabel}
+                          </Badge>
+                        )}
+                      </div>
+                      {showExplanationUnderScore && (
+                        <p className="text-gray-900 leading-relaxed text-lg md:text-xl font-medium">
+                          {result.explanation}
+                        </p>
                       )}
-                      {level === "high"
-                        ? UI_TEXT.result.high
-                        : level === "medium"
-                          ? UI_TEXT.result.medium
-                          : UI_TEXT.result.low}
+                      <p className="text-sm text-gray-500 mt-3 font-medium">
+                        {APP_CONFIG.name} ·{" "}
+                        {new Date(result.timestamp).toLocaleString()}
+                      </p>
                     </div>
-                    <Badge
-                      variant="outline"
-                      className="border-primary/40 text-primary bg-primary/10 px-3 py-1 font-semibold"
-                    >
-                      {scamTypeLabel}
-                    </Badge>
                   </div>
-                  <p className="text-gray-900 leading-relaxed text-lg md:text-xl font-medium">
-                    {result.explanation}
-                  </p>
-                  <p className="text-sm text-gray-500 mt-3 font-medium">
-                    {APP_CONFIG.name} ·{" "}
-                    {new Date(result.timestamp).toLocaleString()}
-                  </p>
                 </div>
-              </div>
+              )}
 
-              {result.submittedUrl && (
+              {showDetectedLinkCard && (
                 <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
                   <h3 className="font-semibold text-gray-900 mb-2 text-lg">
                     Detected Link
                   </h3>
                   <p className="text-base text-gray-700 break-all">
-                    {result.submittedUrl}
+                    {detectedLinkPrimary}
                   </p>
-                  {result.redirectUrl && (
+                  {!dualTextUrl && result.redirectUrl && (
                     <p className="text-base text-gray-600 mt-1 break-all">
                       Redirects to: {result.redirectUrl}
                     </p>
                   )}
-                </div>
-              )}
-
-              {result.qrDecodedContent && (
-                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
-                  <h3 className="font-semibold text-gray-900 mb-2 text-lg">
-                    QR Code Content
-                  </h3>
-                  <p className="text-base text-gray-700 break-all">
-                    {result.qrContentType === "url"
-                      ? `This QR code opens: ${result.qrDecodedContent}`
-                      : `This QR code contains: ${result.qrDecodedContent}`}
-                  </p>
-                </div>
-              )}
-
-              {!noFlags ? (
-                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    Suspicious Parts
-                  </h3>
-                  {visibleFlags.map((item, idx) => (
-                    <div
-                      key={`${item.text}-${idx}`}
-                      className="rounded-xl bg-slate-50/80 p-4"
-                    >
-                      <div className="grid gap-2 md:grid-cols-[180px_1fr] md:items-start">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            Detected Signal
-                          </p>
-                          <p className="mt-1 inline-flex rounded-md bg-amber-100 px-2.5 py-1 text-sm font-semibold text-gray-900">
-                            {item.text}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            Why It Is Risky
-                          </p>
-                          <p className="mt-1 text-base leading-relaxed text-gray-700">
-                            {item.reason}
-                          </p>
-                        </div>
+                  {((notableUrlMeta && notableUrlMeta.length > 0) ||
+                    hasUrlHeatmap) && (
+                    <div className="mt-6">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <h4 className="text-base font-semibold text-gray-900">
+                          Notable URL signals
+                        </h4>
+                        {hasUrlHeatmap && (
+                          <AdvancedBreakdownButton
+                            expanded={showUrlHeatmapBreakdown}
+                            onToggle={() =>
+                              setShowUrlHeatmapBreakdown((open) => !open)
+                            }
+                          />
+                        )}
                       </div>
+                      {notableUrlMeta && notableUrlMeta.length > 0 && (
+                        <div className="overflow-hidden rounded-none border border-[#e9f4f2]">
+                          {notableUrlMeta.map((item, idx) => {
+                            const ms = URL_META_SEVERITY_STYLES[item.severity];
+                            const bandLabel =
+                              item.severity === "high"
+                                ? "High"
+                                : item.severity === "medium"
+                                  ? "Moderate"
+                                  : "Notice";
+                            return (
+                              <div
+                                key={`${item.label}-${idx}`}
+                                className="flex items-center gap-3 border-b border-[#e9f4f2] last:border-b-0 md:gap-4"
+                              >
+                                <div
+                                  className={`m-0 flex w-[132px] shrink-0 items-center px-2 py-2 text-sm font-semibold ${ms.labelCell}`}
+                                >
+                                  {item.label}
+                                </div>
+                                <div
+                                  className={`min-w-0 flex-1 py-3 pr-3 text-sm leading-relaxed text-black break-words md:pr-4 ${
+                                    idx % 2 === 0 ? "bg-white" : "bg-[#fbfefe]"
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold md:text-sm ${ms.badge}`}
+                                  >
+                                    {bandLabel}
+                                  </span>
+                                  <span className="text-neutral-600">
+                                    {" — "}
+                                  </span>
+                                  <span>{item.explanation}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {hasUrlHeatmap && showUrlHeatmapBreakdown && (
+                        <UrlHeatmapExplainSections
+                          embedded
+                          baseUrl={result.urlHeatmapBaseUrl!}
+                          tokens={result.urlTokenHeatmap!}
+                          fusion={result.urlHeatmapFusion}
+                        />
+                      )}
                     </div>
-                  ))}
-                  {extraCount > 0 && (
-                    <button
-                      className="text-primary text-sm font-medium hover:underline"
-                      onClick={() => setShowAllFlags((v) => !v)}
-                    >
-                      {showAllFlags ? "Show less" : `Show ${extraCount} more`}
-                    </button>
                   )}
                 </div>
-              ) : (
-                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-3">
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    No obvious scam patterns found
-                  </h3>
-                </div>
               )}
 
-              <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    {immediateTitle}
-                  </h3>
-                  <Badge
-                    variant="outline"
-                    className="text-xs border-primary/30 text-primary font-semibold"
+              {!isQrResult &&
+                (!noFlags || hasTextHeatmap) &&
+                (!dualTextUrl || summaryTab === "text") && (
+                  <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm space-y-4">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
+                      <h4 className="text-base font-semibold text-gray-900">
+                        Suspicious Parts
+                      </h4>
+                      {hasTextHeatmap && (
+                        <AdvancedBreakdownButton
+                          expanded={showTextHeatmapBreakdown}
+                          onToggle={() =>
+                            setShowTextHeatmapBreakdown((open) => !open)
+                          }
+                        />
+                      )}
+                    </div>
+                    {!noFlags && (
+                      <>
+                        <div className="overflow-hidden rounded-xl border border-[#e9f4f2]">
+                          {visibleFlags.map((item, idx) => (
+                            <div
+                              key={`${item.text}-${idx}`}
+                              className="grid grid-cols-[180px_1fr] border-b border-[#e9f4f2] last:border-b-0"
+                            >
+                              <div className={SUSPICIOUS_PART_VALUE_CELL}>
+                                {item.text}
+                              </div>
+                              <div
+                                className={`flex items-center px-3 py-3 text-base leading-relaxed text-slate-700 break-words md:px-4 ${
+                                  idx % 2 === 0 ? "bg-white" : "bg-[#fbfefe]"
+                                }`}
+                              >
+                                {item.reason}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {extraCount > 0 && (
+                          <button
+                            className="text-primary text-sm font-medium hover:underline"
+                            onClick={() => setShowAllFlags((v) => !v)}
+                          >
+                            {showAllFlags
+                              ? "Show less"
+                              : `Show ${extraCount} more`}
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {hasTextHeatmap && showTextHeatmapBreakdown && (
+                      <UrlHeatmapExplainSections
+                        embedded
+                        mode="text"
+                        baseUrl={result.textHeatmapBaseText!}
+                        tokens={result.textTokenHeatmap!}
+                        fusion={result.textHeatmapFusion}
+                      />
+                    )}
+                  </div>
+                )}
+
+              {!isQrResult && (
+                <div className="bg-white rounded-2xl p-6 mb-6 border border-slate-200 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="font-semibold text-gray-900 text-lg">
+                      {immediateTitle}
+                    </h3>
+                  </div>
+                  <div
+                    className={`mt-4 grid gap-4 ${
+                      urlActionGuideTwoColumn ? "md:grid-cols-2" : ""
+                    }`}
                   >
-                    Action Guide
-                  </Badge>
-                </div>
-                <div
-                  className={`mt-4 grid gap-4 ${
-                    isUnknownScamType ? "" : "md:grid-cols-2"
-                  }`}
-                >
-                  {!isUnknownScamType && (
-                    <div className="rounded-xl bg-red-50 p-4 border border-red-100">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
-                        Don&apos;t Do
+                    {showUrlAwareDontDoPanel && (
+                      <div className="rounded-xl bg-red-50 p-4 border border-red-100 transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-md">
+                        <p className="text-lg font-semibold text-red-700">
+                          Don&apos;t Do
+                        </p>
+                        <ul className="mt-2 space-y-2 text-base text-red-900">
+                          {dontDoItems.map((line) => (
+                            <li
+                              key={line}
+                              className="flex gap-2 leading-relaxed"
+                            >
+                              <span aria-hidden className="mt-0.5 text-red-600">
+                                •
+                              </span>
+                              <span>{line}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100 transition-transform duration-200 ease-out hover:scale-[1.02] hover:shadow-md">
+                      <p className="text-lg font-semibold text-emerald-700">
+                        What you should do now:
                       </p>
-                      <ul className="mt-2 space-y-2 text-base text-red-900">
-                        {dontDoItems.map((line) => (
+                      <ul className="mt-2 space-y-2 text-base text-emerald-900">
+                        {saferActionItems.map((line) => (
                           <li key={line} className="flex gap-2 leading-relaxed">
-                            <span aria-hidden className="mt-0.5 text-red-600">
+                            <span
+                              aria-hidden
+                              className="mt-0.5 text-emerald-600"
+                            >
                               •
                             </span>
                             <span>{line}</span>
@@ -357,32 +936,21 @@ export const ResultDisplay = memo(
                         ))}
                       </ul>
                     </div>
-                  )}
-                  <div className="rounded-xl bg-emerald-50 p-4 border border-emerald-100">
-                    <p className="text-xs font-semibold tracking-wide text-emerald-700">
-                      What you should do now:
-                    </p>
-                    <ul className="mt-2 space-y-2 text-base text-emerald-900">
-                      {saferActionItems.map((line) => (
-                        <li key={line} className="flex gap-2 leading-relaxed">
-                          <span aria-hidden className="mt-0.5 text-emerald-600">
-                            •
-                          </span>
-                          <span>{line}</span>
-                        </li>
-                      ))}
-                    </ul>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {level !== "low" && result.scamType !== "unknown" && (
+              {showIamScammedButton && (
                 <Button
                   type="button"
                   onClick={() =>
-                    navigate(
-                      `/guidance/${encodeURIComponent(result.scamType || "phishing")}`,
-                    )
+                    navigate({
+                      pathname: isPureUrlResult
+                        ? "/guidance/suspicious-link"
+                        : `/guidance/${encodeURIComponent(result.scamType || "phishing")}`,
+                      /** Query survives data-router navigation more reliably than `location.state`. */
+                      search: "?from=result",
+                    })
                   }
                   className="w-full h-12 bg-primary hover:bg-secondary text-primary-foreground border-0 font-semibold shadow-md mb-4"
                 >
@@ -401,10 +969,20 @@ export const ResultDisplay = memo(
                     </p>
                   ) : relatedCase ? (
                     <button
-                      className="w-full text-left border rounded-xl p-4 hover:shadow-md transition"
-                      onClick={() => navigate(`/cases/${relatedCase.id}`)}
+                      className="group w-full text-left p-0 transition"
+                      onClick={() => {
+                        if (relatedCase.sourceUrl?.trim()) {
+                          window.open(
+                            relatedCase.sourceUrl,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
+                          return;
+                        }
+                        navigate(`/cases/${relatedCase.id}`);
+                      }}
                     >
-                      <p className="font-semibold text-gray-900 line-clamp-1">
+                      <p className="line-clamp-1 font-semibold text-gray-900 transition-colors group-hover:text-primary group-hover:underline">
                         {relatedCase.title}
                       </p>
                       <p className="text-base text-gray-600 mt-1">
@@ -418,11 +996,15 @@ export const ResultDisplay = memo(
                   )}
                   <button
                     className="mt-3 text-primary font-medium text-sm hover:underline"
-                    onClick={() =>
+                    onClick={() => {
+                      if (caseFilterScamType === "all") {
+                        navigate("/cases");
+                        return;
+                      }
                       navigate(
                         `/cases?scamType=${encodeURIComponent(caseFilterScamType)}`,
-                      )
-                    }
+                      );
+                    }}
                   >
                     View More Cases →
                   </button>
@@ -431,19 +1013,40 @@ export const ResultDisplay = memo(
             </div>
           </div>
         </div>
-
-        <Button
-          type="button"
-          onClick={onNewAnalysis}
-          className="w-full h-14 text-base font-semibold bg-background hover:bg-muted/40 text-primary border-2 border-primary/50 shadow-md transition-all"
-        >
-          {UI_TEXT.result.newAnalysis}
-        </Button>
       </div>
     );
   },
   (prev, next) =>
     prev.result.score === next.result.score &&
     prev.result.riskLevel === next.result.riskLevel &&
-    prev.result.timestamp === next.result.timestamp,
+    prev.result.timestamp === next.result.timestamp &&
+    prev.result.submittedUrl === next.result.submittedUrl &&
+    prev.result.dualTextUrlDetection === next.result.dualTextUrlDetection &&
+    prev.result.detectionType === next.result.detectionType &&
+    urlDetectionSummaryEqual(
+      prev.result.urlDetectionSummary,
+      next.result.urlDetectionSummary,
+    ) &&
+    urlMetaFeaturesEqual(
+      prev.result.urlMetaFeatures,
+      next.result.urlMetaFeatures,
+    ) &&
+    prev.result.urlHeatmapBaseUrl === next.result.urlHeatmapBaseUrl &&
+    urlHeatmapFusionEqual(
+      prev.result.urlHeatmapFusion,
+      next.result.urlHeatmapFusion,
+    ) &&
+    urlTokenHeatmapEqual(
+      prev.result.urlTokenHeatmap,
+      next.result.urlTokenHeatmap,
+    ) &&
+    prev.result.textHeatmapBaseText === next.result.textHeatmapBaseText &&
+    urlHeatmapFusionEqual(
+      prev.result.textHeatmapFusion,
+      next.result.textHeatmapFusion,
+    ) &&
+    urlTokenHeatmapEqual(
+      prev.result.textTokenHeatmap,
+      next.result.textTokenHeatmap,
+    ),
 );

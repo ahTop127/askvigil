@@ -1,6 +1,9 @@
 # Docker extension -> right click askvigil-backend, start new shell. then run:
 # export PYTHONPATH=$PYTHONPATH:.
 # uv run python -m scripts.upload_assets
+
+# docker cp ./data_persistence/datasets/. askvigil-backend-1:/app/data_persistence/datasets/
+# docker exec -it askvigil-backend-1 python /app/scripts/upload_assets.py
 import os
 import httpx
 from pathlib import Path
@@ -44,4 +47,7 @@ def upload_directory(local_path, remote_prefix):
 
 if __name__ == "__main__":
     # Example usage:
+    upload_directory("data_persistence/datasets", "datasets")
     upload_directory("data_persistence/ai_models/text_onnx", "ai_models/text_onnx")
+    upload_directory("data_persistence/ai_models/url_onnx", "ai_models/url_onnx")
+    upload_directory("data_persistence/ai_models/ocr_onnx", "ai_models/ocr_onnx")

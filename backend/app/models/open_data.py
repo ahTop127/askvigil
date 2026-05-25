@@ -11,7 +11,12 @@ class OpenDataSet(Model):
     clean_text = fields.TextField()
 
     has_url = fields.IntField(default=0, description="1 if contains URL, 0 otherwise")
-    length = fields.IntField(default=0, description="Character length of original text")
+    raw_length = fields.IntField(
+        default=0, description="Character length of original text"
+    )
+    clean_length = fields.IntField(
+        default=0, description="Standardize the length of the text after cleaning"
+    )
 
     # Define a 384-dimensional vector field (null=True indicates that it is allowed to be empty)
     text_embedding = VectorField(vector_size=384, null=True)
@@ -49,10 +54,22 @@ class PhishingURL(Model):
         description="The title of the captured web page (used for Link Preview)",
     )
 
+    raw_length = fields.IntField(
+        default=0, description="Character length of original url"
+    )
+    clean_length = fields.IntField(
+        default=0, description="Standardize the length of the url after cleaning"
+    )
+
     url_embedding = VectorField(
         vector_size=768,
         null=True,
         description="The feature vector extracted by URLBERT (768-dim)",
+    )
+    metadata_vector = VectorField(
+        vector_size=8,
+        null=True,
+        description="Structural metadata: [path_ratio, tld_score, entropy, dot_count, digit_ratio, special_chars, subdomain_flag, path_depth]",
     )
 
     # Audit timestamp

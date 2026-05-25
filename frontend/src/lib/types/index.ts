@@ -3,6 +3,35 @@ import type { LucideIcon } from "lucide-react";
 /** Supported detection input channels. */
 export type DetectionType = "text" | "image" | "url" | "qr";
 
+/** Textarea vs URL strip — same multipart `text` field, distinct UI semantics. */
+export type DetectionSubmissionChannel = "text_tab" | "url_tab";
+
+/** Normalized per-token UI signals (backend `ui_signals`). */
+export interface UrlHeatmapUiSignals {
+  norm_xgb: number;
+  norm_semantic: number;
+  /** 0–1 (lexical grounding). */
+  is_lexical: number;
+}
+
+/** From `explainability.fusion_breakdown` for segment heat intensity. */
+export interface UrlHeatmapFusionWeights {
+  effective_xgb_weight: number;
+  effective_db_weight: number;
+}
+
+/** One tokenizer span from URL XAI (`explainability.token_heatmap`). */
+export interface UrlTokenHeatmapEntry {
+  token_text: string;
+  start_char: number;
+  end_char: number;
+  xgb_predictive_delta: number;
+  semantic_similarity: number;
+  is_lexical_match: boolean;
+  /** When present, segment color uses fused score × effective weights (see frontend util). */
+  ui_signals?: UrlHeatmapUiSignals;
+}
+
 /** Normalized scam risk bucket. */
 export type RiskLevel = "high" | "medium" | "low";
 
@@ -15,6 +44,8 @@ export type RiskLevel = "high" | "medium" | "low";
 export interface ScamDetectionInput {
   type: DetectionType;
   content: string | File;
+  /** String scans only: distinguishes URL-strip submission from textarea (default textarea). */
+  submissionChannel?: DetectionSubmissionChannel;
 }
 
 /**
@@ -32,6 +63,8 @@ export interface ScamDetectionResult {
   explanation: string;
   scamType: string;
   timestamp: string;
+  detectionType?: DetectionType;
+  overallRiskScore?: number;
   steps?: DetectionStepState[];
   suspiciousItems?: SuspiciousItem[];
   extractedText?: string;
@@ -40,6 +73,25 @@ export interface ScamDetectionResult {
   redirectUrl?: string;
   qrDecodedContent?: string;
   qrContentType?: "url" | "sms" | "contact" | "plain-text";
+  qrUrlReportAnalysis?: Record<string, unknown> | Record<string, unknown>[];
+  /** URL scan: top signals from `unified_text_analysis.url_analysis[0]` meta fields. */
+  urlMetaFeatures?: UrlMetaFeatureHighlight[];
+  /** Unified scan ran both text + URL branches (text channel only). */
+  dualTextUrlDetection?: boolean;
+  /** URL-branch payload for dual-mode summary tab (includes branch score tier for guidance). */
+  urlDetectionSummary?: UrlDetectionSummary;
+  /** Sub-word explainability for first `url_analysis` row; offsets match `urlHeatmapBaseUrl`. */
+  urlTokenHeatmap?: UrlTokenHeatmapEntry[];
+  /** Canonical URL string aligned with backend tokenizer offsets (standardized resolved URL). */
+  urlHeatmapBaseUrl?: string;
+  /** `explainability.fusion_breakdown` effective weights for unified segment score. */
+  urlHeatmapFusion?: UrlHeatmapFusionWeights;
+  /** Text scan: tokenizer spans aligned with `textHeatmapBaseText` (`weightage_explainability`). */
+  textTokenHeatmap?: UrlTokenHeatmapEntry[];
+  /** Analyzed message string (`text_analysis["input text"]`). */
+  textHeatmapBaseText?: string;
+  /** `weightage_explainability.fusion_breakdown` for text segment score. */
+  textHeatmapFusion?: UrlHeatmapFusionWeights;
   guidance?: string[];
   immediateGuidanceTitle?: string;
   immediateGuidanceSummary?: string;
@@ -63,6 +115,22 @@ export interface DetectionStepState {
 export interface SuspiciousItem {
   text: string;
   reason: string;
+}
+
+/** One highlighted dimension from backend URL meta vector (0–1, independent). */
+export interface UrlMetaFeatureHighlight {
+  label: string;
+  score: number;
+  severity: "high" | "medium" | "low";
+  explanation: string;
+}
+
+/** URL branch snapshot when unified scan returns both text + URL analysis (text input only). */
+export interface UrlDetectionSummary {
+  displayUrl: string;
+  urlRiskScore: number;
+  urlRiskLevel: RiskLevel;
+  urlMetaFeatures?: UrlMetaFeatureHighlight[];
 }
 
 export interface ScamCase {
@@ -109,16 +177,6 @@ export interface ScamType {
   icon: LucideIcon;
   guidance: ScamTypePageCopy;
   learning: ScamTypePageCopy;
-}
-
-/**
- * Persisted onboarding / alert preferences for the current browser.
- */
-export interface UserPreferences {
-  topics: string[];
-  goal: string;
-  wantsAlerts: boolean;
-  savedAt: string;
 }
 
 /** One actionable step in post-scam guidance. */

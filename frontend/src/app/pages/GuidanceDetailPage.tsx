@@ -1,4 +1,9 @@
-import { useNavigate, useParams } from "react-router";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import {
   ArrowLeft,
   CheckCircle,
@@ -349,9 +354,33 @@ const scamData: Record<
   },
 };
 
+/** Set when navigating from scam detection results so Back returns there. */
+function guidanceBackFallback(state: unknown): string | undefined {
+  if (
+    typeof state !== "object" ||
+    state === null ||
+    !("returnTo" in state) ||
+    typeof (state as { returnTo: unknown }).returnTo !== "string"
+  ) {
+    return undefined;
+  }
+  const target = (state as { returnTo: string }).returnTo;
+  /** Only internal absolute paths used by this app (avoid crafted state redirects). */
+  if (target === "/result") return "/result";
+  return undefined;
+}
+
 export default function GuidanceDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { scamType } = useParams<{ scamType: string }>();
+
+  /** `/guidance/:id?from=result` when opened from scam scan results. */
+  const backFallback =
+    searchParams.get("from") === "result"
+      ? "/result"
+      : guidanceBackFallback(location.state);
 
   const data = scamType ? scamData[scamType] : null;
 
@@ -359,6 +388,7 @@ export default function GuidanceDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
+        <BackButton fallbackTo={backFallback} />
         <main className="max-w-4xl mx-auto px-4 py-12">
           <p className="text-center text-gray-600">Scam type not found</p>
         </main>
@@ -374,7 +404,7 @@ export default function GuidanceDetailPage() {
       <Navigation />
 
       {/* Back Button */}
-      <BackButton />
+      <BackButton fallbackTo={backFallback} />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-12">
