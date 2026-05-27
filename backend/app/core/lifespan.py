@@ -239,8 +239,12 @@ async def warm_up_engines():
     # 1. Saturate the Transformer (ONNX)
     # We do this 3 times to ensure the graph optimizer finishes kernel selection
     for i in range(3):
-        await get_onnx_embedding("warmup text for saturation", mode="text")
-        await get_onnx_embedding("https://warmup-url.com/saturate", mode="url")
+        await get_onnx_embedding("URGENT: Your account has been flagged for suspicious activity. Click here immediately to verify your identity or your assets will be frozen:", mode="text")
+        await get_onnx_embedding("http://secure-bank-login.com", mode="url")
+        await get_onnx_embedding("Dear Employee,\n\nOur human resources and cybersecurity compliance teams have updated the mandatory corporate policy guidelines for the upcoming quarter. All personnel are strictly required to review the appended documentation and sign the acknowledgement form before the end of the current business day. Failure to complete this verification will result in temporary suspension of active directory and network gateway access credentials. Please authenticate here to proceed: ", mode="text")
+        await get_onnx_embedding("https://internal-hr-portal.net/login", mode="url")
+        await get_onnx_embedding("OFFICIAL NOTIFICATION: INTERNAL REVENUE AUDIT RECONCILIATION DISCLOSURE.\n\nThis electronic transmission serves as an official administrative notice that your submitted financial tax declarations for the prior fiscal period have been flagged by our automated data validation engines for immediate reconciliation. Discrepancies were identified within the cross-referenced asset schedules and reported income thresholds. To prevent the escalation of this file to formal legal enforcement proceedings, asset liens, or compounding regulatory penalties, you are instructed to access our secure document repository to audit the discrepancies and upload the mandatory supplementary verification forms. Ensure your local computing environment is secure before authenticating into the federal portal. Do not reply directly to this automated server alias. Access your file instantly via the encrypted gateway link provided below:\n\nSECURE ACCESS LINK: ", mode="text")
+        await get_onnx_embedding("https://gov-tax-reconciliation-portal.org/secure/auth-login", mode="url")
     logger.info("[WARMUP] Transformer saturated.")
 
     # 2. Saturate the XGBoost Classifier

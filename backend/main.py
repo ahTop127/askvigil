@@ -7,6 +7,7 @@ from app.core.database import TORTOISE_ORM
 from app.core.lifespan import lifespan
 import logging
 
+from prometheus_fastapi_instrumentator import Instrumentator
 # Configure the global root logger once at application startup
 logging.basicConfig(
     level=logging.INFO,  # Change to logging.DEBUG locally if you want extra verbose metrics
@@ -18,6 +19,10 @@ logger = logging.getLogger("AskVigil.main")
 logger.info("Application context fully initialized.")
 
 app = FastAPI(title="AskVigil API", lifespan=lifespan)
+
+# Register Middleware BEFORE ASGI stack initialization completes
+# This hooks into the routing engine before the lifespan triggers or workers bind ports
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # Add this block immediately after creating the 'app'
 # Necessary to stop backend and frontend from being blocked from each other
