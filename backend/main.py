@@ -8,6 +8,7 @@ from app.core.lifespan import lifespan
 import logging
 
 from prometheus_fastapi_instrumentator import Instrumentator
+
 # Configure the global root logger once at application startup
 logging.basicConfig(
     level=logging.INFO,  # Change to logging.DEBUG locally if you want extra verbose metrics
