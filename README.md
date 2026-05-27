@@ -63,6 +63,7 @@ The system includes a dedicated `/telemetry` endpoint that serves as the single 
 
 > **View Live Metrics:** See the system's performance in real-time at the [/telemetry](/telemetry) endpoint. 
 
+![AskVigil Telemetry Dashboard Architecture](./telemetry/telemetry-example.png)
 ---
 
 ## 🧠 How It Works: The Dynamic Fusion Architecture
