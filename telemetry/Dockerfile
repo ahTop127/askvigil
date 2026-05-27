@@ -29,4 +29,9 @@ EXPOSE 8501
 
 # 6. Execute Streamlit through the localized uv environment wrapper
 # Append the base path flag to prevent static asset breakdown (404s) on the UI
-CMD ["uv", "run", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.baseUrlPath=/telemetry"]
+CMD ["uv", "run", "streamlit", "run", "app.py", \
+     "--server.port=8501", \
+     "--server.address=0.0.0.0", \
+     "--server.baseUrlPath=/telemetry", \
+     "--server.enableCORS=false", \
+     "--server.enableXsrfProtection=false"]

@@ -170,8 +170,6 @@ services:
     container_name: askvigil-prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    # ports:
-    #   - "9090:9090"
 
 volumes:
   postgres_data:      # Database state
