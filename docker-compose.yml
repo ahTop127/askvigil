@@ -142,6 +142,37 @@ services:
           cpus: '0.25'         # Hard-cap compute so it can never hijack main server
           memory: 256M        # Lightweight python baseline
 
+  telemetry:
+    build:
+      context: .
+      dockerfile: telemetry/Dockerfile
+    container_name: askvigil-telemetry
+    restart: always      
+    depends_on:
+      backend:
+        condition: service_started
+    volumes:
+      # Mount your existing local evaluation assets directly into the telemetry container
+      - ./backend/scripts/benchmark:/app/benchmark_assets:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Allows python to query real container usage stats natively
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - DATABASE_URL=postgresql://user:password@db:5432/askvigil
+    # Fractional CPU cap to prevent interference with core FastAPI/XGBoost execution
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: askvigil-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    # ports:
+    #   - "9090:9090"
+
 volumes:
   postgres_data:      # Database state
   npm_data:           # Nginx Manager configs

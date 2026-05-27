@@ -51,6 +51,20 @@ Every threat score is backed by a zero-latency **Explainable AI (XAI)** layer, t
 
 ---
 
+## 👁️ System Observability & Telemetry
+
+To ensure system reliability in high-throughput environments, AskVigil features a built-in, lightweight observability engine. This layer provides real-time visibility into compute saturation, network jitter, and database IPC performance without introducing blocking latency.
+
+### The AskVigil Telemetry HUD
+The system includes a dedicated `/telemetry` endpoint that serves as the single source of truth for operational health.
+* **Production Observability:** Passive monitoring of CPU, RAM, and SHM usage via non-blocking asynchronous fragments.
+* **Administrative Validation:** A secure, collapsible **Validation Console** allows authorized engineers to trigger live inference benchmarks or hardware saturation tests on-demand.
+* **Platform Auditability:** All real-time telemetry is designed to be accessible via any browser or mobile device, enabling rapid Root Cause Analysis (RCA) during live deployment without interfering with the primary pipeline.
+
+> **View Live Metrics:** See the system's performance in real-time at the [/telemetry](/telemetry) endpoint. 
+
+---
+
 ## 🧠 How It Works: The Dynamic Fusion Architecture
 
 Unlike standard static whitelists or single-model classifiers, this system uses a **Retrieval-Augmented Classification (RAC)** pipeline. It routes inputs through three parallel "brains" and dynamically weights their votes based on mathematical confidence.
