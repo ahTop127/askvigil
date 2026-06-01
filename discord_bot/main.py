@@ -127,6 +127,10 @@ class Client(discord.Client):
             return
 
         if message.content.startswith("!scan"):  # scanning
+            content_lower = message.content.lower()
+            # Api only uses mode check for QR, not anything else anyway
+            mode = "qr" if "!scan qr" in content_lower else "text" 
+            
             text_to_scan = message.content.replace("!scan", "", 1).strip()
 
             image_attachment = None
@@ -149,7 +153,7 @@ class Client(discord.Client):
             await message.channel.send("Scanning this message with AskVigil...")
 
             result = await self.scan_with_askvigil(
-                text=text_to_scan, attachment=image_attachment
+                text=text_to_scan, attachment=image_attachment, mode=mode
             )
 
             if result is None:
@@ -166,7 +170,7 @@ class Client(discord.Client):
             else:
                 await message.channel.send(reply)
 
-    async def scan_with_askvigil(self, text, attachment):
+    async def scan_with_askvigil(self, text, attachment, mode="text"):
         for attempt in range(3):
             try:
                 timeout = aiohttp.ClientTimeout(total=60)
@@ -176,6 +180,7 @@ class Client(discord.Client):
 
                     if text:
                         form.add_field("text", text)
+                    form.add_field("input_type", mode)
 
                     if attachment is not None:
                         file_bytes = await attachment.read()
@@ -372,31 +377,32 @@ class Client(discord.Client):
         post_scam_text = None
         scam_type_for_link = None
 
+        if text_analysis or qr_analysis:
         # Text scam result
-        if text_analysis:
-            decision = text_analysis.get("decision", "").lower()
+            if text_analysis:
+                decision = text_analysis.get("decision", "").lower()
 
-            scam_type_data = text_analysis.get("scam_type", {})
-            predicted_type = scam_type_data.get("predicted_type", "")
+                scam_type_data = text_analysis.get("scam_type", {})
+                predicted_type = scam_type_data.get("predicted_type", "")
 
-            if decision in {"suspicious", "flagged"}:
-                post_scam_text = self.build_post_scam_section(predicted_type)
-                scam_type_for_link = predicted_type
+                if decision in {"suspicious", "flagged"}:
+                    post_scam_text = self.build_post_scam_section(predicted_type)
+                    scam_type_for_link = predicted_type
 
-        # QR-only result
-        elif qr_analysis:
-            qr_url_analysis = qr_analysis.get("url_analysis") or []
+            # QR-only result
+            if not post_scam_text and qr_analysis:
+                qr_url_analysis = qr_analysis.get("url_analysis") or []
 
-            highest_qr_risk = max(
-                [item.get("risk_score", 0) for item in qr_url_analysis], default=0
-            )
+                highest_qr_risk = max(
+                    [item.get("risk_score", 0) for item in qr_url_analysis], default=0
+                )
 
-            if highest_qr_risk >= 0.40:
-                post_scam_text = self.build_post_scam_section("QR Code Scam")
-                scam_type_for_link = "QR Code Scam"
+                if highest_qr_risk >= 0.40:
+                    post_scam_text = self.build_post_scam_section("QR Code Scam")
+                    scam_type_for_link = "QR Code Scam"
 
         # URL-only result
-        elif url_analysis:
+        if not post_scam_text and url_analysis:
             highest_url_risk = max(
                 [item.get("risk_score", 0) for item in url_analysis], default=0
             )
