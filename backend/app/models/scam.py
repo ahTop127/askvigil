@@ -1,5 +1,6 @@
-from tortoise import fields, models
 from enum import Enum
+
+from tortoise import fields, models
 
 
 # Define an enumeration class that perfectly corresponds to the CHECK constraint in DDL

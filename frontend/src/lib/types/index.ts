@@ -101,10 +101,7 @@ export interface ScamDetectionResult {
 }
 
 export type DetectionStepStatus =
-  | "completed"
-  | "current"
-  | "pending"
-  | "failed";
+  "completed" | "current" | "pending" | "failed";
 
 export interface DetectionStepState {
   key: string;

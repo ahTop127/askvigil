@@ -2,11 +2,12 @@
 # export PYTHONPATH=$PYTHONPATH:.
 # uv run python -m scripts.sanity_check
 import asyncio
+from pathlib import Path
+
 import numpy as np
 import onnxruntime as ort
-from transformers import AutoTokenizer
 from scipy.spatial.distance import cosine
-from pathlib import Path
+from transformers import AutoTokenizer
 
 # --- GLOBAL CONFIG ---
 BASE_MODEL_DIR = Path("data_persistence/ai_models").resolve()

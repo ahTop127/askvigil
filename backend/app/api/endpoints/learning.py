@@ -1,20 +1,18 @@
-from fastapi import APIRouter, Query
-from typing import List, Optional
-
 from app.schemas.quiz import (
-    QuizQuestionOut,
-    ScamCategoryOut,
     QuizBatchSubmitIn,
     QuizBatchSummaryOut,
+    QuizQuestionOut,
+    ScamCategoryOut,
 )
 from app.services import learning_svc
+from fastapi import APIRouter, Query
 
 router = APIRouter()
 
 
 @router.get(
     "/categories",
-    response_model=List[ScamCategoryOut],
+    response_model=list[ScamCategoryOut],
     summary="Get all fraud categories",
 )
 async def fetch_scam_categories():
@@ -25,7 +23,7 @@ async def fetch_scam_categories():
 # 1. 路由路径去掉 /{category_id}
 @router.get(
     "/quizzes",
-    response_model=List[QuizQuestionOut],
+    response_model=list[QuizQuestionOut],
     summary="Get random quiz questions (optional category filter)",
     description="""
         It is invoked when the user enters the specific scam type card and clicks 'Practice Detection', 
@@ -37,7 +35,7 @@ async def fetch_scam_categories():
 )
 async def fetch_quiz_questions(
     # 2. 将 Path 改为 Query，并将类型改为 Optional[int]，默认值为 None
-    category_id: Optional[int] = Query(None, description="Optional Scam category ID"),
+    category_id: int | None = Query(None, description="Optional Scam category ID"),
 ):
     # Service 层原封不动直接调用
     questions = await learning_svc.get_random_quiz_question(

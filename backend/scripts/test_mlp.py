@@ -6,15 +6,13 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import asyncio
 import json
 
-from tortoise import Tortoise
-from transformers import AutoTokenizer
-
-from app.core.database import TORTOISE_ORM
-from app.core.lifespan import sync_assets, load_onnx_session
 from app.core.config import settings
+from app.core.database import TORTOISE_ORM
+from app.core.lifespan import load_onnx_session, sync_assets
 from app.core.registry import MODEL_REGISTRY
 from app.services import nlp_service
-
+from tortoise import Tortoise
+from transformers import AutoTokenizer
 
 print("DEBUG: testing_mlp.py loaded")
 

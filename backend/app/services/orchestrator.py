@@ -1,9 +1,10 @@
+import asyncio
+from typing import Literal
+
 from fastapi import UploadFile
 from fastapi.concurrency import run_in_threadpool
-from app.services import nlp_service, vision_service
-from typing import Literal
-import asyncio
 
+from app.services import nlp_service, vision_service
 from app.utils.url_tools import get_url_report
 
 
@@ -120,7 +121,7 @@ async def _handle_qr_flow(qr_file: UploadFile):
             url_report_analysis.append(
                 {
                     "Website Address": u,
-                    "Error": f"Program exception: {str(r)}",
+                    "Error": f"Program exception: {r!s}",
                 }
             )
         else:

@@ -1,7 +1,8 @@
-import vt
 import asyncio
-import whois
 from datetime import datetime
+
+import vt
+import whois
 
 # It is recommended to obtain the API Key here through environment variables to protect privacy
 VT_API_KEY = "1b6d1ec3926f80084ce0546ea7cad8ed5744cbf681ba1f23cc9be80cf9e41175"
@@ -53,9 +54,9 @@ async def get_url_report(target_url: str):
                 return {
                     "Error": "This URL has not been scanned by VT yet. Please submit the scan first."
                 }
-            return {"Error": f"VT API error: {str(e)}"}
+            return {"Error": f"VT API error: {e!s}"}
         except Exception as e:
-            return {"Error": f"Program exception: {str(e)}"}
+            return {"Error": f"Program exception: {e!s}"}
 
 
 # --- Main Test method ---

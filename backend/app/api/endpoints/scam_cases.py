@@ -1,13 +1,11 @@
-from fastapi import APIRouter, HTTPException
-from typing import List
-
-from app.schemas.scam_case import ScamCaseResponse, ScamCaseFilterRequest
+from app.schemas.scam_case import ScamCaseFilterRequest, ScamCaseResponse
 from app.services import cases_svc
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
 
-@router.post("/filter", response_model=List[ScamCaseResponse])
+@router.post("/filter", response_model=list[ScamCaseResponse])
 async def read_scam_cases(
     filter: ScamCaseFilterRequest,
 ):

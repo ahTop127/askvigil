@@ -1,25 +1,25 @@
-import onnxruntime as ort
-from transformers import AutoTokenizer
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
 import asyncio
-
+import logging
 import os
-import httpx
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from app.core.seeding import run_seeding
+import cv2
+import httpx
+import joblib
+import numpy as np
+import onnxruntime as ort
+from fastapi import FastAPI
+from rapidocr_onnxruntime import RapidOCR
 from tortoise import Tortoise
-from app.core.registry import MODEL_REGISTRY
+from transformers import AutoTokenizer
+
 from app.core.config import settings
+from app.core.registry import MODEL_REGISTRY
+from app.core.seeding import run_seeding
 from app.database_init.generate_embeddings import generate_and_update_embeddings
 from app.database_init.generate_url_embeddings import generate_and_update_url_embeddings
 from app.services.nlp_service import get_onnx_embedding
-from rapidocr_onnxruntime import RapidOCR
-import cv2
-import numpy as np
-import joblib
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -491,7 +491,7 @@ async def ensure_architectural_integrity():
         )
         logger.info(f"Schema synchronization to v{CURRENT_SCHEMA_VERSION} successful.")
     except Exception as e:
-        logger.info(f"Schema sync failed: {str(e)}")
+        logger.info(f"Schema sync failed: {e!s}")
 
 
 async def generate_embeddings_sequentially():

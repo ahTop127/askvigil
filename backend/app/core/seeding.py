@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlparse, unquote
-from app.core.config import settings
+from urllib.parse import unquote, urlparse
 
 import asyncpg
-import logging
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

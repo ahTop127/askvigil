@@ -1,5 +1,6 @@
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 
 # 1. 动态获取项目根目录 (backend 目录)
 # __file__ 指代当前脚本 sample_data.py 的位置

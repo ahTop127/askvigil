@@ -1,5 +1,4 @@
-from pydantic import BaseModel, ConfigDict, UUID4, Field
-from typing import List, Optional
+from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 
 class QuizOptionOut(BaseModel):
@@ -14,7 +13,7 @@ class QuizOptionOut(BaseModel):
 class QuizQuestionOut(BaseModel):
     id: int
     scenario_text: str
-    options: List[QuizOptionOut]
+    options: list[QuizOptionOut]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -22,7 +21,7 @@ class QuizQuestionOut(BaseModel):
 class ScamCategoryOut(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -50,7 +49,7 @@ class QuizBatchSubmitIn(BaseModel):
         ...,
         description="The corresponding Scam type ID (optional for convenient subsequent statistics)",
     )
-    answers: List[AnswerItemIn] = Field(
+    answers: list[AnswerItemIn] = Field(
         ..., description="An array of answers containing 5 questions"
     )
 
@@ -89,6 +88,6 @@ class QuizBatchSummaryOut(BaseModel):
     correct_answers: int = Field(
         ..., description="The total number of correct answers in this test"
     )
-    results: List[QuizResultItemOut] = Field(
+    results: list[QuizResultItemOut] = Field(
         ..., description="A detailed list of review results for each question"
     )

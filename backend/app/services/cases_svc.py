@@ -1,13 +1,13 @@
-from app.models.scam_case import ScamCase
-from typing import List, Optional
 from datetime import date, timedelta
+
+from app.models.scam_case import ScamCase
 
 
 async def get_filtered_cases(
-    scam_type: Optional[str] = None,
-    platform: Optional[str] = None,
+    scam_type: str | None = None,
+    platform: str | None = None,
     time_range: int = 0,  # 0=All, 1=3 months, 2=6 months, 3=1 year
-) -> List[ScamCase]:
+) -> list[ScamCase]:
     """
     User Story 6.1: Encapsulate Multi-dimensional Filtering logic
     """
@@ -34,7 +34,7 @@ async def get_filtered_cases(
     return await query.order_by("-news_date")
 
 
-async def get_case_detail(case_id: int) -> Optional[ScamCase]:
+async def get_case_detail(case_id: int) -> ScamCase | None:
     """
     User Story 6.2: Obtain individual cases based on ID
     """

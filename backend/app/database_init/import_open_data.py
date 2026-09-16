@@ -1,13 +1,15 @@
 import asyncio
+import logging
 import os
 import sys
+
 import pandas as pd
-from tortoise import Tortoise
 from dotenv import load_dotenv
+from tortoise import Tortoise
+
 from app.core.config import settings
 from app.core.database import TORTOISE_ORM
 from app.models.open_data import OpenDataSet
-import logging
 
 logger = logging.getLogger(__name__)
 

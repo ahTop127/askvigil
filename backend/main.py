@@ -1,13 +1,13 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-from app.api.router import api_router
-from tortoise.contrib.fastapi import register_tortoise
-from app.core.database import TORTOISE_ORM
-from app.core.lifespan import lifespan
 import logging
 
+import uvicorn
+from app.api.router import api_router
+from app.core.database import TORTOISE_ORM
+from app.core.lifespan import lifespan
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+from tortoise.contrib.fastapi import register_tortoise
 
 # Configure the global root logger once at application startup
 logging.basicConfig(

@@ -1,21 +1,20 @@
-import numpy as np
 import asyncio
-from urlextract import URLExtract
-import re
-import httpx
-import socket
 import ipaddress
-from urllib.parse import urlparse
-from typing import List
+import logging
 import math
+import re
+import socket
 from collections import Counter
+from urllib.parse import urlparse
+
+import httpx
+import numpy as np
 import orjson
+from urlextract import URLExtract
 
 from app.core.registry import MODEL_REGISTRY
 from app.services.retrieval_services import hybrid_search_rrf
 from app.services.xai import compute_loo_deltas, generate_text_explanation
-
-import logging
 
 logger = logging.getLogger(__name__)
 ###########################################################################
@@ -300,7 +299,7 @@ async def safe_resolve_redirect(url: str) -> tuple[str, bool]:
 
     except Exception as e:
         # This catches our SSRF error, timeouts, and dead links
-        logger.info(f"[SafeResolve] Security block or resolution error: {str(e)}")
+        logger.info(f"[SafeResolve] Security block or resolution error: {e!s}")
         return url, False
 
 
@@ -596,7 +595,7 @@ def explain_text_risk(text: str):
     }
 
 
-def format_terms(terms: List[str]) -> str:
+def format_terms(terms: list[str]) -> str:
     """Format the explanations"""
     quoted_terms = [f"'{term}'" for term in terms]
 
@@ -609,7 +608,7 @@ def format_terms(terms: List[str]) -> str:
     return ", ".join(quoted_terms[:-1]) + f", and {quoted_terms[-1]}"
 
 
-def find_terms(text_lower: str, terms: List[str]) -> List[str]:
+def find_terms(text_lower: str, terms: list[str]) -> list[str]:
     matched = []
 
     for term in terms:
@@ -696,11 +695,7 @@ async def classify_scam_type(text, type_names, type_vectors):
     margin = best_score - second_score
 
     # If the score is below the thereshold, we are unsure
-    if best_score < UNKNOWN_THRESHOLD:
-        predicted_type = "Not Recognized By Known Type"
-        confidence_level = "low"
-
-    elif (
+    if best_score < UNKNOWN_THRESHOLD or (
         best_score < MIN_RULE_REQUIRED_THRESHOLD and len(matched_rules[best_type]) == 0
     ):
         predicted_type = "Not Recognized By Known Type"

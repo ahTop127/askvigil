@@ -1,12 +1,13 @@
 # docker compose run --rm -v "$(pwd)/backend/resources:/app/resources" backend python scripts/water-stratify-url.py
-import pandas as pd
-import numpy as np
-import re
-import math
-from urllib.parse import urlparse
-from collections import Counter
-import json
 import csv
+import json
+import math
+import re
+from collections import Counter
+from urllib.parse import urlparse
+
+import numpy as np
+import pandas as pd
 
 INPUT_PATH = "/app/resources/askvigil_master_url_dataset.csv"
 OUTPUT_PATH = "/app/resources/askvigil_120k_balanced_hybrid.csv"

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Cookie
+from typing import Literal
+
+from app.models.scam import DetectionLog
 from app.services.orchestrator import scan_universal_input
 from app.services.session_svc import get_or_create_session_from_cookie
-from app.models.scam import DetectionLog
 from app.utils.text_scam_tools import build_detection_log_rows
-from typing import Literal
+from fastapi import APIRouter, Cookie, File, Form, HTTPException, UploadFile
 
 router = APIRouter()
 

@@ -5,25 +5,24 @@
 # docker cp ./scripts/train_mlp_heads.py askvigil-backend-1:/app/scripts/train_mlp_heads.py
 # docker exec -it askvigil-db-1 psql -U admin -d askvigil -c "SELECT original_text, clean_text FROM open_dataset WHERE clean_text LIKE '%escapenumber%' LIMIT 5;"
 # docker exec -it -e PYTHONPATH="/app" askvigil-backend-1 python /app/scripts/train_mlp_heads.py
-import random
 import asyncio
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader, random_split
+import random
+
 import numpy as np
-from sklearn.metrics import classification_report, confusion_matrix
-from tortoise import Tortoise
+import torch
 import torch.onnx
 from app.core.config import settings
-
 from app.core.database import TORTOISE_ORM
 from app.models.open_data import OpenDataSet, PhishingURL
+from sklearn.metrics import classification_report, confusion_matrix
+from torch import nn, optim
+from torch.utils.data import DataLoader, Dataset, random_split
+from tortoise import Tortoise
 
 
 class FocalLoss(nn.Module):
     def __init__(self, alpha=1, gamma=2):
-        super(FocalLoss, self).__init__()
+        super().__init__()
         self.alpha = alpha
         self.gamma = gamma
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
@@ -37,7 +36,7 @@ class FocalLoss(nn.Module):
 
 class ScamPhishingMLP(nn.Module):
     def __init__(self, base_dim=settings.DIM_TEXT, meta_dim=0):
-        super(ScamPhishingMLP, self).__init__()
+        super().__init__()
         input_dim = base_dim + meta_dim
         # Dynamically scale the first layer to prevent
         # an aggressive bottleneck for larger transformers

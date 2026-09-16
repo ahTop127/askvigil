@@ -13,9 +13,11 @@
 #   - Raw trigram similarity returned for every candidate (natively 0.0 to 1.0)
 # ============================================================================
 
-from tortoise import Tortoise
-from app.core.config import settings
 import re
+
+from tortoise import Tortoise
+
+from app.core.config import settings
 
 
 def prepare_text_for_lexical(query: str) -> str:

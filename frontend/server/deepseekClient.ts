@@ -42,8 +42,7 @@ Rules:
 - Do not invent facts about a website you cannot know. Use the visible string only.`;
 
 type AnthropicContent =
-  | { type: "text"; text: string }
-  | { type: string; [key: string]: unknown };
+  { type: "text"; text: string } | { type: string; [key: string]: unknown };
 
 type AnthropicMessage = {
   content?: AnthropicContent[];
@@ -166,9 +165,7 @@ function normalizeScamType(value: unknown): ScamType {
   return "unknown";
 }
 
-function toReasons(
-  value: unknown,
-): Array<{ text: string; reason: string }> {
+function toReasons(value: unknown): Array<{ text: string; reason: string }> {
   if (!Array.isArray(value)) return [];
   return value
     .map((item) => {
@@ -190,7 +187,8 @@ function toGuidance(value: unknown): DeepSeekScanResult["guidance"] {
       : {};
   return {
     title: asText(o.title) ?? "Scam check result",
-    summary: asText(o.summary) ?? "Review the highlighted signals before acting.",
+    summary:
+      asText(o.summary) ?? "Review the highlighted signals before acting.",
     dont_do: toStringList(o.dont_do),
     safer_action: toStringList(o.safer_action),
   };
@@ -203,6 +201,7 @@ function asText(value: unknown): string | null {
 function toStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
-    (item): item is string => typeof item === "string" && item.trim().length > 0,
+    (item): item is string =>
+      typeof item === "string" && item.trim().length > 0,
   );
 }

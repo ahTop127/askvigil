@@ -1,5 +1,7 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
-from typing import List, Literal
+
 from app.models.scam import InputType
 
 
@@ -23,8 +25,8 @@ class TrendPointOut(BaseModel):
 class DetectionTrendOut(BaseModel):
     days: Literal[7, 30]
     risk_level: Literal["all", "low", "medium", "high"]
-    input_types: List[InputType]
-    points: List[TrendPointOut]
+    input_types: list[InputType]
+    points: list[TrendPointOut]
 
 
 class InputTypeDistributionOut(BaseModel):
@@ -51,4 +53,4 @@ class ScamTypeRankItemOut(BaseModel):
 
 class ScamTypeRankingOut(BaseModel):
     total_cases: int = Field(..., description="Total rows in scam_cases")
-    items: List[ScamTypeRankItemOut]
+    items: list[ScamTypeRankItemOut]

@@ -13,11 +13,12 @@ CI/CD: after migrations, add a step with working directory `backend` and DATABAS
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
+
 from dotenv import load_dotenv
 from tortoise import Tortoise
-import logging
 
 logger = logging.getLogger(__name__)
 

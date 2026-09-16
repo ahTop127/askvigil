@@ -1,18 +1,17 @@
 import asyncio
-import os
-import sys
-from tortoise import Tortoise
-from dotenv import load_dotenv
 import gc
+import logging
+import os
+import signal
+import sys
+
+from dotenv import load_dotenv
+from tortoise import Tortoise
 
 from app.core.database import TORTOISE_ORM
-from app.models.open_data import PhishingURL
-
 from app.core.registry import MODEL_REGISTRY
+from app.models.open_data import PhishingURL
 from app.services.nlp_service import get_onnx_embedding
-import signal
-
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Any
 import hashlib
 import os
+from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 
 def _to_decimal_2(v: Any) -> Decimal | None:
@@ -17,7 +17,7 @@ def _encrypt_text(raw: str | None) -> str | None:
     if not raw:
         return None
     salt = os.getenv("INPUT_CONTENT_SALT", "")
-    return hashlib.sha256(f"{salt}:{raw}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{salt}:{raw}".encode()).hexdigest()
 
 
 def _extract_text_branch(result: dict, fallback_text: str | None) -> dict:
@@ -35,11 +35,11 @@ def _extract_text_branch(result: dict, fallback_text: str | None) -> dict:
     else:
         rs = ta.get("risk_score")
         if rs is not None:
-            risk_score = _to_decimal_2(Decimal(str(rs)) * Decimal("100"))
+            risk_score = _to_decimal_2(Decimal(str(rs)) * Decimal(100))
         else:
             overall = uta.get("overall_risk_score")
             risk_score = (
-                _to_decimal_2(Decimal(str(overall)) * Decimal("100"))
+                _to_decimal_2(Decimal(str(overall)) * Decimal(100))
                 if overall is not None and overall != -1
                 else None
             )

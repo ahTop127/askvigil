@@ -14,9 +14,9 @@ type CaseRow = {
   news_date: string;
 };
 
-const CASE_LIBRARY: CaseRow[] = (
-  caseRows as Omit<CaseRow, "id">[]
-).map((row, index) => ({ id: index + 1, ...row }));
+const CASE_LIBRARY: CaseRow[] = (caseRows as Omit<CaseRow, "id">[]).map(
+  (row, index) => ({ id: index + 1, ...row }),
+);
 
 const STATS_PUBLIC = {
   users_protected: 0,
@@ -76,11 +76,17 @@ export async function handleAskvigilApi(
       sendJson(res, 200, EMPTY_TREND);
       return;
     }
-    if (req.method === "GET" && url === "/api/v1/stats/input-type-distribution") {
+    if (
+      req.method === "GET" &&
+      url === "/api/v1/stats/input-type-distribution"
+    ) {
       sendJson(res, 200, EMPTY_INPUT_DIST);
       return;
     }
-    if (req.method === "GET" && url === "/api/v1/stats/risk-level-distribution") {
+    if (
+      req.method === "GET" &&
+      url === "/api/v1/stats/risk-level-distribution"
+    ) {
       sendJson(res, 200, EMPTY_RISK_DIST);
       return;
     }
@@ -108,7 +114,9 @@ export async function handleAskvigilApi(
     }
 
     if (req.method === "POST" && url === "/api/v1/scam/filter") {
-      const body = JSON.parse((await readRawBody(req)).toString("utf8") || "{}") as {
+      const body = JSON.parse(
+        (await readRawBody(req)).toString("utf8") || "{}",
+      ) as {
         scam_type?: string | null;
         platform?: string | null;
         time_range?: number;

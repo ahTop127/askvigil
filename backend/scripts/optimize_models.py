@@ -3,10 +3,11 @@
 # # uv run python -m scripts.optimize_models
 # docker exec -it -e PYTHONPATH="/app" askvigil-backend-1 python /app/scripts/optimize_models.py
 from pathlib import Path
-from transformers import AutoTokenizer
+
 from optimum.exporters.onnx import main_export
 from optimum.onnxruntime import ORTQuantizer
 from optimum.onnxruntime.configuration import AutoQuantizationConfig
+from transformers import AutoTokenizer
 
 # --- GLOBAL CONFIG ---
 BASE_MODEL_DIR = Path("data_persistence/ai_models")

@@ -1,11 +1,12 @@
-import requests
-import onnx
 import shutil
 from pathlib import Path
-from onnx.version_converter import convert_version
-from onnxruntime.quantization import quantize_dynamic, QuantType
-from onnxruntime.quantization.preprocess import quant_pre_process
+
+import onnx
 import onnxruntime as ort
+import requests
+from onnx.version_converter import convert_version
+from onnxruntime.quantization import QuantType, quantize_dynamic
+from onnxruntime.quantization.preprocess import quant_pre_process
 
 # --- CONFIGURATION ---
 BASE = Path("data_persistence/ai_models/ocr_onnx")
@@ -39,8 +40,7 @@ def download_file(url, target_path):
         with requests.get(url, stream=True, timeout=60) as r:
             r.raise_for_status()
             with open(target_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=16384):
-                    f.write(chunk)
+                f.writelines(r.iter_content(chunk_size=16384))
         return True
     except Exception as e:
         print(f"[!] Download Failed: {e}")

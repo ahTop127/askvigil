@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
+
 from dotenv import load_dotenv
 from tortoise import Tortoise
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +28,9 @@ else:
         f" Warning: The environment variable file {env_path} cannot be found. The system will attempt to rely on the existing system environment variables."
     )
 
-from app.core.database import TORTOISE_ORM
 from datetime import date
+
+from app.core.database import TORTOISE_ORM
 from app.models.scam_case import ScamCase
 
 STATIC_SCAM_CASES = [

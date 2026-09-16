@@ -1,12 +1,14 @@
 # RapidOCR service
-import cv2
+import hashlib
+import logging
 import re
+from time import perf_counter
+
+import cv2
 import numpy as np
 from fastapi import UploadFile
-from time import perf_counter
+
 from app.core.registry import MODEL_REGISTRY
-import logging
-import hashlib
 
 logger = logging.getLogger(__name__)
 

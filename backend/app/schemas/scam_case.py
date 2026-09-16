@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
 from datetime import date
-from typing import Optional, Literal
-from app.models.scam_case import ScamTypeEnum, PlatformEnum
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from app.models.scam_case import PlatformEnum, ScamTypeEnum
 
 
 class ScamCaseResponse(BaseModel):
@@ -31,12 +33,12 @@ class ScamCaseResponse(BaseModel):
     )
 
     # Optional 字段，默认值给 None
-    source: Optional[str] = Field(
+    source: str | None = Field(
         None,
         description="Source agencies of news or cases, such as: 'Bernama', 'The Star'. It might be empty.",
     )
 
-    url_link: Optional[str] = Field(None, description="the url link of the scam cases.")
+    url_link: str | None = Field(None, description="the url link of the scam cases.")
 
     class Config:
         # Allow conversion from ORM objects to Pydantic objects
@@ -44,12 +46,12 @@ class ScamCaseResponse(BaseModel):
 
 
 class ScamCaseFilterRequest(BaseModel):
-    scam_type: Optional[ScamTypeEnum] = Field(
+    scam_type: ScamTypeEnum | None = Field(
         default=None,
         description="Types of fraud",
         json_schema_extra={"enum": [e.value for e in ScamTypeEnum] + [None]},
     )
-    platform: Optional[PlatformEnum] = Field(
+    platform: PlatformEnum | None = Field(
         default=None,
         description="platform",
         # swagger show the enum values

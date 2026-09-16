@@ -1,9 +1,10 @@
 import asyncio
+from pathlib import Path
+
 import numpy as np
 import onnxruntime as ort
-from transformers import AutoTokenizer
 from scipy.spatial.distance import cosine
-from pathlib import Path
+from transformers import AutoTokenizer
 
 # --- CONFIG ---
 TEXT_MODEL_PATH = Path("data_persistence/ai_models/text_onnx").resolve()

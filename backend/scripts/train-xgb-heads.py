@@ -1,26 +1,22 @@
 # docker exec -it -e PYTHONPATH="/app" askvigil-backend-1 python /app/scripts/train-xgb-heads.py
-import random
 import asyncio
-import numpy as np
-import joblib
+import random
 
-from sklearn.model_selection import train_test_split
+import joblib
+import numpy as np
+from app.core.config import settings
+from app.core.database import TORTOISE_ORM
+from app.models.open_data import OpenDataSet, PhishingURL
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.frozen import FrozenEstimator
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
     roc_auc_score,
 )
-from sklearn.calibration import CalibratedClassifierCV
-from sklearn.frozen import FrozenEstimator
-
-from xgboost import XGBClassifier
-
+from sklearn.model_selection import train_test_split
 from tortoise import Tortoise
-
-from app.core.config import settings
-from app.core.database import TORTOISE_ORM
-from app.models.open_data import OpenDataSet, PhishingURL
-
+from xgboost import XGBClassifier
 
 # ======================================================================
 # DATASET PREPARATION

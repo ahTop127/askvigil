@@ -1,10 +1,11 @@
-from fastapi import HTTPException
 import random
-from app.models.quiz import QuizQuestion, QuizAttempt
+
+from fastapi import HTTPException
+
+from app.models.quiz import QuizAttempt, QuizQuestion
 from app.models.scam import ScamCategory
-from app.schemas.quiz import QuizBatchSubmitIn
 from app.models.session import UserSession
-from typing import Optional
+from app.schemas.quiz import QuizBatchSubmitIn
 
 
 async def get_all_scam_categories():
@@ -14,7 +15,7 @@ async def get_all_scam_categories():
     return await ScamCategory.all().order_by("id")
 
 
-async def get_random_quiz_question(category_id: Optional[int] = None, limit: int = 5):
+async def get_random_quiz_question(category_id: int | None = None, limit: int = 5):
     """
     Gets a random quiz question
     If category_id is None, sample from all questions.

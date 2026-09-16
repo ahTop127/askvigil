@@ -5,8 +5,9 @@
 # docker cp ./data_persistence/datasets/. askvigil-backend-1:/app/data_persistence/datasets/
 # docker exec -it askvigil-backend-1 python /app/scripts/upload_assets.py
 import os
-import httpx
 from pathlib import Path
+
+import httpx
 
 # Use the same PAR URL from your .env
 CLOUD_STORAGE_URL = os.getenv("OCI_PAR_URL")  # From environment

@@ -1,16 +1,16 @@
-from fastapi import APIRouter, Query, HTTPException
-from pydantic import BaseModel
 from datetime import datetime, time, timezone
 from typing import Literal, cast
 
-from app.services import stats_svc
+from app.models.scam import InputType
 from app.schemas.stats import (
     DetectionTrendOut,
     InputTypeDistributionOut,
     RiskLevelDistributionOut,
     ScamTypeRankingOut,
 )
-from app.models.scam import InputType
+from app.services import stats_svc
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 router = APIRouter()
 

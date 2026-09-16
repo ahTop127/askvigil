@@ -1,17 +1,19 @@
 import asyncio
-import os
-import sys
-import pandas as pd
-from urllib.parse import urlparse
-from tortoise import Tortoise
-from dotenv import load_dotenv
 import json
 import logging
+import os
+import sys
+from urllib.parse import urlparse
+
+import pandas as pd
+from dotenv import load_dotenv
+from tortoise import Tortoise
+
+from app.core.config import settings
 from app.core.database import TORTOISE_ORM
 
 # 替换为你的新 Model
 from app.models.open_data import PhishingURL
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +101,7 @@ async def import_csv_to_db():
             validated_meta = None
             # Log failures so we can track data quality without crashing the batch
             logger.warning(
-                f"WARNING: ID {len(instances)} invalid metadata. Raw: {repr(raw_meta)}"
+                f"WARNING: ID {len(instances)} invalid metadata. Raw: {raw_meta!r}"
             )
         try:
             # Eliminate the parameters and extract the core domain name

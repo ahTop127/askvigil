@@ -1,9 +1,7 @@
 import type { Plugin } from "vite";
 import { handleAskvigilApi } from "./httpApi";
 
-export function localAskvigilApiPlugin(
-  env: Record<string, string>,
-): Plugin {
+export function localAskvigilApiPlugin(env: Record<string, string>): Plugin {
   return {
     name: "askvigil-local-api",
     configureServer(server) {

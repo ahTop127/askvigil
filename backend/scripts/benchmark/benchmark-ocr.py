@@ -1,5 +1,6 @@
-import time
 import os
+import time
+
 import requests
 
 # 1. Configuration

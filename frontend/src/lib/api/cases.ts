@@ -2,11 +2,7 @@ import { APP_CONFIG } from "@lib/config/app";
 import type { ScamCase } from "@lib/types";
 
 type ScamTypeApi =
-  | "JOB_SCAM"
-  | "phishing"
-  | "qr_code_scam"
-  | "otp_scam"
-  | "suspicious_link";
+  "JOB_SCAM" | "phishing" | "qr_code_scam" | "otp_scam" | "suspicious_link";
 type PlatformApi =
   | "whatsapp"
   | "facebook"

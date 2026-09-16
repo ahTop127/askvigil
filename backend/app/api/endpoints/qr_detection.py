@@ -1,7 +1,8 @@
 import re
+
 import cv2
 import numpy as np
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 router = APIRouter(prefix="/qr", tags=["Epic 4: QR Risk Analysis"])
 
@@ -37,9 +38,7 @@ async def analyze_qr_code(file: UploadFile = File(...)):
         data, bbox, straight_qrcode = qr_detector.detectAndDecode(img)
 
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Image processing failed: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Image processing failed: {e!s}")
 
     # AC 4.2.2: Prevent analysis when no valid QR Code content is provided
     if not data:

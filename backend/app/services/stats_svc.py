@@ -1,10 +1,11 @@
-from datetime import datetime, time, timezone, timedelta
+from datetime import datetime, time, timedelta, timezone
 from decimal import Decimal
 from typing import Literal
-from tortoise.functions import Count
-from app.models.scam_case import ScamCase
 
-from app.models.scam import InputType, DetectionLog
+from tortoise.functions import Count
+
+from app.models.scam import DetectionLog, InputType
+from app.models.scam_case import ScamCase
 from app.models.session import UserSession
 
 
@@ -14,7 +15,7 @@ def today_start_utc() -> datetime:
 
 
 def _risk_match(
-    score: Decimal | float | int | None,
+    score: Decimal | float | None,
     risk_level: Literal["all", "low", "medium", "high"],
 ) -> bool:
     if risk_level == "all":

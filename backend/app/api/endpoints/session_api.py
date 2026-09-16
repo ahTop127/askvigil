@@ -1,6 +1,7 @@
 import uuid
-from fastapi import APIRouter, Cookie, Response
+
 from app.models.session import UserSession
+from fastapi import APIRouter, Cookie, Response
 
 router = APIRouter()
 
