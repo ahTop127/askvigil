@@ -3,10 +3,9 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { createRequire } from "node:module";
 import { runTextScan, type ScanInputType } from "./scanPipeline.js";
 
-const caseRows = createRequire(import.meta.url)("./data/scam-cases.json") as Omit<
-  CaseRow,
-  "id"
->[];
+const caseRows = createRequire(import.meta.url)(
+  "./data/scam-cases.json",
+) as Omit<CaseRow, "id">[];
 
 type CaseRow = {
   id: number;
@@ -191,9 +190,10 @@ function readQueryPath(req: IncomingMessage): string | null {
     return value.replace(/^\/+/, "");
   }
 
-  const fromUrl = new URL(req.url ?? "/", "http://askvigil.local").searchParams.get(
-    "path",
-  );
+  const fromUrl = new URL(
+    req.url ?? "/",
+    "http://askvigil.local",
+  ).searchParams.get("path");
   if (fromUrl && !fromUrl.includes("[...]")) {
     return fromUrl.replace(/^\/+/, "");
   }
