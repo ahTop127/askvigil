@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { handleAskvigilApi } from "../server/httpApi";
+import { handleAskvigilApi } from "../server/httpApi.js";
 
 export const config = {
   maxDuration: 30,

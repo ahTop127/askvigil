@@ -2,7 +2,7 @@ import {
   classifyWithDeepSeek,
   readDeepSeekEnv,
   type DeepSeekScanResult,
-} from "./deepseekClient";
+} from "./deepseekClient.js";
 
 export type ScanInputType = "text" | "image" | "url" | "qr";
 

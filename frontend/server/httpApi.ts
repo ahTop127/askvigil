@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import caseRows from "./data/scam-cases.json";
-import { runTextScan, type ScanInputType } from "./scanPipeline";
+import { createRequire } from "node:module";
+import { runTextScan, type ScanInputType } from "./scanPipeline.js";
+
+const caseRows = createRequire(import.meta.url)("./data/scam-cases.json") as Omit<
+  CaseRow,
+  "id"
+>[];
 
 type CaseRow = {
   id: number;
@@ -55,7 +60,7 @@ export async function handleAskvigilApi(
   res: ServerResponse,
   env: Record<string, string | undefined>,
 ): Promise<void> {
-  const url = normalizeApiPath(req.url ?? "/");
+  const url = getRequestPath(req);
 
   try {
     if (req.method === "GET" && url === "/api/v1/session/init") {
@@ -148,10 +153,61 @@ export async function handleAskvigilApi(
   }
 }
 
+function getRequestPath(req: IncomingMessage): string {
+  const headerPath = firstHeader(
+    req.headers["x-invoke-path"],
+    req.headers["x-forwarded-uri"],
+    req.headers["x-vercel-original-url"],
+  );
+  if (headerPath.includes("/v1/")) {
+    return normalizeApiPath(headerPath);
+  }
+
+  const queryPath = readQueryPath(req);
+  if (queryPath) {
+    return normalizeApiPath(`/api/${queryPath}`);
+  }
+
+  return normalizeApiPath(req.url ?? "/");
+}
+
+function firstHeader(...values: Array<string | string[] | undefined>): string {
+  for (const value of values) {
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (typeof raw === "string" && raw.trim()) return raw;
+  }
+  return "";
+}
+
+function readQueryPath(req: IncomingMessage): string | null {
+  const query = (req as IncomingMessage & { query?: Record<string, unknown> })
+    .query;
+  const value = query?.path;
+  if (Array.isArray(value)) {
+    const joined = value.filter((item) => typeof item === "string").join("/");
+    return joined || null;
+  }
+  if (typeof value === "string" && value.trim() && !value.includes("[...]")) {
+    return value.replace(/^\/+/, "");
+  }
+
+  const fromUrl = new URL(req.url ?? "/", "http://askvigil.local").searchParams.get(
+    "path",
+  );
+  if (fromUrl && !fromUrl.includes("[...]")) {
+    return fromUrl.replace(/^\/+/, "");
+  }
+  return null;
+}
+
 function normalizeApiPath(raw: string): string {
-  const path = raw.split("?")[0] || "/";
+  const path = (raw.split("?")[0] || "/").replace(/\/+$/, "") || "/";
+  if (path.includes("/v1/")) {
+    return `/api${path.slice(path.indexOf("/v1/"))}`;
+  }
   if (path.startsWith("/api/")) return path;
   if (path.startsWith("/v1/")) return `/api${path}`;
+  if (path === "/api") return "/api";
   return path.startsWith("/") ? `/api${path}` : `/api/${path}`;
 }
 
